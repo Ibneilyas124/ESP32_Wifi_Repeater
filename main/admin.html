@@ -18,6 +18,7 @@
   --accent-green-bg:rgba(0,200,83,0.12);
   --accent-red:#ff3b30;
   --accent-red-hover:#d93025;
+  --accent-orange:#ff9500;
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -56,13 +57,8 @@ body{
 .status-text{font-size:0.75em;color:var(--accent-green);font-weight:600}
 .uptime-text{font-size:0.7em;color:var(--text-muted);display:block;text-align:right}
 
-/* Main Container */
-.main-wrapper{
-  display:flex;
-  flex:1;
-}
-
-/* Sidebar for Desktop */
+/* Layout */
+.main-wrapper{display:flex;flex:1}
 .sidebar{
   width:230px;
   background:var(--panel-bg);
@@ -90,31 +86,20 @@ body{
 .nav-item:hover{background:rgba(255,255,255,0.03);color:var(--text-main)}
 .nav-item.active{background:rgba(0,132,255,0.12);color:var(--accent-blue);font-weight:600;border-left:3px solid var(--accent-blue)}
 
-.sidebar-footer{
-  text-align:center;
-  padding:16px 8px;
-  border-top:1px solid var(--border-color);
-}
+.sidebar-footer{text-align:center;padding:16px 8px;border-top:1px solid var(--border-color)}
 .sidebar-footer h4{font-size:0.9em;color:#fff;margin-top:6px}
 .sidebar-footer p{font-size:0.72em;color:var(--text-muted)}
 
-/* Content Area */
-.content-area{
-  flex:1;
-  padding:20px;
-  max-width:1100px;
-}
+.content-area{flex:1;padding:20px;max-width:1200px}
 
-/* Top Folder Tabs */
+/* Folder Tabs */
 .tabs-grid{
   display:grid;
   grid-template-columns:repeat(4, 1fr);
   gap:10px;
   margin-bottom:20px;
 }
-@media(max-width:600px){
-  .tabs-grid{grid-template-columns:repeat(2, 1fr)}
-}
+@media(max-width:600px){.tabs-grid{grid-template-columns:repeat(2, 1fr)}}
 .folder-tab{
   background:var(--panel-bg);
   border:1px solid var(--border-color);
@@ -134,6 +119,24 @@ body{
 }
 .tab-icon{font-size:18px;color:var(--accent-blue)}
 .tab-label{font-size:0.85em;font-weight:600;color:var(--text-main)}
+
+/* Metrics Summary Row */
+.metrics-grid{
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:12px;
+  margin-bottom:20px;
+}
+@media(max-width:768px){.metrics-grid{grid-template-columns:repeat(2, 1fr)}}
+.metric-card{
+  background:var(--panel-bg);
+  border:1px solid var(--border-color);
+  border-radius:10px;
+  padding:14px 16px;
+}
+.metric-title{font-size:0.75em;color:var(--text-muted);font-weight:600;text-transform:uppercase}
+.metric-val{font-size:1.3em;font-weight:700;color:#fff;margin-top:4px}
+.metric-sub{font-size:0.72em;color:var(--accent-green);margin-top:2px}
 
 /* Main Panel Card */
 .panel-card{
@@ -164,7 +167,7 @@ body{
 .panel-title-area h2{font-size:1.15em;font-weight:700;color:#fff}
 .panel-title-area p{font-size:0.82em;color:var(--text-muted);margin-top:2px}
 
-/* Toggle Box */
+/* Controls & Table */
 .toggle-card{
   background:var(--card-bg);
   border:1px solid var(--border-color);
@@ -175,12 +178,7 @@ body{
   gap:16px;
   margin-bottom:20px;
 }
-.switch{
-  position:relative;
-  display:inline-block;
-  width:46px;
-  height:24px;
-}
+.switch{position:relative;display:inline-block;width:46px;height:24px}
 .switch input{opacity:0;width:0;height:0}
 .slider{
   position:absolute;
@@ -216,46 +214,6 @@ input:checked + .slider:before{transform:translateX(22px)}
   font-weight:600;
 }
 
-/* Input Row */
-.input-card{
-  background:var(--card-bg);
-  border:1px solid var(--border-color);
-  border-radius:10px;
-  padding:16px;
-  margin-bottom:20px;
-}
-.input-label{display:block;font-size:0.8em;color:var(--text-muted);margin-bottom:8px;font-weight:500}
-.input-flex{display:flex;gap:10px}
-@media(max-width:500px){.input-flex{flex-direction:column}}
-.text-input{
-  flex:1;
-  background:#050911;
-  border:1px solid var(--border-color);
-  border-radius:8px;
-  padding:10px 14px;
-  color:var(--text-main);
-  font-size:0.9em;
-  outline:none;
-}
-.text-input:focus{border-color:var(--accent-blue)}
-.btn-primary{
-  background:var(--accent-blue);
-  color:#fff;
-  border:none;
-  padding:10px 18px;
-  border-radius:8px;
-  font-weight:600;
-  font-size:0.88em;
-  cursor:pointer;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:6px;
-  white-space:nowrap;
-}
-.btn-primary:hover{background:var(--accent-blue-hover)}
-
-/* Table Styling */
 .table-responsive{overflow-x:auto}
 .custom-table{
   width:100%;
@@ -273,10 +231,21 @@ input:checked + .slider:before{transform:translateX(22px)}
   padding:12px;
   border-bottom:1px solid var(--border-color);
   color:var(--text-main);
+  vertical-align:middle;
 }
-.badge-allowed{
-  background:var(--accent-green-bg);
-  color:var(--accent-green);
+
+.select-box, .text-input-sm{
+  background:#050911;
+  border:1px solid var(--border-color);
+  border-radius:6px;
+  padding:6px 10px;
+  color:var(--text-main);
+  font-size:0.85em;
+  outline:none;
+}
+.select-box:focus, .text-input-sm:focus{border-color:var(--accent-blue)}
+
+.badge-status{
   padding:3px 10px;
   border-radius:12px;
   font-size:0.78em;
@@ -285,24 +254,23 @@ input:checked + .slider:before{transform:translateX(22px)}
   align-items:center;
   gap:6px;
 }
-.badge-allowed::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent-green)}
+.status-ok{background:var(--accent-green-bg);color:var(--accent-green)}
+.status-warn{background:rgba(255,149,0,0.12);color:var(--accent-orange)}
+.status-block{background:rgba(255,59,48,0.12);color:var(--accent-red)}
 
-.btn-danger{
-  background:var(--accent-red);
-  color:#fff;
+.btn-sm{
   border:none;
-  padding:6px 12px;
+  padding:6px 10px;
   border-radius:6px;
   font-size:0.8em;
   font-weight:600;
   cursor:pointer;
-  display:inline-flex;
-  align-items:center;
-  gap:4px;
 }
+.btn-save{background:var(--accent-blue);color:#fff}
+.btn-save:hover{background:var(--accent-blue-hover)}
+.btn-danger{background:var(--accent-red);color:#fff}
 .btn-danger:hover{background:var(--accent-red-hover)}
 
-/* Info Footer Card */
 .info-footer{
   background:var(--card-bg);
   border:1px solid var(--border-color);
@@ -315,31 +283,6 @@ input:checked + .slider:before{transform:translateX(22px)}
   font-size:0.8em;
   color:var(--text-muted);
 }
-@media(max-width:600px){.info-footer{flex-direction:column;gap:8px;text-align:center}}
-
-/* Mobile Bottom Nav */
-.bottom-nav{
-  display:none;
-  background:var(--panel-bg);
-  border-top:1px solid var(--border-color);
-  padding:10px 0;
-  justify-content:space-around;
-  position:sticky;
-  bottom:0;
-  z-index:10;
-}
-@media(max-width:900px){.bottom-nav{display:flex}}
-.bnav-item{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:4px;
-  color:var(--text-muted);
-  font-size:0.7em;
-  text-decoration:none;
-}
-.bnav-item.active{color:var(--accent-blue)}
-.bnav-icon{font-size:18px}
 </style>
 </head>
 <body>
@@ -357,23 +300,20 @@ input:checked + .slider:before{transform:translateX(22px)}
     <div class="dot"></div>
     <div>
       <span class="status-text">System Online</span>
-      <span class="uptime-text">Uptime: 2d 14h 32m</span>
+      <span class="uptime-text" id="uptime">Uptime: --</span>
     </div>
   </div>
 </div>
 
 <div class="main-wrapper">
-  <!-- SIDEBAR (DESKTOP) -->
+  <!-- SIDEBAR -->
   <div class="sidebar">
     <ul class="nav-menu">
-      <li class="nav-item">📊 Dashboard</li>
-      <li class="nav-item">🌐 Network</li>
-      <li class="nav-item">📶 Wi-Fi Settings</li>
-      <li class="nav-item">🛡️ Security</li>
-      <li class="nav-item active">🔒 MAC Whitelist</li>
-      <li class="nav-item">⚙️ System</li>
-      <li class="nav-item">📄 Logs</li>
-      <li class="nav-item">ℹ️ About</li>
+      <li class="nav-item active">📊 Overview &amp; Control</li>
+      <li class="nav-item">🌐 Repeater AP</li>
+      <li class="nav-item">🔒 Access Control</li>
+      <li class="nav-item">⚡ Bandwidth (QoS)</li>
+      <li class="nav-item">⚙️ Settings</li>
     </ul>
     <div class="sidebar-footer">
       <div style="font-size:20px">⛰️</div>
@@ -382,162 +322,167 @@ input:checked + .slider:before{transform:translateX(22px)}
     </div>
   </div>
 
-  <!-- MAIN CONTENT AREA -->
+  <!-- CONTENT -->
   <div class="content-area">
-    <!-- TOP FOLDER TABS -->
-    <div class="tabs-grid">
-      <div class="folder-tab" onclick="switchFolder('extender', this)">
-        <span class="tab-icon">📁</span>
-        <span class="tab-label">Wi-Fi Extender</span>
+    
+    <!-- METRICS CARDS -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-title">Monthly Repeater Usage</div>
+        <div class="metric-val" id="total_monthly">-- GB</div>
+        <div class="metric-sub">This Month</div>
       </div>
-      <div class="folder-tab" onclick="switchFolder('ap', this)">
-        <span class="tab-icon">📁</span>
-        <span class="tab-label">Repeater AP</span>
+      <div class="metric-card">
+        <div class="metric-title">Weekly Repeater Usage</div>
+        <div class="metric-val" id="total_weekly">-- GB</div>
+        <div class="metric-sub">Last 7 Days</div>
       </div>
-      <div class="folder-tab active" onclick="switchFolder('whitelist', this)">
-        <span class="tab-icon" style="color:var(--accent-blue)">📁</span>
-        <span class="tab-label">MAC Whitelist</span>
+      <div class="metric-card">
+        <div class="metric-title">Active Devices</div>
+        <div class="metric-val" id="client_count">0</div>
+        <div class="metric-sub">Connected Now</div>
       </div>
-      <div class="folder-tab" onclick="switchFolder('tools', this)">
-        <span class="tab-icon">📁</span>
-        <span class="tab-label">Tools &amp; Speed</span>
+      <div class="metric-card">
+        <div class="metric-title">Global Bandwidth</div>
+        <div class="metric-val">20 Mbps</div>
+        <div class="metric-sub">Max ISP Rate</div>
       </div>
     </div>
 
-    <!-- MAIN CARD PANEL -->
+    <!-- MAIN PANEL CARD -->
     <div class="panel-card">
       <div class="panel-header">
         <div class="panel-icon-box">🛡️</div>
         <div class="panel-title-area">
-          <h2>MAC Whitelist Filter</h2>
-          <p>Allow only selected devices to connect to your network. All other devices will be blocked.</p>
+          <h2>Client Usage, Bandwidth &amp; Data Quota Limits</h2>
+          <p>Monitor real-time MB/GB usage per device, set individual speed caps (Mbps), and enforce data limits.</p>
         </div>
       </div>
 
-      <!-- ENABLE TOGGLE -->
       <div class="toggle-card">
         <label class="switch">
-          <input type="checkbox" checked onchange="toggleWhitelist(this.checked)">
+          <input type="checkbox" id="qos_toggle" checked onchange="toggleQoS(this.checked)">
           <span class="slider"></span>
         </label>
-        <span class="toggle-label">Enable Whitelist Filter</span>
+        <span class="toggle-label">Enable Speed &amp; Quota Control (QoS)</span>
         <span class="badge-active">Active</span>
       </div>
 
-      <!-- ADD DEVICE INPUT -->
-      <div class="input-card">
-        <label class="input-label">Add Device (MAC Address)</label>
-        <div class="input-flex">
-          <input id="new_mac" class="text-input" placeholder="e.g. 4A:11:22:33:44:55">
-          <button class="btn-primary" onclick="addMac()"><span>+</span> Add Device</button>
-        </div>
-      </div>
-
-      <!-- TABLE LIST -->
+      <!-- CLIENTS TABLE -->
       <div class="table-responsive">
         <table class="custom-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>MAC Address</th>
-              <th>Device Name</th>
-              <th>Added On</th>
+              <th>Device / MAC</th>
+              <th>IP Address</th>
+              <th>Usage (Weekly / Monthly)</th>
+              <th>Speed Limit (Mbps)</th>
+              <th>Data Quota (GB/MB)</th>
               <th>Status</th>
               <th>Action</th>
             </tr>
           </thead>
-          <tbody id="mac_tbody">
-            <!-- Dynamic Rows -->
+          <tbody id="client_tbody">
+            <!-- Dynamic Data -->
           </tbody>
         </table>
       </div>
 
-      <!-- FOOTER INFO -->
       <div class="info-footer">
-        <div>ℹ️ Only devices with MAC addresses in this list will be able to connect to your network.</div>
-        <div style="color:var(--accent-green);font-weight:600">🛡️ Total Whitelisted Devices: <span id="mac_count">0</span></div>
+        <div>ℹ️ Devices that exceed their assigned Data Quota will automatically have internet blocked until reset.</div>
+        <div style="color:var(--accent-blue);font-weight:600">Active Rule Engine: C++ Native Packet Filtering</div>
       </div>
     </div>
+
   </div>
 </div>
 
-<!-- MOBILE BOTTOM NAVIGATION -->
-<div class="bottom-nav">
-  <a href="#" class="bnav-item">
-    <span class="bnav-icon">🏠</span>
-    <span>Home</span>
-  </a>
-  <a href="#" class="bnav-item">
-    <span class="bnav-icon">📶</span>
-    <span>Wi-Fi</span>
-  </a>
-  <a href="#" class="bnav-item active">
-    <span class="bnav-icon">🛡️</span>
-    <span>Whitelist</span>
-  </a>
-  <a href="#" class="bnav-item">
-    <span class="bnav-icon">⚙️</span>
-    <span>Settings</span>
-  </a>
-</div>
-
 <script>
-let macList = [
-  { mac: "4A:11:22:33:44:55", name: "Laptop", date: "2025-09-28 14:32" },
-  { mac: "78:9C:AA:BB:CC:DD", name: "Phone", date: "2025-09-28 16:12" },
-  { mac: "A0:36:9F:12:34:56", name: "Tablet", date: "2025-09-29 09:45" },
-  { mac: "C8:5B:76:21:09:EF", name: "Smart TV", date: "2025-09-29 12:20" },
-  { mac: "DC:21:5A:98:76:43", name: "Gaming Console", date: "2025-09-30 08:17" }
-];
+async function loadData() {
+  try {
+    const res = await fetch('/api/stats');
+    const data = await res.json();
+    
+    document.getElementById('uptime').innerText = 'Uptime: ' + data.uptime;
+    document.getElementById('total_monthly').innerText = data.monthly_gb + ' GB';
+    document.getElementById('total_weekly').innerText = data.weekly_gb + ' GB';
+    document.getElementById('client_count').innerText = data.clients.length;
 
-function renderMacs() {
-  const tbody = document.getElementById('mac_tbody');
-  tbody.innerHTML = macList.map((item, index) => `
-    <tr>
-      <td>${index + 1}</td>
-      <td style="font-family:monospace;font-weight:600">${item.mac}</td>
-      <td>${item.name}</td>
-      <td style="color:var(--text-muted);font-size:0.9em">${item.date}</td>
-      <td><span class="badge-allowed">Allowed</span></td>
-      <td><button class="btn-danger" onclick="removeMac(${index})">🗑️ Remove</button></td>
-    </tr>
-  `).join('');
-  document.getElementById('mac_count').innerText = macList.length;
-}
+    const tbody = document.getElementById('client_tbody');
+    tbody.innerHTML = data.clients.map((c, i) => {
+      let statusBadge = '<span class="badge-status status-ok">Active</span>';
+      if(c.blocked) {
+        statusBadge = '<span class="badge-status status-block">Blocked</span>';
+      } else if(c.quota_exceeded) {
+        statusBadge = '<span class="badge-status status-warn">Quota Exceeded</span>';
+      }
 
-function addMac() {
-  const inp = document.getElementById('new_mac');
-  const val = inp.value.trim().toUpperCase();
-  if (/^([0-9A-F]{2}[:-]){5}([0-9A-F]{2})$/.test(val)) {
-    const d = new Date();
-    const dateStr = d.toISOString().split('T')[0] + ' ' + d.toTimeString().split(' ')[0].substring(0,5);
-    macList.push({ mac: val, name: "New Device", date: dateStr });
-    inp.value = '';
-    renderMacs();
-  } else {
-    alert("Invalid MAC format! Use format: 4A:11:22:33:44:55");
+      return `
+        <tr>
+          <td>
+            <strong>${c.name}</strong><br>
+            <small style="font-family:monospace;color:var(--text-muted)">${c.mac}</small>
+          </td>
+          <td style="font-family:monospace">${c.ip}</td>
+          <td>
+            <span style="color:#fff;font-weight:600">${c.weekly_usage}</span> / 
+            <span style="color:var(--accent-blue);font-weight:600">${c.monthly_usage}</span>
+          </td>
+          <td>
+            <select class="select-box" id="speed_${i}">
+              <option value="0" ${c.speed_limit == 0 ? 'selected':''}>Unlimited</option>
+              <option value="1" ${c.speed_limit == 1 ? 'selected':''}>1 Mbps</option>
+              <option value="2" ${c.speed_limit == 2 ? 'selected':''}>2 Mbps</option>
+              <option value="4" ${c.speed_limit == 4 ? 'selected':''}>4 Mbps</option>
+              <option value="8" ${c.speed_limit == 8 ? 'selected':''}>8 Mbps</option>
+            </select>
+          </td>
+          <td>
+            <select class="select-box" id="quota_${i}">
+              <option value="0" ${c.quota_limit == 0 ? 'selected':''}>Unlimited</option>
+              <option value="500" ${c.quota_limit == 500 ? 'selected':''}>500 MB</option>
+              <option value="1000" ${c.quota_limit == 1000 ? 'selected':''}>1 GB</option>
+              <option value="2000" ${c.quota_limit == 2000 ? 'selected':''}>2 GB</option>
+              <option value="5000" ${c.quota_limit == 5000 ? 'selected':''}>5 GB</option>
+              <option value="10000" ${c.quota_limit == 10000 ? 'selected':''}>10 GB</option>
+            </select>
+          </td>
+          <td>${statusBadge}</td>
+          <td>
+            <button class="btn-sm btn-save" onclick="saveRule('${c.mac}', ${i})">Save</button>
+            <button class="btn-sm btn-danger" onclick="toggleBlock('${c.mac}', ${!c.blocked})">${c.blocked ? 'Unblock':'Block'}</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch(e) {
+    console.log('Fetching error or offline mode');
   }
 }
 
-function removeMac(index) {
-  macList.splice(index, 1);
-  renderMacs();
-}
-
-function toggleWhitelist(enabled) {
-  fetch('/api/whitelist_toggle', {
+async function saveRule(mac, index) {
+  const speed = document.getElementById('speed_' + index).value;
+  const quota = document.getElementById('quota_' + index).value;
+  await fetch('/api/set_client_limit', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({enabled: enabled})
-  }).catch(() => {});
+    body: JSON.stringify({ mac: mac, speed_limit: parseInt(speed), quota_limit: parseInt(quota) })
+  });
+  alert('Rule updated for ' + mac);
+  loadData();
 }
 
-function switchFolder(tabId, elem) {
-  document.querySelectorAll('.folder-tab').forEach(t => t.classList.remove('active'));
-  elem.classList.add('active');
+async function toggleBlock(mac, block) {
+  await fetch('/api/block_client', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ mac: mac, block: block })
+  });
+  loadData();
 }
 
-renderMacs();
+setInterval(loadData, 5000);
+loadData();
 </script>
 </body>
 </html>
