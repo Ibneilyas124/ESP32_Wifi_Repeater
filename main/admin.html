@@ -1,259 +1,543 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sarfraz Ibn E Ilyas - Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ibn e Ilyas Repeater - Enterprise Management Console</title>
 <style>
-*{box-sizing:border-box}
-body{background:#0d0f10;color:#e8e8e8;font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:0;padding:14px;max-width:760px;margin:auto}
-header{border-bottom:1px solid #2a2f31;padding-bottom:10px;margin-bottom:14px}
-header h1{color:#00e0a0;font-size:1.3em;margin:0}
-header small{color:#7fa79c}
-.card{background:#151819;border:1px solid #262b2d;border-radius:10px;padding:12px;margin-bottom:12px}
-.card h2,summary{color:#00e0a0;font-size:1em;margin:0 0 8px 0;font-weight:600}
-summary{cursor:pointer;margin:0;padding:2px 0;list-style:none}
-summary::-webkit-details-marker{display:none}
-details[open] summary{margin-bottom:10px}
-input,select,button,textarea{background:#1e2224;color:#eee;border:1px solid #33393c;border-radius:6px;padding:9px;margin:3px 0;width:100%;font-size:14px}
-button{background:#00e0a0;color:#08201a;font-weight:700;cursor:pointer;border:none}
-button.danger{background:#e04a4a;color:#fff}
-button.ghost{background:#23282a;color:#bbb;border:1px solid #363c3f}
-button.small{width:auto;padding:5px 10px;font-size:12px}
-.row{display:flex;gap:8px;align-items:center}
-.row>*{flex:1}
-.row>button.small{flex:0 0 auto}
-.kv{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid #202426;font-size:14px}
-.k{color:#8aa7a0}
-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
-td,th{border-bottom:1px solid #262b2d;padding:6px 4px;text-align:left}
-small.h{color:#7d8a88;display:block;margin:0 0 8px 0;font-size:12px}
-label{font-size:13px;color:#b8c4c2;display:block;margin-top:8px}
-.fld small{color:#7d8a88;font-size:11.5px;display:block}
+:root{
+  --bg-dark:#060a12;
+  --panel-bg:#0d1424;
+  --card-bg:#090e1a;
+  --border-color:#1a263d;
+  --text-main:#e1e7f0;
+  --text-muted:#62748e;
+  --accent-blue:#0084ff;
+  --accent-blue-hover:#006fd6;
+  --accent-green:#00c853;
+  --accent-green-bg:rgba(0,200,83,0.12);
+  --accent-red:#ff3b30;
+  --accent-red-hover:#d93025;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:var(--bg-dark);
+  color:var(--text-main);
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+
+/* Header */
+.top-nav{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:var(--panel-bg);
+  padding:14px 20px;
+  border-bottom:1px solid var(--border-color);
+}
+.brand-group{display:flex;align-items:center;gap:12px}
+.brand-icon{color:var(--accent-blue);font-size:24px}
+.brand-title{font-size:1.15em;font-weight:700;color:#fff}
+.brand-sub{font-size:0.75em;color:var(--text-muted);margin-top:1px}
+.status-pill{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:rgba(0,200,83,0.08);
+  border:1px solid rgba(0,200,83,0.2);
+  padding:6px 12px;
+  border-radius:20px;
+}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent-green);box-shadow:0 0 8px var(--accent-green)}
+.status-text{font-size:0.75em;color:var(--accent-green);font-weight:600}
+.uptime-text{font-size:0.7em;color:var(--text-muted);display:block;text-align:right}
+
+/* Main Container */
+.main-wrapper{
+  display:flex;
+  flex:1;
+}
+
+/* Sidebar for Desktop */
+.sidebar{
+  width:230px;
+  background:var(--panel-bg);
+  border-right:1px solid var(--border-color);
+  padding:20px 12px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+@media(max-width:900px){ .sidebar{display:none} }
+
+.nav-menu{list-style:none}
+.nav-item{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:10px 14px;
+  color:var(--text-muted);
+  font-size:0.88em;
+  border-radius:8px;
+  margin-bottom:4px;
+  cursor:pointer;
+  transition:all .15s;
+}
+.nav-item:hover{background:rgba(255,255,255,0.03);color:var(--text-main)}
+.nav-item.active{background:rgba(0,132,255,0.12);color:var(--accent-blue);font-weight:600;border-left:3px solid var(--accent-blue)}
+
+.sidebar-footer{
+  text-align:center;
+  padding:16px 8px;
+  border-top:1px solid var(--border-color);
+}
+.sidebar-footer h4{font-size:0.9em;color:#fff;margin-top:6px}
+.sidebar-footer p{font-size:0.72em;color:var(--text-muted)}
+
+/* Content Area */
+.content-area{
+  flex:1;
+  padding:20px;
+  max-width:1100px;
+}
+
+/* Top Folder Tabs */
+.tabs-grid{
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:10px;
+  margin-bottom:20px;
+}
+@media(max-width:600px){
+  .tabs-grid{grid-template-columns:repeat(2, 1fr)}
+}
+.folder-tab{
+  background:var(--panel-bg);
+  border:1px solid var(--border-color);
+  border-radius:10px;
+  padding:14px 16px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  cursor:pointer;
+  transition:all .2s;
+}
+.folder-tab:hover{border-color:var(--accent-blue)}
+.folder-tab.active{
+  background:#0e172a;
+  border-color:var(--accent-blue);
+  box-shadow:inset 0 2px 0 var(--accent-blue);
+}
+.tab-icon{font-size:18px;color:var(--accent-blue)}
+.tab-label{font-size:0.85em;font-weight:600;color:var(--text-main)}
+
+/* Main Panel Card */
+.panel-card{
+  background:var(--panel-bg);
+  border:1px solid var(--border-color);
+  border-radius:12px;
+  padding:24px;
+}
+
+.panel-header{
+  display:flex;
+  align-items:flex-start;
+  gap:14px;
+  margin-bottom:20px;
+}
+.panel-icon-box{
+  background:rgba(0,132,255,0.1);
+  border:1px solid rgba(0,132,255,0.2);
+  width:42px;
+  height:42px;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--accent-blue);
+  font-size:20px;
+}
+.panel-title-area h2{font-size:1.15em;font-weight:700;color:#fff}
+.panel-title-area p{font-size:0.82em;color:var(--text-muted);margin-top:2px}
+
+/* Toggle Box */
+.toggle-card{
+  background:var(--card-bg);
+  border:1px solid var(--border-color);
+  border-radius:10px;
+  padding:14px 18px;
+  display:flex;
+  align-items:center;
+  gap:16px;
+  margin-bottom:20px;
+}
+.switch{
+  position:relative;
+  display:inline-block;
+  width:46px;
+  height:24px;
+}
+.switch input{opacity:0;width:0;height:0}
+.slider{
+  position:absolute;
+  cursor:pointer;
+  inset:0;
+  background-color:#1e293b;
+  transition:.3s;
+  border-radius:24px;
+  border:1px solid var(--border-color);
+}
+.slider:before{
+  position:absolute;
+  content:"";
+  height:18px;
+  width:18px;
+  left:2px;
+  bottom:2px;
+  background-color:#fff;
+  transition:.3s;
+  border-radius:50%;
+}
+input:checked + .slider{background-color:var(--accent-blue)}
+input:checked + .slider:before{transform:translateX(22px)}
+
+.toggle-label{font-size:0.9em;font-weight:600;color:#fff}
+.badge-active{
+  background:var(--accent-green-bg);
+  color:var(--accent-green);
+  border:1px solid rgba(0,200,83,0.3);
+  font-size:0.72em;
+  padding:2px 8px;
+  border-radius:12px;
+  font-weight:600;
+}
+
+/* Input Row */
+.input-card{
+  background:var(--card-bg);
+  border:1px solid var(--border-color);
+  border-radius:10px;
+  padding:16px;
+  margin-bottom:20px;
+}
+.input-label{display:block;font-size:0.8em;color:var(--text-muted);margin-bottom:8px;font-weight:500}
+.input-flex{display:flex;gap:10px}
+@media(max-width:500px){.input-flex{flex-direction:column}}
+.text-input{
+  flex:1;
+  background:#050911;
+  border:1px solid var(--border-color);
+  border-radius:8px;
+  padding:10px 14px;
+  color:var(--text-main);
+  font-size:0.9em;
+  outline:none;
+}
+.text-input:focus{border-color:var(--accent-blue)}
+.btn-primary{
+  background:var(--accent-blue);
+  color:#fff;
+  border:none;
+  padding:10px 18px;
+  border-radius:8px;
+  font-weight:600;
+  font-size:0.88em;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  white-space:nowrap;
+}
+.btn-primary:hover{background:var(--accent-blue-hover)}
+
+/* Table Styling */
+.table-responsive{overflow-x:auto}
+.custom-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:0.85em;
+  text-align:left;
+}
+.custom-table th{
+  color:var(--text-muted);
+  font-weight:600;
+  padding:10px 12px;
+  border-bottom:1px solid var(--border-color);
+}
+.custom-table td{
+  padding:12px;
+  border-bottom:1px solid var(--border-color);
+  color:var(--text-main);
+}
+.badge-allowed{
+  background:var(--accent-green-bg);
+  color:var(--accent-green);
+  padding:3px 10px;
+  border-radius:12px;
+  font-size:0.78em;
+  font-weight:600;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+.badge-allowed::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent-green)}
+
+.btn-danger{
+  background:var(--accent-red);
+  color:#fff;
+  border:none;
+  padding:6px 12px;
+  border-radius:6px;
+  font-size:0.8em;
+  font-weight:600;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+}
+.btn-danger:hover{background:var(--accent-red-hover)}
+
+/* Info Footer Card */
+.info-footer{
+  background:var(--card-bg);
+  border:1px solid var(--border-color);
+  border-radius:10px;
+  padding:12px 16px;
+  margin-top:20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:0.8em;
+  color:var(--text-muted);
+}
+@media(max-width:600px){.info-footer{flex-direction:column;gap:8px;text-align:center}}
+
+/* Mobile Bottom Nav */
+.bottom-nav{
+  display:none;
+  background:var(--panel-bg);
+  border-top:1px solid var(--border-color);
+  padding:10px 0;
+  justify-content:space-around;
+  position:sticky;
+  bottom:0;
+  z-index:10;
+}
+@media(max-width:900px){.bottom-nav{display:flex}}
+.bnav-item{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+  color:var(--text-muted);
+  font-size:0.7em;
+  text-decoration:none;
+}
+.bnav-item.active{color:var(--accent-blue)}
+.bnav-icon{font-size:18px}
 </style>
 </head>
 <body>
-<header>
-  <h1>Sarfraz Ibn E Ilyas</h1>
-  <small>Ibn e Ilyas Technologies &middot; WiFi Repeater Admin &middot; <a href="/tools" style="color:#7fd9bd">&#128295; WiFi Tools</a> <span id="fw"></span></small>
-</header>
 
-<div class="card"><h2>Share this WiFi</h2><small class="h">Sends the repeater's own SSID + password (not your admin password) so a guest can join.</small><button class="ghost" style="margin-top:6px" onclick="shareWifi()">Copy / Share WiFi details</button><small class="h" id="shareMsg"></small></div>
-<div class="card"><h2>Status</h2><div id="status">Loading...</div></div>
-<details class="card" id="stab"><summary>Upstream stability log</summary><div id="stabBody">Loading...</div></details>
-
-<div class="card">
-  <h2>Upstream WiFi (network to repeat)</h2>
-  <input id="sta_ssid" placeholder="Upstream WiFi name (2.4 GHz)" autocomplete="off">
-  <div style="position:relative"><input id="sta_pass" type="password" placeholder="Password (blank = keep current; open network if you changed the name)" autocomplete="off" style="padding-right:44px"><button type="button" class="small ghost" onclick="pwToggle('sta_pass',this)" style="position:absolute;right:4px;top:50%;transform:translateY(-50%)">SHOW</button></div>
-  <button onclick="saveWifi()">Save &amp; Reboot</button>
+<!-- TOP NAV HEADER -->
+<div class="top-nav">
+  <div class="brand-group">
+    <div class="brand-icon">📶</div>
+    <div>
+      <div class="brand-title">Ibn e Ilyas Repeater</div>
+      <div class="brand-sub">Enterprise Management Console</div>
+    </div>
+  </div>
+  <div class="status-pill">
+    <div class="dot"></div>
+    <div>
+      <span class="status-text">System Online</span>
+      <span class="uptime-text">Uptime: 2d 14h 32m</span>
+    </div>
+  </div>
 </div>
 
-<div class="card">
-  <h2>MAC Whitelist</h2>
-  <small class="h">Empty list = every device allowed. Add at least your own device first.</small>
-  <div id="wl"></div>
-  <input id="newmac" placeholder="AA:BB:CC:DD:EE:FF" autocomplete="off">
-  <input id="newname" placeholder="Device name (e.g. Ali's phone)" autocomplete="off">
-  <input id="newlimit" type="number" placeholder="Upload speed limit in Kbps (blank = unlimited)" autocomplete="off">
-  <small class="h">Limit only throttles this device's uploads, not downloads/streaming - a hardware limit of this design.</small>
-  <button onclick="addMac()">Add to Whitelist</button>
+<div class="main-wrapper">
+  <!-- SIDEBAR (DESKTOP) -->
+  <div class="sidebar">
+    <ul class="nav-menu">
+      <li class="nav-item">📊 Dashboard</li>
+      <li class="nav-item">🌐 Network</li>
+      <li class="nav-item">📶 Wi-Fi Settings</li>
+      <li class="nav-item">🛡️ Security</li>
+      <li class="nav-item active">🔒 MAC Whitelist</li>
+      <li class="nav-item">⚙️ System</li>
+      <li class="nav-item">📄 Logs</li>
+      <li class="nav-item">ℹ️ About</li>
+    </ul>
+    <div class="sidebar-footer">
+      <div style="font-size:20px">⛰️</div>
+      <h4>Ibn e Ilyas WiFi</h4>
+      <p>Stronger Signal, Wider Reach</p>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT AREA -->
+  <div class="content-area">
+    <!-- TOP FOLDER TABS -->
+    <div class="tabs-grid">
+      <div class="folder-tab" onclick="switchFolder('extender', this)">
+        <span class="tab-icon">📁</span>
+        <span class="tab-label">Wi-Fi Extender</span>
+      </div>
+      <div class="folder-tab" onclick="switchFolder('ap', this)">
+        <span class="tab-icon">📁</span>
+        <span class="tab-label">Repeater AP</span>
+      </div>
+      <div class="folder-tab active" onclick="switchFolder('whitelist', this)">
+        <span class="tab-icon" style="color:var(--accent-blue)">📁</span>
+        <span class="tab-label">MAC Whitelist</span>
+      </div>
+      <div class="folder-tab" onclick="switchFolder('tools', this)">
+        <span class="tab-icon">📁</span>
+        <span class="tab-label">Tools &amp; Speed</span>
+      </div>
+    </div>
+
+    <!-- MAIN CARD PANEL -->
+    <div class="panel-card">
+      <div class="panel-header">
+        <div class="panel-icon-box">🛡️</div>
+        <div class="panel-title-area">
+          <h2>MAC Whitelist Filter</h2>
+          <p>Allow only selected devices to connect to your network. All other devices will be blocked.</p>
+        </div>
+      </div>
+
+      <!-- ENABLE TOGGLE -->
+      <div class="toggle-card">
+        <label class="switch">
+          <input type="checkbox" checked onchange="toggleWhitelist(this.checked)">
+          <span class="slider"></span>
+        </label>
+        <span class="toggle-label">Enable Whitelist Filter</span>
+        <span class="badge-active">Active</span>
+      </div>
+
+      <!-- ADD DEVICE INPUT -->
+      <div class="input-card">
+        <label class="input-label">Add Device (MAC Address)</label>
+        <div class="input-flex">
+          <input id="new_mac" class="text-input" placeholder="e.g. 4A:11:22:33:44:55">
+          <button class="btn-primary" onclick="addMac()"><span>+</span> Add Device</button>
+        </div>
+      </div>
+
+      <!-- TABLE LIST -->
+      <div class="table-responsive">
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>MAC Address</th>
+              <th>Device Name</th>
+              <th>Added On</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="mac_tbody">
+            <!-- Dynamic Rows -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- FOOTER INFO -->
+      <div class="info-footer">
+        <div>ℹ️ Only devices with MAC addresses in this list will be able to connect to your network.</div>
+        <div style="color:var(--accent-green);font-weight:600">🛡️ Total Whitelisted Devices: <span id="mac_count">0</span></div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<details class="card" id="usageCard"><summary>Data usage</summary>
-  <small class="h" id="usageNote"></small>
-  <div id="overallUsage" style="margin-bottom:10px"></div>
-  <div class="k" style="margin:6px 0 2px">Per-device (upload only - see note below)</div>
-  <div id="usageBody">Open this to load.</div>
-  <small class="h" style="margin-top:8px">Per-device rows only count what each device SENDS (uploads). The "Whole repeater" figures above include everything - downloads, streaming, browsing - but can't be split back out per device on this hardware. See FEATURES.md for why.</small>
-</details>
-
-<details class="card" id="shCard"><summary>Internet speed history (last 12 hours)</summary>
-  <small class="h">Samples latency to 1.1.1.1 every ~15 minutes while online. Green bar = reachable, red = timed out.</small>
-  <div id="shChart" style="display:flex;align-items:flex-end;gap:2px;height:90px;margin-top:8px"></div>
-  <small class="h" id="shNote"></small>
-</details>
-
-<details class="card" id="adv">
-  <summary>&#9881;&#65039; Advanced Settings (tap to open)</summary>
-  <small class="h">All values below have safe defaults. Change only what you need; device reboots after saving.</small>
-  <div id="sform">Loading...</div>
-  <div class="row">
-    <button class="ghost" onclick="fillDefaults()">Fill defaults</button>
-    <button onclick="saveSettings()">Save &amp; Reboot</button>
-  </div>
-</details>
-
-<details class="card">
-  <summary>&#128190; Config Backup</summary>
-  <button class="ghost" onclick="exportCfg()">Export JSON</button>
-  <textarea id="importbox" rows="5" placeholder="Paste config JSON here to import"></textarea>
-  <button onclick="importCfg()">Import &amp; Reboot</button>
-</details>
-
-<div class="card">
-  <div class="row">
-    <button class="ghost" onclick="logout()">Logout</button>
-    <button class="danger" onclick="reboot()">Reboot</button>
-  </div>
-  <button class="danger" style="margin-top:8px" onclick="factoryReset()">Factory Reset (all settings)</button>
-  <small class="h" style="margin-top:8px">Hardware reset: hold the BOOT button ~8 seconds; when the blue LED starts blinking fast, release it.</small>
+<!-- MOBILE BOTTOM NAVIGATION -->
+<div class="bottom-nav">
+  <a href="#" class="bnav-item">
+    <span class="bnav-icon">🏠</span>
+    <span>Home</span>
+  </a>
+  <a href="#" class="bnav-item">
+    <span class="bnav-icon">📶</span>
+    <span>Wi-Fi</span>
+  </a>
+  <a href="#" class="bnav-item active">
+    <span class="bnav-icon">🛡️</span>
+    <span>Whitelist</span>
+  </a>
+  <a href="#" class="bnav-item">
+    <span class="bnav-icon">⚙️</span>
+    <span>Settings</span>
+  </a>
 </div>
 
 <script>
-function pwToggle(id,btn){ var i=document.getElementById(id); if(i.type==='password'){i.type='text';btn.textContent='HIDE';} else {i.type='password';btn.textContent='SHOW';} }
-function el(t,a,x){var e=document.createElement(t);if(a)for(var k in a)e.setAttribute(k,a[k]);if(x!==undefined)e.textContent=x;return e;}
+let macList = [
+  { mac: "4A:11:22:33:44:55", name: "Laptop", date: "2025-09-28 14:32" },
+  { mac: "78:9C:AA:BB:CC:DD", name: "Phone", date: "2025-09-28 16:12" },
+  { mac: "A0:36:9F:12:34:56", name: "Tablet", date: "2025-09-29 09:45" },
+  { mac: "C8:5B:76:21:09:EF", name: "Smart TV", date: "2025-09-29 12:20" },
+  { mac: "DC:21:5A:98:76:43", name: "Gaming Console", date: "2025-09-30 08:17" }
+];
 
-var REASONS={1:'Unspecified',2:'Auth expired',3:'Router disconnected us',4:'Inactivity timeout',5:'Too many devices on router',6:'Bad frame (class 2)',7:'Bad frame (class 3)',8:'Router said we left',15:'Wrong WiFi password (handshake failed)',200:'Signal lost (beacon timeout)',201:'Router not found / powered off',202:'Wrong WiFi password',203:'Association rejected',204:'Handshake timeout'};
-function reasonText(r){ return REASONS[r] || ('code '+r); }
-function renderStability(log){
-  var b=document.getElementById('stabBody'); b.textContent='';
-  if(!log.length){ b.appendChild(el('small',{'class':'h'},'No disconnects recorded this session.')); return; }
-  var t=el('table'); var h=el('tr'); ['Ago','Reason'].forEach(function(x){h.appendChild(el('th',null,x));}); t.appendChild(h);
-  log.forEach(function(e){ var tr=el('tr'); tr.appendChild(el('td',null,fmt(e.ago_s)+' ago')); tr.appendChild(el('td',null,reasonText(e.reason))); t.appendChild(tr); });
-  b.appendChild(t);
-}
-
-var lastApSsid='', lastApPass='';
-async function shareWifi(){
-  var text='WiFi: '+lastApSsid+'\nPassword: '+lastApPass;
-  if(navigator.share){ try{ await navigator.share({title:'WiFi details',text:text}); return; }catch(e){} }
-  try{ await navigator.clipboard.writeText(text); document.getElementById('shareMsg').textContent='Copied to clipboard.'; }
-  catch(e){ document.getElementById('shareMsg').textContent=text; }
-}
-
-function fmtBytes(b){ if(b>1073741824) return (b/1073741824).toFixed(2)+' GB'; if(b>1048576) return (b/1048576).toFixed(1)+' MB'; if(b>1024) return (b/1024).toFixed(0)+' KB'; return b+' B'; }
-document.getElementById('usageCard').addEventListener('toggle',function(){ if(this.open) loadUsage(); });
-async function loadUsage(){
-  var r=await fetch('/api/usage'); if(authFail(r))return; var j=await r.json();
-  document.getElementById('usageNote').textContent = j.time_synced ? '' : 'Clock not synced yet (needs internet) - totals will start once time syncs.';
-
-  var ov=document.getElementById('overallUsage'); ov.textContent='';
-  var t0=el('table');
-  var h0=el('tr'); ['Whole repeater (up+down)','This week','This month','All-time'].forEach(function(x){h0.appendChild(el('th',null,x));}); t0.appendChild(h0);
-  var r1=el('tr'); r1.appendChild(el('td',null,'Downloaded')); r1.appendChild(el('td',null,fmtBytes(j.overall.download_week_bytes))); r1.appendChild(el('td',null,fmtBytes(j.overall.download_month_bytes))); r1.appendChild(el('td',null,fmtBytes(j.overall.download_total_bytes))); t0.appendChild(r1);
-  var r2=el('tr'); r2.appendChild(el('td',null,'Uploaded')); r2.appendChild(el('td',null,fmtBytes(j.overall.upload_week_bytes))); r2.appendChild(el('td',null,fmtBytes(j.overall.upload_month_bytes))); r2.appendChild(el('td',null,fmtBytes(j.overall.upload_total_bytes))); t0.appendChild(r2);
-  ov.appendChild(t0);
-
-  var b=document.getElementById('usageBody'); b.textContent='';
-  if(!j.devices.length){ b.appendChild(el('small',{'class':'h'},'No per-device data yet - only tracked for whitelisted devices.')); return; }
-  var t=el('table'); var h=el('tr'); ['Device','This week','This month','All-time'].forEach(function(x){h.appendChild(el('th',null,x));}); t.appendChild(h);
-  j.devices.forEach(function(d){ var tr=el('tr'); tr.appendChild(el('td',null,d.name||d.mac)); tr.appendChild(el('td',null,fmtBytes(d.week_bytes))); tr.appendChild(el('td',null,fmtBytes(d.month_bytes))); tr.appendChild(el('td',null,fmtBytes(d.total_bytes))); t.appendChild(tr); });
-  b.appendChild(t);
+function renderMacs() {
+  const tbody = document.getElementById('mac_tbody');
+  tbody.innerHTML = macList.map((item, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td style="font-family:monospace;font-weight:600">${item.mac}</td>
+      <td>${item.name}</td>
+      <td style="color:var(--text-muted);font-size:0.9em">${item.date}</td>
+      <td><span class="badge-allowed">Allowed</span></td>
+      <td><button class="btn-danger" onclick="removeMac(${index})">🗑️ Remove</button></td>
+    </tr>
+  `).join('');
+  document.getElementById('mac_count').innerText = macList.length;
 }
 
-document.getElementById('shCard').addEventListener('toggle',function(){ if(this.open) loadSpeedHistory(); });
-async function loadSpeedHistory(){
-  var r=await fetch('/api/speedhistory'); if(authFail(r))return; var j=await r.json();
-  var box=document.getElementById('shChart'); box.textContent='';
-  if(!j.samples.length){ document.getElementById('shNote').textContent='No samples yet - first one appears ~15 min after the repeater goes online.'; return; }
-  var samples=j.samples.slice().reverse(); /* oldest first for left-to-right chart */
-  var mx=Math.max(50, Math.max.apply(null, samples.map(function(s){return s.ok?s.ms:0;})));
-  samples.forEach(function(s){
-    var bar=el('div',{'style':'flex:1;min-width:3px;background:'+(s.ok?'#00e0a0':'#e04a4a')+';border-radius:2px 2px 0 0;height:'+(s.ok?Math.max(4,Math.round(s.ms/mx*88)):88)+'px'});
-    box.appendChild(bar);
-  });
-  var okCount=samples.filter(function(s){return s.ok;}).length;
-  document.getElementById('shNote').textContent=okCount+'/'+samples.length+' checks reachable. Bar height = latency (taller = slower); red = internet was down at that check.';
-}
-function authFail(r){ if(r.status===401){ location.href='/'; return true; } return false; }
-function fmt(s){ var d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60); return (d?d+'d ':'')+h+'h '+m+'m'; }
-var loaded=false, origSsid='';
-
-async function refresh(){
-  var r=await fetch('/api/status'); if(authFail(r))return; var j=await r.json();
-  var s=document.getElementById('status'); s.textContent='';
-  function line(a,b){ var d=el('div',{'class':'kv'}); d.appendChild(el('span',{'class':'k'},a)); d.appendChild(el('span',null,b)); s.appendChild(d); }
-  line('Upstream', j.sta_connected ? 'Connected ('+j.sta_ip+')' : 'Not connected');
-  if(j.sta_connected){ line('Remote admin', 'http://'+j.sta_ip); line('Session uptime', fmt(j.session_uptime_s)); }
-  if(j.discon_total) line('Upstream drops (total)', j.discon_total);
-  line('Repeater IP', 'http://'+j.ap_ip);
-  line('Guest mode', j.wl_active ? 'Active - non-whitelisted devices can join but get no internet' : 'Off (whitelist empty or disabled)');
-  line('Uptime', fmt(j.uptime_s));
-  line('Free memory', Math.round(j.free_heap/1024)+' KB');
-  var t=el('table'); var hr=el('tr'); ['Name','MAC','IP','Signal','Internet',''].forEach(function(x){hr.appendChild(el('th',null,x));}); t.appendChild(hr);
-  j.clients.forEach(function(c){
-    var tr=el('tr'); tr.appendChild(el('td',null,c.name||'-')); tr.appendChild(el('td',null,c.mac)); tr.appendChild(el('td',null,c.ip));
-    tr.appendChild(el('td',null,c.rssi+' dBm'));
-    tr.appendChild(el('td',{'style':'color:'+(c.authorized?'#00e0a0':'#ffb14a')},c.authorized?'Allowed':'Guest (blocked)'));
-    var td=el('td'); var b=el('button',{'class':'small ghost'},'+WL'); b.onclick=function(){ document.getElementById('newmac').value=c.mac; document.getElementById('newname').focus(); };
-    var k=el('button',{'class':'small danger'},'Kick'); k.onclick=function(){ kick(c.mac); };
-    td.appendChild(b); td.appendChild(document.createTextNode(' ')); td.appendChild(k); tr.appendChild(td); t.appendChild(tr);
-  });
-  var wrap=el('div',{'style':'overflow-x:auto'}); wrap.appendChild(t);
-  s.appendChild(el('div',{'class':'k','style':'margin-top:8px'},'Connected devices ('+j.clients.length+')')); s.appendChild(wrap);
-  document.getElementById('fw').textContent='v'+j.fw;
-  renderStability(j.discon_log||[]);
-  if(!loaded){ origSsid=j.sta_ssid||''; document.getElementById('sta_ssid').value=origSsid; loaded=true; }
-  var wl=document.getElementById('wl'); wl.textContent='';
-  if(!j.whitelist.length){ wl.appendChild(el('small',{'class':'h'},'No restrictions')); }
-  j.whitelist.forEach(function(w){
-    var row=el('div',{'class':'row'}); var i=el('input',{'readonly':'readonly'}); i.value=(w.name?w.name+' - ':'')+w.mac+(w.limit_kbps?' ('+w.limit_kbps+' Kbps up)':'');
-    var b=el('button',{'class':'small danger'},'X'); b.onclick=function(){ rmMac(w.mac); };
-    row.appendChild(i); row.appendChild(b); wl.appendChild(row);
-  });
+function addMac() {
+  const inp = document.getElementById('new_mac');
+  const val = inp.value.trim().toUpperCase();
+  if (/^([0-9A-F]{2}[:-]){5}([0-9A-F]{2})$/.test(val)) {
+    const d = new Date();
+    const dateStr = d.toISOString().split('T')[0] + ' ' + d.toTimeString().split(' ')[0].substring(0,5);
+    macList.push({ mac: val, name: "New Device", date: dateStr });
+    inp.value = '';
+    renderMacs();
+  } else {
+    alert("Invalid MAC format! Use format: 4A:11:22:33:44:55");
+  }
 }
 
-async function post(url,obj){
-  var r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(obj||{})});
-  if(authFail(r)) return null; try{ return await r.json(); }catch(e){ return {ok:true}; }
+function removeMac(index) {
+  macList.splice(index, 1);
+  renderMacs();
 }
-async function saveWifi(){
-  var ns=document.getElementById('sta_ssid').value;
-  var o={ssid:ns};
-  var p=document.getElementById('sta_pass').value;
-  if(p) o.password=p; else if(ns!==origSsid) o.password='';   /* new network + blank = open network */
-  var j=await post('/api/wifi',o); if(j) alert(j.ok===false?('Error: '+j.error):'Saved. Repeater is rebooting...');
-}
-async function addMac(){
-  var m=document.getElementById('newmac').value.trim(); if(!m) return;
-  var lim=parseInt(document.getElementById('newlimit').value)||0;
-  var j=await post('/api/whitelist',{action:'add',mac:m,name:document.getElementById('newname').value.trim(),limit_kbps:lim});
-  if(j&&j.ok===false){ alert(j.error); return; }
-  document.getElementById('newmac').value=''; document.getElementById('newname').value=''; document.getElementById('newlimit').value=''; refresh();
-}
-async function kick(m){ if(!confirm('Disconnect '+m+' now?')) return; var j=await post('/api/kick',{mac:m}); if(j&&j.ok===false) alert(j.error); setTimeout(refresh,1500); }
-async function rmMac(m){ var j=await post('/api/whitelist',{action:'remove',mac:m}); if(j) refresh(); }
 
-async function loadSettings(){
-  var r=await fetch('/api/settings'); if(authFail(r))return; var j=await r.json();
-  var box=document.getElementById('sform'); box.textContent='';
-  j.items.forEach(function(it){ if(it.key==='ap_ssid') lastApSsid=it.value; if(it.key==='ap_pass') lastApPass=it.value;
-    var d=el('div',{'class':'fld'}); var inp;
-    var isPw=(it.type==='password'||it.type==='password_keep');
-    if(it.type==='bool'){ inp=el('select'); [['0','No'],['1','Yes']].forEach(function(o){ var op=el('option',{value:o[0]},o[1]); inp.appendChild(op); }); inp.value=it.value; }
-    else { inp=el('input'); inp.type=isPw?'password':(it.type==='number'?'number':'text'); inp.value=it.value; if(it.type==='password_keep') inp.placeholder='(leave blank to keep current)'; }
-    inp.setAttribute('data-key',it.key); inp.setAttribute('data-def',it.def); inp.setAttribute('data-type',it.type); inp.setAttribute('autocomplete','off');
-    d.appendChild(el('label',null,it.label));
-    if(isPw){
-      var wrap=el('div',{'style':'position:relative'}); inp.style.paddingRight='44px'; wrap.appendChild(inp);
-      var pid='fld_'+it.key; inp.id=pid;
-      var btn=el('button',{'type':'button','class':'small ghost','style':'position:absolute;right:4px;top:50%;transform:translateY(-50%)'},'SHOW');
-      btn.onclick=function(bid,b){ return function(){ pwToggle(bid,b); }; }(pid,btn);
-      wrap.appendChild(btn); d.appendChild(wrap);
-    } else { d.appendChild(inp); }
-    d.appendChild(el('small',null,it.hint+' | default: '+(it.def===''?'(blank)':it.def)));
-    box.appendChild(d);
-  });
+function toggleWhitelist(enabled) {
+  fetch('/api/whitelist_toggle', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({enabled: enabled})
+  }).catch(() => {});
 }
-function fillDefaults(){
-  document.querySelectorAll('#sform [data-key]').forEach(function(e){ if(e.getAttribute('data-type')!=='password_keep') e.value=e.getAttribute('data-def'); });
-}
-async function saveSettings(){
-  var o={}; document.querySelectorAll('#sform [data-key]').forEach(function(e){ o[e.getAttribute('data-key')]=e.value; });
-  var j=await post('/api/settings',o); if(!j) return;
-  alert(j.ok?'Saved. Repeater is rebooting - reconnect to its WiFi (use the new name/password if you changed them).':('Not saved: '+j.error));
-}
-async function exportCfg(){ var r=await fetch('/api/config/export'); if(authFail(r))return; document.getElementById('importbox').value=await r.text(); }
-async function importCfg(){
-  var r=await fetch('/api/config/import',{method:'POST',headers:{'Content-Type':'application/json'},body:document.getElementById('importbox').value});
-  if(authFail(r))return; var j=await r.json(); alert(j.ok?'Imported. Repeater is rebooting...':('Import failed: '+j.error));
-}
-async function reboot(){ if(confirm('Reboot the repeater now?')) await post('/api/reboot'); }
-async function factoryReset(){ if(confirm('Erase ALL settings and return to defaults?')){ await post('/api/factory_reset'); alert('Reset done. Repeater is rebooting with default settings.'); } }
-async function logout(){ await post('/api/logout'); location.href='/'; }
 
-refresh(); loadSettings(); setInterval(refresh,5000);
+function switchFolder(tabId, elem) {
+  document.querySelectorAll('.folder-tab').forEach(t => t.classList.remove('active'));
+  elem.classList.add('active');
+}
+
+renderMacs();
 </script>
 </body>
 </html>
