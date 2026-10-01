@@ -1,488 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ibn e Ilyas Repeater - Enterprise Management Console</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Admin Dashboard - Ibn e Ilyas Repeater</title>
 <style>
-:root{
-  --bg-dark:#060a12;
-  --panel-bg:#0d1424;
-  --card-bg:#090e1a;
-  --border-color:#1a263d;
-  --text-main:#e1e7f0;
-  --text-muted:#62748e;
-  --accent-blue:#0084ff;
-  --accent-blue-hover:#006fd6;
-  --accent-green:#00c853;
-  --accent-green-bg:rgba(0,200,83,0.12);
-  --accent-red:#ff3b30;
-  --accent-red-hover:#d93025;
-  --accent-orange:#ff9500;
-}
-
-*{box-sizing:border-box;margin:0;padding:0}
-body{
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  background:var(--bg-dark);
-  color:var(--text-main);
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
-}
-
-/* Header */
-.top-nav{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  background:var(--panel-bg);
-  padding:14px 20px;
-  border-bottom:1px solid var(--border-color);
-}
-.brand-group{display:flex;align-items:center;gap:12px}
-.brand-icon{color:var(--accent-blue);font-size:24px}
-.brand-title{font-size:1.15em;font-weight:700;color:#fff}
-.brand-sub{font-size:0.75em;color:var(--text-muted);margin-top:1px}
-.status-pill{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  background:rgba(0,200,83,0.08);
-  border:1px solid rgba(0,200,83,0.2);
-  padding:6px 12px;
-  border-radius:20px;
-}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--accent-green);box-shadow:0 0 8px var(--accent-green)}
-.status-text{font-size:0.75em;color:var(--accent-green);font-weight:600}
-.uptime-text{font-size:0.7em;color:var(--text-muted);display:block;text-align:right}
-
-/* Layout */
-.main-wrapper{display:flex;flex:1}
-.sidebar{
-  width:230px;
-  background:var(--panel-bg);
-  border-right:1px solid var(--border-color);
-  padding:20px 12px;
-  display:flex;
-  flex-direction:column;
-  justify-content:space-between;
-}
-@media(max-width:900px){ .sidebar{display:none} }
-
-.nav-menu{list-style:none}
-.nav-item{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding:10px 14px;
-  color:var(--text-muted);
-  font-size:0.88em;
-  border-radius:8px;
-  margin-bottom:4px;
-  cursor:pointer;
-  transition:all .15s;
-}
-.nav-item:hover{background:rgba(255,255,255,0.03);color:var(--text-main)}
-.nav-item.active{background:rgba(0,132,255,0.12);color:var(--accent-blue);font-weight:600;border-left:3px solid var(--accent-blue)}
-
-.sidebar-footer{text-align:center;padding:16px 8px;border-top:1px solid var(--border-color)}
-.sidebar-footer h4{font-size:0.9em;color:#fff;margin-top:6px}
-.sidebar-footer p{font-size:0.72em;color:var(--text-muted)}
-
-.content-area{flex:1;padding:20px;max-width:1200px}
-
-/* Folder Tabs */
-.tabs-grid{
-  display:grid;
-  grid-template-columns:repeat(4, 1fr);
-  gap:10px;
-  margin-bottom:20px;
-}
-@media(max-width:600px){.tabs-grid{grid-template-columns:repeat(2, 1fr)}}
-.folder-tab{
-  background:var(--panel-bg);
-  border:1px solid var(--border-color);
-  border-radius:10px;
-  padding:14px 16px;
-  display:flex;
-  align-items:center;
-  gap:12px;
-  cursor:pointer;
-  transition:all .2s;
-}
-.folder-tab:hover{border-color:var(--accent-blue)}
-.folder-tab.active{
-  background:#0e172a;
-  border-color:var(--accent-blue);
-  box-shadow:inset 0 2px 0 var(--accent-blue);
-}
-.tab-icon{font-size:18px;color:var(--accent-blue)}
-.tab-label{font-size:0.85em;font-weight:600;color:var(--text-main)}
-
-/* Metrics Summary Row */
-.metrics-grid{
-  display:grid;
-  grid-template-columns:repeat(4, 1fr);
-  gap:12px;
-  margin-bottom:20px;
-}
-@media(max-width:768px){.metrics-grid{grid-template-columns:repeat(2, 1fr)}}
-.metric-card{
-  background:var(--panel-bg);
-  border:1px solid var(--border-color);
-  border-radius:10px;
-  padding:14px 16px;
-}
-.metric-title{font-size:0.75em;color:var(--text-muted);font-weight:600;text-transform:uppercase}
-.metric-val{font-size:1.3em;font-weight:700;color:#fff;margin-top:4px}
-.metric-sub{font-size:0.72em;color:var(--accent-green);margin-top:2px}
-
-/* Main Panel Card */
-.panel-card{
-  background:var(--panel-bg);
-  border:1px solid var(--border-color);
-  border-radius:12px;
-  padding:24px;
-}
-
-.panel-header{
-  display:flex;
-  align-items:flex-start;
-  gap:14px;
-  margin-bottom:20px;
-}
-.panel-icon-box{
-  background:rgba(0,132,255,0.1);
-  border:1px solid rgba(0,132,255,0.2);
-  width:42px;
-  height:42px;
-  border-radius:10px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:var(--accent-blue);
-  font-size:20px;
-}
-.panel-title-area h2{font-size:1.15em;font-weight:700;color:#fff}
-.panel-title-area p{font-size:0.82em;color:var(--text-muted);margin-top:2px}
-
-/* Controls & Table */
-.toggle-card{
-  background:var(--card-bg);
-  border:1px solid var(--border-color);
-  border-radius:10px;
-  padding:14px 18px;
-  display:flex;
-  align-items:center;
-  gap:16px;
-  margin-bottom:20px;
-}
-.switch{position:relative;display:inline-block;width:46px;height:24px}
-.switch input{opacity:0;width:0;height:0}
-.slider{
-  position:absolute;
-  cursor:pointer;
-  inset:0;
-  background-color:#1e293b;
-  transition:.3s;
-  border-radius:24px;
-  border:1px solid var(--border-color);
-}
-.slider:before{
-  position:absolute;
-  content:"";
-  height:18px;
-  width:18px;
-  left:2px;
-  bottom:2px;
-  background-color:#fff;
-  transition:.3s;
-  border-radius:50%;
-}
-input:checked + .slider{background-color:var(--accent-blue)}
-input:checked + .slider:before{transform:translateX(22px)}
-
-.toggle-label{font-size:0.9em;font-weight:600;color:#fff}
-.badge-active{
-  background:var(--accent-green-bg);
-  color:var(--accent-green);
-  border:1px solid rgba(0,200,83,0.3);
-  font-size:0.72em;
-  padding:2px 8px;
-  border-radius:12px;
-  font-weight:600;
-}
-
-.table-responsive{overflow-x:auto}
-.custom-table{
-  width:100%;
-  border-collapse:collapse;
-  font-size:0.85em;
-  text-align:left;
-}
-.custom-table th{
-  color:var(--text-muted);
-  font-weight:600;
-  padding:10px 12px;
-  border-bottom:1px solid var(--border-color);
-}
-.custom-table td{
-  padding:12px;
-  border-bottom:1px solid var(--border-color);
-  color:var(--text-main);
-  vertical-align:middle;
-}
-
-.select-box, .text-input-sm{
-  background:#050911;
-  border:1px solid var(--border-color);
-  border-radius:6px;
-  padding:6px 10px;
-  color:var(--text-main);
-  font-size:0.85em;
-  outline:none;
-}
-.select-box:focus, .text-input-sm:focus{border-color:var(--accent-blue)}
-
-.badge-status{
-  padding:3px 10px;
-  border-radius:12px;
-  font-size:0.78em;
-  font-weight:600;
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-}
-.status-ok{background:var(--accent-green-bg);color:var(--accent-green)}
-.status-warn{background:rgba(255,149,0,0.12);color:var(--accent-orange)}
-.status-block{background:rgba(255,59,48,0.12);color:var(--accent-red)}
-
-.btn-sm{
-  border:none;
-  padding:6px 10px;
-  border-radius:6px;
-  font-size:0.8em;
-  font-weight:600;
-  cursor:pointer;
-}
-.btn-save{background:var(--accent-blue);color:#fff}
-.btn-save:hover{background:var(--accent-blue-hover)}
-.btn-danger{background:var(--accent-red);color:#fff}
-.btn-danger:hover{background:var(--accent-red-hover)}
-
-.info-footer{
-  background:var(--card-bg);
-  border:1px solid var(--border-color);
-  border-radius:10px;
-  padding:12px 16px;
-  margin-top:20px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  font-size:0.8em;
-  color:var(--text-muted);
-}
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b0f19; color: #e1e7f0; padding: 12px; line-height: 1.5; }
+  .card { background: #131b2e; border: 1px solid #1e2d4a; padding: 16px; border-radius: 12px; margin-bottom: 16px; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  h2 { color: #0084ff; font-size: 1.25rem; margin-bottom: 6px; }
+  p { font-size: 0.9rem; color: #94a3b8; }
+  .table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 12px; }
+  table { width: 100%; min-width: 500px; border-collapse: collapse; text-align: left; }
+  th, td { padding: 10px 8px; border-bottom: 1px solid #1e2d4a; font-size: 0.85rem; }
+  th { color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; }
+  select, button { font-size: 0.85rem; padding: 6px 10px; border-radius: 6px; border: 1px solid #2a3c5d; background: #0b0f19; color: #e1e7f0; outline: none; }
+  .btn { background: #0084ff; color: #fff; border: none; font-weight: 600; cursor: pointer; width: 100%; max-width: 120px; }
+  .btn:active { opacity: 0.8; }
+  .nav-tabs { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; }
+  .tab-btn { background: #131b2e; border: 1px solid #1e2d4a; color: #94a3b8; padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; white-space: nowrap; cursor: pointer; }
+  .tab-btn.active { background: #0084ff; color: #fff; border-color: #0084ff; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
 </style>
 </head>
 <body>
 
-<!-- TOP NAV HEADER -->
-<div class="top-nav">
-  <div class="brand-group">
-    <div class="brand-icon">📶</div>
-    <div>
-      <div class="brand-title">Ibn e Ilyas Repeater</div>
-      <div class="brand-sub">Enterprise Management Console</div>
-    </div>
-  </div>
-  <div class="status-pill">
-    <div class="dot"></div>
-    <div>
-      <span class="status-text">System Online</span>
-      <span class="uptime-text" id="uptime">Uptime: --</span>
+<div class="card">
+  <h2>📶 Ibn e Ilyas Repeater</h2>
+  <p>Status: <span style="color:#00e676; font-weight:bold;">Online</span></p>
+</div>
+
+<div class="nav-tabs">
+  <button class="tab-btn active" onclick="switchTab('dashboard')">Dashboard</button>
+  <button class="tab-btn" onclick="switchTab('settings')">Settings</button>
+</div>
+
+<div id="dashboard" class="tab-content active">
+  <div class="card">
+    <h3>Connected Clients & Traffic Control</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>MAC Address</th>
+            <th>IP</th>
+            <th>Data Usage</th>
+            <th>Speed Limit</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>AA:BB:CC:DD:EE:01</td>
+            <td>192.168.4.2</td>
+            <td>450 MB / 1 GB</td>
+            <td>
+              <select>
+                <option>Unlimited</option>
+                <option selected>4 Mbps</option>
+                <option>2 Mbps</option>
+              </select>
+            </td>
+            <td><button class="btn">Save</button></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
 
-<div class="main-wrapper">
-  <!-- SIDEBAR -->
-  <div class="sidebar">
-    <ul class="nav-menu">
-      <li class="nav-item active">📊 Overview &amp; Control</li>
-      <li class="nav-item">🌐 Repeater AP</li>
-      <li class="nav-item">🔒 Access Control</li>
-      <li class="nav-item">⚡ Bandwidth (QoS)</li>
-      <li class="nav-item">⚙️ Settings</li>
-    </ul>
-    <div class="sidebar-footer">
-      <div style="font-size:20px">⛰️</div>
-      <h4>Ibn e Ilyas WiFi</h4>
-      <p>Stronger Signal, Wider Reach</p>
-    </div>
-  </div>
-
-  <!-- CONTENT -->
-  <div class="content-area">
-    
-    <!-- METRICS CARDS -->
-    <div class="metrics-grid">
-      <div class="metric-card">
-        <div class="metric-title">Monthly Repeater Usage</div>
-        <div class="metric-val" id="total_monthly">-- GB</div>
-        <div class="metric-sub">This Month</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-title">Weekly Repeater Usage</div>
-        <div class="metric-val" id="total_weekly">-- GB</div>
-        <div class="metric-sub">Last 7 Days</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-title">Active Devices</div>
-        <div class="metric-val" id="client_count">0</div>
-        <div class="metric-sub">Connected Now</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-title">Global Bandwidth</div>
-        <div class="metric-val">20 Mbps</div>
-        <div class="metric-sub">Max ISP Rate</div>
-      </div>
-    </div>
-
-    <!-- MAIN PANEL CARD -->
-    <div class="panel-card">
-      <div class="panel-header">
-        <div class="panel-icon-box">🛡️</div>
-        <div class="panel-title-area">
-          <h2>Client Usage, Bandwidth &amp; Data Quota Limits</h2>
-          <p>Monitor real-time MB/GB usage per device, set individual speed caps (Mbps), and enforce data limits.</p>
-        </div>
-      </div>
-
-      <div class="toggle-card">
-        <label class="switch">
-          <input type="checkbox" id="qos_toggle" checked onchange="toggleQoS(this.checked)">
-          <span class="slider"></span>
-        </label>
-        <span class="toggle-label">Enable Speed &amp; Quota Control (QoS)</span>
-        <span class="badge-active">Active</span>
-      </div>
-
-      <!-- CLIENTS TABLE -->
-      <div class="table-responsive">
-        <table class="custom-table">
-          <thead>
-            <tr>
-              <th>Device / MAC</th>
-              <th>IP Address</th>
-              <th>Usage (Weekly / Monthly)</th>
-              <th>Speed Limit (Mbps)</th>
-              <th>Data Quota (GB/MB)</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="client_tbody">
-            <!-- Dynamic Data -->
-          </tbody>
-        </table>
-      </div>
-
-      <div class="info-footer">
-        <div>ℹ️ Devices that exceed their assigned Data Quota will automatically have internet blocked until reset.</div>
-        <div style="color:var(--accent-blue);font-weight:600">Active Rule Engine: C++ Native Packet Filtering</div>
-      </div>
-    </div>
-
+<div id="settings" class="tab-content">
+  <div class="card">
+    <h3>Wi-Fi Settings</h3>
+    <p style="margin-top: 8px;">Network SSID & Security Configuration.</p>
   </div>
 </div>
 
 <script>
-async function loadData() {
-  try {
-    const res = await fetch('/api/stats');
-    const data = await res.json();
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
     
-    document.getElementById('uptime').innerText = 'Uptime: ' + data.uptime;
-    document.getElementById('total_monthly').innerText = data.monthly_gb + ' GB';
-    document.getElementById('total_weekly').innerText = data.weekly_gb + ' GB';
-    document.getElementById('client_count').innerText = data.clients.length;
-
-    const tbody = document.getElementById('client_tbody');
-    tbody.innerHTML = data.clients.map((c, i) => {
-      let statusBadge = '<span class="badge-status status-ok">Active</span>';
-      if(c.blocked) {
-        statusBadge = '<span class="badge-status status-block">Blocked</span>';
-      } else if(c.quota_exceeded) {
-        statusBadge = '<span class="badge-status status-warn">Quota Exceeded</span>';
-      }
-
-      return `
-        <tr>
-          <td>
-            <strong>${c.name}</strong><br>
-            <small style="font-family:monospace;color:var(--text-muted)">${c.mac}</small>
-          </td>
-          <td style="font-family:monospace">${c.ip}</td>
-          <td>
-            <span style="color:#fff;font-weight:600">${c.weekly_usage}</span> / 
-            <span style="color:var(--accent-blue);font-weight:600">${c.monthly_usage}</span>
-          </td>
-          <td>
-            <select class="select-box" id="speed_${i}">
-              <option value="0" ${c.speed_limit == 0 ? 'selected':''}>Unlimited</option>
-              <option value="1" ${c.speed_limit == 1 ? 'selected':''}>1 Mbps</option>
-              <option value="2" ${c.speed_limit == 2 ? 'selected':''}>2 Mbps</option>
-              <option value="4" ${c.speed_limit == 4 ? 'selected':''}>4 Mbps</option>
-              <option value="8" ${c.speed_limit == 8 ? 'selected':''}>8 Mbps</option>
-            </select>
-          </td>
-          <td>
-            <select class="select-box" id="quota_${i}">
-              <option value="0" ${c.quota_limit == 0 ? 'selected':''}>Unlimited</option>
-              <option value="500" ${c.quota_limit == 500 ? 'selected':''}>500 MB</option>
-              <option value="1000" ${c.quota_limit == 1000 ? 'selected':''}>1 GB</option>
-              <option value="2000" ${c.quota_limit == 2000 ? 'selected':''}>2 GB</option>
-              <option value="5000" ${c.quota_limit == 5000 ? 'selected':''}>5 GB</option>
-              <option value="10000" ${c.quota_limit == 10000 ? 'selected':''}>10 GB</option>
-            </select>
-          </td>
-          <td>${statusBadge}</td>
-          <td>
-            <button class="btn-sm btn-save" onclick="saveRule('${c.mac}', ${i})">Save</button>
-            <button class="btn-sm btn-danger" onclick="toggleBlock('${c.mac}', ${!c.blocked})">${c.blocked ? 'Unblock':'Block'}</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
-  } catch(e) {
-    console.log('Fetching error or offline mode');
+    document.getElementById(tabId).classList.add('active');
+    event.currentTarget.classList.add('active');
   }
-}
-
-async function saveRule(mac, index) {
-  const speed = document.getElementById('speed_' + index).value;
-  const quota = document.getElementById('quota_' + index).value;
-  await fetch('/api/set_client_limit', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ mac: mac, speed_limit: parseInt(speed), quota_limit: parseInt(quota) })
-  });
-  alert('Rule updated for ' + mac);
-  loadData();
-}
-
-async function toggleBlock(mac, block) {
-  await fetch('/api/block_client', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ mac: mac, block: block })
-  });
-  loadData();
-}
-
-setInterval(loadData, 5000);
-loadData();
 </script>
+
 </body>
 </html>
