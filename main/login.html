@@ -38,19 +38,6 @@ footer a{color:#7fd9bd;text-decoration:none}
 .mbox ul{margin:0;padding-left:18px;font-size:.92em;line-height:1.6}
 .mbox .q{margin-top:14px;font-style:italic;color:#c9e7df;text-align:center}
 .mclose{position:absolute;top:8px;right:12px;background:none;border:none;color:#aaa;font-size:24px;cursor:pointer;width:auto;margin:0;padding:0}
-
-/* Fullscreen AI Modal */
-.ai-modal{position:fixed;inset:0;background:#0c1416;display:none;flex-direction:column;z-index:99;padding:10px}
-.ai-modal.on{display:flex}
-.ai-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2c4a50;padding-bottom:6px;margin-bottom:6px}
-.ai-header h2{margin:0;color:#00e0a0;font-size:0.95em}
-#chatbox{flex:1;overflow-y:auto;background:#0f1a1d;border:1px solid #2c4a50;border-radius:8px;padding:10px;margin:6px 0;font-size:14px}
-.cmsg{margin:6px 0;padding:8px 10px;border-radius:8px;word-break:break-word;line-height:1.35}
-.cuser{background:#203a43;color:#eee;text-align:right;margin-left:20%}
-.cai{background:#06201a;color:#7fd9bd;border:1px solid #00e0a0;margin-right:15%}
-.cerr{background:#3a1c1c;color:#ff8080}
-.ai-inputs{display:flex;flex-direction:column;gap:6px}
-.ai-row{display:flex;gap:6px;margin-bottom:4px}
 </style>
 </head>
 <body>
@@ -71,15 +58,9 @@ footer a{color:#7fd9bd;text-decoration:none}
     <button onclick="doLogin()">Login</button>
     <div id="err"></div>
   </section>
-  <footer>
-    <a href="#" onclick="openAbout();return false">About Developer</a> &nbsp;&middot;&nbsp; 
-    <a href="/tools">&#128295; WiFi Tools</a> &nbsp;&middot;&nbsp; 
-    <a href="#" onclick="openAi();return false">&#129302; AI Chat</a><br>
-    <span id="diagLine" style="opacity:.6"></span>
-  </footer>
+  <footer><a href="#" onclick="openAbout();return false">About Developer</a> &nbsp;&middot;&nbsp; <a href="/tools">&#128295; WiFi Tools (no login)</a><br><span id="diagLine" style="opacity:.6"></span></footer>
 </div>
 
-<!-- About Modal -->
 <div class="modal" id="about" onclick="if(event.target===this)closeAbout()">
   <div class="mbox">
     <button class="mclose" onclick="closeAbout()">&times;</button>
@@ -100,156 +81,12 @@ footer a{color:#7fd9bd;text-decoration:none}
     <div class="q">&ldquo;Build it. Break it. Fix it. Learn from it.&rdquo;</div>
   </div>
 </div>
-
-<!-- Maximized AI Chat Modal -->
-<div class="ai-modal" id="aimodal">
-  <div class="ai-header">
-    <div style="display:flex;align-items:center;gap:6px">
-      <h2>🤖 AI Chat</h2>
-      <span style="font-size:0.7em;color:#9fb3b0">(Fast Response)</span>
-    </div>
-    <button class="mclose" style="position:static" onclick="closeAi()">&times;</button>
-  </div>
-  
-  <div class="ai-row" id="keyRow">
-    <input type="password" id="ak" placeholder="Enter OpenRouter API Key" style="padding:6px;font-size:12px">
-    <button type="button" onclick="saveAk()" style="width:auto;margin:0;padding:6px 10px;font-size:12px;background:#23282a;color:#9fd8c8;border:1px solid #33474a">Save Key</button>
-  </div>
-  
-  <div id="chatbox"></div>
-  
-  <div class="ai-inputs">
-    <input type="text" id="ci" placeholder="Type message..." onkeypress="if(event.key==='Enter')sendAiMsg()">
-    <button type="button" onclick="sendAiMsg()" style="margin:0;padding:10px">Send</button>
-  </div>
-</div>
-
 <script>
-// --- MAC OUI VENDOR LOOKUP TABLE ---
-function getVendorFromMac(mac) {
-    if (!mac) return "Unknown";
-    var cleanMac = mac.toUpperCase().replace(/[:-]/g, '');
-    var p6 = cleanMac.substring(0, 6);
-    var v = {
-        "C83A35":"Tenda", "00B00C":"Tenda", "CC3429":"Tenda", "502B73":"Tenda", "0495E6":"Tenda",
-        "001E10":"Huawei", "00259E":"Huawei", "286ED4":"Huawei", "00464B":"Huawei", "7054D2":"Huawei", "80B686":"Huawei", "E8088B":"Huawei",
-        "0015EB":"ZTE", "001E73":"ZTE", "002293":"ZTE", "74B57E":"ZTE", "D476EA":"ZTE", "F8EDA5":"ZTE",
-        "001D0F":"TP-Link", "14CC20":"TP-Link", "50C7BF":"TP-Link", "E894F6":"TP-Link", "F81A67":"TP-Link", "A0F3C1":"TP-Link",
-        "00055D":"D-Link", "000F3D":"D-Link", "001346":"D-Link", "1C7EE5":"D-Link", "28107B":"D-Link",
-        "00095B":"Netgear", "000FB5":"Netgear", "204E71":"Netgear", "841B5E":"Netgear",
-        "8C97EA":"Xiaomi", "640980":"Xiaomi", "84D81B":"Mercury", "0023CD":"Mercury",
-        "00000C":"Cisco", "001A3A":"Cisco", "0008A1":"Technicolor"
-    };
-    return v[p6] || "Unknown";
-}
-
-// --- OPTIMIZED FAST SPEED TEST ---
-async function runFastSpeedTest(urlTarget, resultElemId) {
-    var elem = document.getElementById(resultElemId);
-    if(elem) elem.innerText = "Testing...";
-    var tStart = performance.now();
-    var bytesDownloaded = 0;
-    var maxDuration = 3500; // 3.5 Seconds cap for fast response
-
-    try {
-        var controller = new AbortController();
-        var timer = setTimeout(() => controller.abort(), maxDuration);
-        var res = await fetch(urlTarget + '?' + Date.now(), { signal: controller.signal });
-        var reader = res.body.getReader();
-
-        while (true) {
-            var { done, value } = await reader.read();
-            if (done) break;
-            bytesDownloaded += value.length;
-        }
-        clearTimeout(timer);
-    } catch (e) {}
-
-    var tEnd = performance.now();
-    var duration = (tEnd - tStart) / 1000;
-    if (duration > 0 && bytesDownloaded > 0) {
-        var mbps = ((bytesDownloaded * 8) / (duration * 1024 * 1024)).toFixed(2);
-        if(elem) elem.innerText = mbps + " Mbps";
-    } else {
-        if(elem) elem.innerText = "Failed";
-    }
-}
-
 function openAbout(){document.getElementById('about').classList.add('on');}
-function closeAbout(){document.getElementById('about').classList.remove('on');}
-
-function checkKeyDisplay(){
-  const k = localStorage.getItem('or_key');
-  const kr = document.getElementById('keyRow');
-  if(k && k.trim() !== ''){
-    kr.style.display = 'none';
-  } else {
-    kr.style.display = 'flex';
-  }
-}
-
-function openAi(){
-  const savedKey = localStorage.getItem('or_key') || '';
-  document.getElementById('ak').value = savedKey;
-  checkKeyDisplay();
-  document.getElementById('aimodal').classList.add('on');
-}
-
-function closeAi(){document.getElementById('aimodal').classList.remove('on');}
-
-function saveAk(){
-  const k = document.getElementById('ak').value.trim();
-  if(!k){ alert('Please enter a valid key!'); return; }
-  localStorage.setItem('or_key', k);
-  checkKeyDisplay();
-  alert('Key Saved!');
-}
-
-async function sendAiMsg(){
-  const k = localStorage.getItem('or_key') || document.getElementById('ak').value.trim();
-  if(!k){ 
-    document.getElementById('keyRow').style.display = 'flex';
-    alert('Please enter & save OpenRouter API key first!'); 
-    return; 
-  }
-  
-  const inp = document.getElementById('ci');
-  const txt = inp.value.trim();
-  if(!txt) return;
-
-  const box = document.getElementById('chatbox');
-  box.innerHTML += `<div class="cmsg cuser">${txt}</div>`;
-  inp.value = '';
-  box.scrollTop = box.scrollHeight;
-
-  try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${k}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        'model': 'openai/gpt-4o-mini',
-        'messages': [{'role': 'user', 'content': txt}]
-      })
-    });
-    const d = await res.json();
-    if (d.choices && d.choices[0]) {
-      box.innerHTML += `<div class="cmsg cai">${d.choices[0].message.content}</div>`;
-    } else {
-      box.innerHTML += `<div class="cmsg cerr">${d.error?.message || 'Error occurred'}</div>`;
-    }
-  } catch(e) {
-    box.innerHTML += `<div class="cmsg cerr">Request Failed</div>`;
-  }
-  box.scrollTop = box.scrollHeight;
-}
-
 fetch('/api/me').then(function(r){return r.json();}).then(function(j){
   document.getElementById('diagLine').textContent='fw v'+j.fw+' \u00b7 factory resets: '+j.reset_count;
 }).catch(function(){});
-
+function closeAbout(){document.getElementById('about').classList.remove('on');}
 async function doLogin(){
   const e=document.getElementById('err'); e.textContent='';
   try{

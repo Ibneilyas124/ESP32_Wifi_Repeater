@@ -122,33 +122,34 @@ typedef struct {
     const char *def;     /* default value */
     const char *type;    /* text | password | password_keep | number | bool */
     const char *hint;
+    const char *group;   /* which collapsible section this appears under in the dashboard */
 } setting_t;
 
 static const setting_t SETTINGS[] = {
-    {"ap_ssid",    "Repeater WiFi name (SSID)",        "Sarfraz",                  "text",          "1-32 characters"},
-    {"ap_pass",    "Repeater WiFi password",           "Sarfraz1",                 "password",      "8-63 characters. Blank = open network (no password)"},
-    {"ap_hidden",  "Hide repeater WiFi name",          "0",                        "bool",          "Hidden networks must be added manually on phones"},
-    {"ap_channel", "Repeater channel",                 "1",                        "number",        "1-13. Automatically follows the main router while connected"},
-    {"ap_max_conn","Max connected devices",            "8",                        "number",        "1-10"},
-    {"ap_ip",      "Repeater IP address",              "192.168.4.1",              "text",          "Change only if it clashes with the main router's network"},
-    {"dns1",       "DNS server given to clients",      "8.8.8.8",                  "text",          "If sites do not open try 8.8.8.8, 8.8.4.4, 1.1.1.1 or your ISP DNS"},
-    {"hostname",   "Name shown in main router",        "Ibn-e-Ilyas-Technologies", "text",          "1-32 characters. Letters, digits and hyphen work best on routers"},
-    {"sta_mac",    "Custom MAC toward main router",    "",                         "text",          "Blank = factory MAC. Format AA:BB:CC:DD:EE:FF, first byte must be even"},
-    {"tx_power",   "Transmit power (dBm)",             "20",                       "number",        "2-20. Lower it if the device overheats"},
-    {"guest_filter","Guests: connect but no internet",  "1",                        "bool",          "1 = wrong-listed devices can join & reach this page but get no internet. 0 = they get disconnected immediately"},
-    {"deauth_monitor","Deauth attack monitor",          "1",                        "bool",          "Passively watches for deauth/disassoc floods nearby. See WiFi Tools > Deauth"},
-    {"deauth_alert","Deauth alert threshold",           "10",                       "number",        "Frames in 10s that count as an attack (1-50)"},
-    {"sta_static_ip","Remote-management IP (static)",   "",                         "text",          "Blank = automatic (from main router). Set this to stop it changing, e.g. if you run 2+ repeaters"},
-    {"sta_gateway", "Static IP: main router's address", "",                         "text",          "Required only if Remote-management IP above is set. Usually the main router's own IP"},
-    {"sta_netmask", "Static IP: subnet mask",            "255.255.255.0",            "text",          "Required only if Remote-management IP above is set. Leave default unless you know why"},
-    {"auto_reboot_hours","Auto-restart every N hours",   "0",                        "number",        "0 = never. Otherwise the repeater reboots itself every N hours (1-168) to stay fresh"},
-    {"overall_up_kbps",  "Overall upload cap (all devices)", "0",                    "number",        "0 = unlimited. Total upload speed shared by every connected device combined, in Kbps"},
-    {"overall_down_kbps","Overall download cap (all devices)","0",                   "number",        "0 = unlimited. Total download/streaming speed shared by every connected device combined, in Kbps"},
-    {"ai_enabled",  "Enable public AI chat (/chat)",     "0",                        "bool",          "OFF by default. Anyone connected can use it once ON - it spends YOUR API key's money per message"},
-    {"ai_api_key",  "AI API key",                        "",                         "password",      "Your own OpenAI (or compatible) API key. Stored only on this device, never shown to chat users"},
-    {"ai_model",    "AI model name",                     "gpt-4o-mini",              "text",          "e.g. gpt-4o-mini (cheap, fast) or gpt-4o (smarter, costs more)"},
-    {"ai_api_base", "AI API endpoint URL",                "https://api.openai.com/v1/chat/completions", "text", "Change only if pointing at a different OpenAI-compatible provider"},
-    {"admin_pass", "Admin password",                   "admin",                    "password_keep", "4-32 characters. Leave blank to keep the current one"},
+    {"ap_ssid",    "Repeater WiFi name (SSID)",        "Sarfraz",                  "text",          "1-32 characters", "wifi"},
+    {"ap_pass",    "Repeater WiFi password",           "Sarfraz1",                 "password",      "8-63 characters. Blank = open network (no password)", "wifi"},
+    {"ap_hidden",  "Hide repeater WiFi name",          "0",                        "bool",          "Hidden networks must be added manually on phones", "wifi"},
+    {"ap_channel", "Repeater channel",                 "1",                        "number",        "1-13. Automatically follows the main router while connected", "wifi"},
+    {"ap_max_conn","Max connected devices",            "8",                        "number",        "1-10", "wifi"},
+    {"ap_ip",      "Repeater IP address",              "192.168.4.1",              "text",          "Change only if it clashes with the main router's network", "wifi"},
+    {"dns1",       "DNS server given to clients",      "8.8.8.8",                  "text",          "If sites do not open try 8.8.8.8, 8.8.4.4, 1.1.1.1 or your ISP DNS", "wifi"},
+    {"hostname",   "Name shown in main router",        "Ibn-e-Ilyas-Technologies", "text",          "1-32 characters. Letters, digits and hyphen work best on routers", "wifi"},
+    {"tx_power",   "Transmit power (dBm)",             "20",                       "number",        "2-20. Lower it if the device overheats", "wifi"},
+    {"guest_filter","Guests: connect but no internet",  "1",                        "bool",          "1 = wrong-listed devices can join & reach this page but get no internet. 0 = they get disconnected immediately", "security"},
+    {"deauth_monitor","Deauth attack monitor",          "1",                        "bool",          "Passively watches for deauth/disassoc floods nearby. See WiFi Tools > Deauth", "security"},
+    {"deauth_alert","Deauth alert threshold",           "10",                       "number",        "Frames in 10s that count as an attack (1-50)", "security"},
+    {"admin_pass", "Admin password",                   "admin",                    "password_keep", "4-32 characters. Leave blank to keep the current one", "security"},
+    {"sta_mac",    "Custom MAC toward main router",    "",                         "text",          "Blank = factory MAC. Format AA:BB:CC:DD:EE:FF, first byte must be even", "network"},
+    {"sta_static_ip","Remote-management IP (static)",   "",                         "text",          "Blank = automatic (from main router). Set this to stop it changing, e.g. if you run 2+ repeaters", "network"},
+    {"sta_gateway", "Static IP: main router's address", "",                         "text",          "Required only if Remote-management IP above is set. Usually the main router's own IP", "network"},
+    {"sta_netmask", "Static IP: subnet mask",            "255.255.255.0",            "text",          "Required only if Remote-management IP above is set. Leave default unless you know why", "network"},
+    {"auto_reboot_hours","Auto-restart every N hours",   "0",                        "number",        "0 = never. Otherwise the repeater reboots itself every N hours (1-168) to stay fresh", "network"},
+    {"overall_up_kbps",  "Overall upload cap (all devices)", "0",                    "number",        "0 = unlimited. Total upload speed shared by every connected device combined, in Kbps", "bandwidth"},
+    {"overall_down_kbps","Overall download cap (all devices)","0",                   "number",        "0 = unlimited. Total download/streaming speed shared by every connected device combined, in Kbps", "bandwidth"},
+    {"ai_enabled",  "Enable public AI chat (/chat)",     "0",                        "bool",          "OFF by default. Anyone connected can use it once ON - it spends YOUR API key's money per message", "ai"},
+    {"ai_api_key",  "AI API key",                        "",                         "password",      "Your own OpenAI (or compatible) API key. Stored only on this device, never shown to chat users", "ai"},
+    {"ai_model",    "AI model name",                     "gpt-4o-mini",              "text",          "e.g. gpt-4o-mini (cheap, fast) or gpt-4o (smarter, costs more)", "ai"},
+    {"ai_api_base", "AI API endpoint URL",                "https://api.openai.com/v1/chat/completions", "text", "Change only if pointing at a different OpenAI-compatible provider", "ai"},
 };
 #define N_SETTINGS (sizeof(SETTINGS) / sizeof(SETTINGS[0]))
 
@@ -1300,6 +1301,7 @@ static esp_err_t settings_get_handler(httpd_req_t *req) {
         cJSON_AddStringToObject(o, "value", v);
         cJSON_AddStringToObject(o, "def", SETTINGS[i].def);
         cJSON_AddStringToObject(o, "hint", SETTINGS[i].hint);
+        cJSON_AddStringToObject(o, "group", SETTINGS[i].group);
         cJSON_AddItemToArray(items, o);
     }
     cJSON_AddItemToObject(root, "items", items);

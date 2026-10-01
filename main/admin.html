@@ -1,488 +1,432 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ibn e Ilyas Repeater - Enterprise Management Console</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sarfraz Ibn E Ilyas - Admin</title>
 <style>
 :root{
-  --bg-dark:#060a12;
-  --panel-bg:#0d1424;
-  --card-bg:#090e1a;
-  --border-color:#1a263d;
-  --text-main:#e1e7f0;
-  --text-muted:#62748e;
-  --accent-blue:#0084ff;
-  --accent-blue-hover:#006fd6;
-  --accent-green:#00c853;
-  --accent-green-bg:rgba(0,200,83,0.12);
-  --accent-red:#ff3b30;
-  --accent-red-hover:#d93025;
-  --accent-orange:#ff9500;
+  --bg:#0b0d0e; --card:#141718; --line:#242a2c; --text:#e8e8e8; --dim:#8a9794;
+  --accent:#00e0a0; --accent2:#00a3ff; --bad:#e04a4a; --warn:#e0a83c;
 }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,sans-serif;
+  margin:0;padding:10px;font-size:14px;line-height:1.4;max-width:480px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:center;padding:4px 2px 10px;border-bottom:1px solid var(--line);margin-bottom:10px}
+header .t{font-size:1.05em;font-weight:700;color:var(--accent)}
+header .t small{display:block;font-weight:400;color:var(--dim);font-size:.62em;margin-top:1px}
+header button{background:#1c2122;color:var(--dim);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-size:12px}
 
-*{box-sizing:border-box;margin:0;padding:0}
-body{
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  background:var(--bg-dark);
-  color:var(--text-main);
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
-}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden}
+.card>.pad{padding:10px}
+summary{padding:10px;cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:'\\25BE';color:var(--dim);transition:transform .15s}
+details[open]>summary::after{transform:rotate(180deg)}
+summary .badge{background:#1c2122;color:var(--dim);border-radius:10px;padding:1px 7px;font-size:11px;font-weight:400;margin-left:6px}
+details>.pad{padding:0 10px 10px}
+h2{font-size:.95em;margin:0;color:var(--text)}
 
-/* Header */
-.top-nav{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  background:var(--panel-bg);
-  padding:14px 20px;
-  border-bottom:1px solid var(--border-color);
-}
-.brand-group{display:flex;align-items:center;gap:12px}
-.brand-icon{color:var(--accent-blue);font-size:24px}
-.brand-title{font-size:1.15em;font-weight:700;color:#fff}
-.brand-sub{font-size:0.75em;color:var(--text-muted);margin-top:1px}
-.status-pill{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  background:rgba(0,200,83,0.08);
-  border:1px solid rgba(0,200,83,0.2);
-  padding:6px 12px;
-  border-radius:20px;
-}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--accent-green);box-shadow:0 0 8px var(--accent-green)}
-.status-text{font-size:0.75em;color:var(--accent-green);font-weight:600}
-.uptime-text{font-size:0.7em;color:var(--text-muted);display:block;text-align:right}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stat{background:#101314;border:1px solid var(--line);border-radius:7px;padding:7px 8px}
+.stat .k{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.3px}
+.stat .v{font-size:13.5px;font-weight:600;margin-top:1px;word-break:break-word}
+.stat .v.ok{color:var(--accent)} .stat .v.bad{color:var(--bad)}
 
-/* Layout */
-.main-wrapper{display:flex;flex:1}
-.sidebar{
-  width:230px;
-  background:var(--panel-bg);
-  border-right:1px solid var(--border-color);
-  padding:20px 12px;
-  display:flex;
-  flex-direction:column;
-  justify-content:space-between;
-}
-@media(max-width:900px){ .sidebar{display:none} }
+input,select,textarea{width:100%;background:#101314;color:var(--text);border:1px solid #2c3234;
+  border-radius:7px;padding:8px 9px;font-size:13.5px;margin:4px 0}
+label{font-size:11.5px;color:var(--dim);display:block;margin-top:7px}
+small.hint{color:var(--dim);font-size:10.5px;display:block;margin-top:2px}
+button.act{background:var(--accent);color:#06201a;font-weight:700;border:none;border-radius:7px;
+  padding:9px;font-size:13px;cursor:pointer;width:100%;margin-top:6px}
+button.ghost{background:#1c2122;color:var(--dim);border:1px solid var(--line);border-radius:7px;
+  padding:7px 9px;font-size:12px;cursor:pointer}
+button.danger{background:var(--bad);color:#fff;border:none;border-radius:7px;padding:9px;font-size:13px;cursor:pointer}
+button.small{padding:4px 8px;font-size:11px;border-radius:6px}
+.row{display:flex;gap:6px;align-items:center}
+.row>*{flex:1}
+.row>button{flex:0 0 auto}
 
-.nav-menu{list-style:none}
-.nav-item{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding:10px 14px;
-  color:var(--text-muted);
-  font-size:0.88em;
-  border-radius:8px;
-  margin-bottom:4px;
-  cursor:pointer;
-  transition:all .15s;
-}
-.nav-item:hover{background:rgba(255,255,255,0.03);color:var(--text-main)}
-.nav-item.active{background:rgba(0,132,255,0.12);color:var(--accent-blue);font-weight:600;border-left:3px solid var(--accent-blue)}
+.tblwrap{overflow-x:auto;margin-top:6px}
+table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap}
+th{color:var(--dim);text-align:left;font-weight:600;font-size:10.5px;text-transform:uppercase;padding:4px 7px;border-bottom:1px solid var(--line)}
+td{padding:5px 7px;border-bottom:1px solid #1a1e1f}
+.tag{display:inline-block;border-radius:5px;padding:1px 6px;font-size:10.5px}
+.tag.ok{background:#0d2b22;color:var(--accent)} .tag.bad{background:#2b1414;color:#ff9c9c}
 
-.sidebar-footer{text-align:center;padding:16px 8px;border-top:1px solid var(--border-color)}
-.sidebar-footer h4{font-size:0.9em;color:#fff;margin-top:6px}
-.sidebar-footer p{font-size:0.72em;color:var(--text-muted)}
+.wlrow{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #1a1e1f;font-size:12.5px}
+.wlrow .nm{flex:1;overflow:hidden;text-overflow:ellipsis}
+.wlrow .nm b{color:var(--text)} .wlrow .nm span{color:var(--dim);display:block;font-size:10.5px}
 
-.content-area{flex:1;padding:20px;max-width:1200px}
-
-/* Folder Tabs */
-.tabs-grid{
-  display:grid;
-  grid-template-columns:repeat(4, 1fr);
-  gap:10px;
-  margin-bottom:20px;
-}
-@media(max-width:600px){.tabs-grid{grid-template-columns:repeat(2, 1fr)}}
-.folder-tab{
-  background:var(--panel-bg);
-  border:1px solid var(--border-color);
-  border-radius:10px;
-  padding:14px 16px;
-  display:flex;
-  align-items:center;
-  gap:12px;
-  cursor:pointer;
-  transition:all .2s;
-}
-.folder-tab:hover{border-color:var(--accent-blue)}
-.folder-tab.active{
-  background:#0e172a;
-  border-color:var(--accent-blue);
-  box-shadow:inset 0 2px 0 var(--accent-blue);
-}
-.tab-icon{font-size:18px;color:var(--accent-blue)}
-.tab-label{font-size:0.85em;font-weight:600;color:var(--text-main)}
-
-/* Metrics Summary Row */
-.metrics-grid{
-  display:grid;
-  grid-template-columns:repeat(4, 1fr);
-  gap:12px;
-  margin-bottom:20px;
-}
-@media(max-width:768px){.metrics-grid{grid-template-columns:repeat(2, 1fr)}}
-.metric-card{
-  background:var(--panel-bg);
-  border:1px solid var(--border-color);
-  border-radius:10px;
-  padding:14px 16px;
-}
-.metric-title{font-size:0.75em;color:var(--text-muted);font-weight:600;text-transform:uppercase}
-.metric-val{font-size:1.3em;font-weight:700;color:#fff;margin-top:4px}
-.metric-sub{font-size:0.72em;color:var(--accent-green);margin-top:2px}
-
-/* Main Panel Card */
-.panel-card{
-  background:var(--panel-bg);
-  border:1px solid var(--border-color);
-  border-radius:12px;
-  padding:24px;
-}
-
-.panel-header{
-  display:flex;
-  align-items:flex-start;
-  gap:14px;
-  margin-bottom:20px;
-}
-.panel-icon-box{
-  background:rgba(0,132,255,0.1);
-  border:1px solid rgba(0,132,255,0.2);
-  width:42px;
-  height:42px;
-  border-radius:10px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:var(--accent-blue);
-  font-size:20px;
-}
-.panel-title-area h2{font-size:1.15em;font-weight:700;color:#fff}
-.panel-title-area p{font-size:0.82em;color:var(--text-muted);margin-top:2px}
-
-/* Controls & Table */
-.toggle-card{
-  background:var(--card-bg);
-  border:1px solid var(--border-color);
-  border-radius:10px;
-  padding:14px 18px;
-  display:flex;
-  align-items:center;
-  gap:16px;
-  margin-bottom:20px;
-}
-.switch{position:relative;display:inline-block;width:46px;height:24px}
-.switch input{opacity:0;width:0;height:0}
-.slider{
-  position:absolute;
-  cursor:pointer;
-  inset:0;
-  background-color:#1e293b;
-  transition:.3s;
-  border-radius:24px;
-  border:1px solid var(--border-color);
-}
-.slider:before{
-  position:absolute;
-  content:"";
-  height:18px;
-  width:18px;
-  left:2px;
-  bottom:2px;
-  background-color:#fff;
-  transition:.3s;
-  border-radius:50%;
-}
-input:checked + .slider{background-color:var(--accent-blue)}
-input:checked + .slider:before{transform:translateX(22px)}
-
-.toggle-label{font-size:0.9em;font-weight:600;color:#fff}
-.badge-active{
-  background:var(--accent-green-bg);
-  color:var(--accent-green);
-  border:1px solid rgba(0,200,83,0.3);
-  font-size:0.72em;
-  padding:2px 8px;
-  border-radius:12px;
-  font-weight:600;
-}
-
-.table-responsive{overflow-x:auto}
-.custom-table{
-  width:100%;
-  border-collapse:collapse;
-  font-size:0.85em;
-  text-align:left;
-}
-.custom-table th{
-  color:var(--text-muted);
-  font-weight:600;
-  padding:10px 12px;
-  border-bottom:1px solid var(--border-color);
-}
-.custom-table td{
-  padding:12px;
-  border-bottom:1px solid var(--border-color);
-  color:var(--text-main);
-  vertical-align:middle;
-}
-
-.select-box, .text-input-sm{
-  background:#050911;
-  border:1px solid var(--border-color);
-  border-radius:6px;
-  padding:6px 10px;
-  color:var(--text-main);
-  font-size:0.85em;
-  outline:none;
-}
-.select-box:focus, .text-input-sm:focus{border-color:var(--accent-blue)}
-
-.badge-status{
-  padding:3px 10px;
-  border-radius:12px;
-  font-size:0.78em;
-  font-weight:600;
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-}
-.status-ok{background:var(--accent-green-bg);color:var(--accent-green)}
-.status-warn{background:rgba(255,149,0,0.12);color:var(--accent-orange)}
-.status-block{background:rgba(255,59,48,0.12);color:var(--accent-red)}
-
-.btn-sm{
-  border:none;
-  padding:6px 10px;
-  border-radius:6px;
-  font-size:0.8em;
-  font-weight:600;
-  cursor:pointer;
-}
-.btn-save{background:var(--accent-blue);color:#fff}
-.btn-save:hover{background:var(--accent-blue-hover)}
-.btn-danger{background:var(--accent-red);color:#fff}
-.btn-danger:hover{background:var(--accent-red-hover)}
-
-.info-footer{
-  background:var(--card-bg);
-  border:1px solid var(--border-color);
-  border-radius:10px;
-  padding:12px 16px;
-  margin-top:20px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  font-size:0.8em;
-  color:var(--text-muted);
-}
+.chart{display:flex;align-items:flex-end;gap:2px;height:72px;margin-top:6px}
+.chart i{flex:1;min-width:3px;border-radius:2px 2px 0 0;display:block}
+.subgroup summary{font-size:.85em;padding:8px 10px;background:#101314}
+.subgroup{border:1px solid var(--line);border-radius:8px;margin:6px 0;overflow:hidden}
+.danger-zone{border-color:#3a1f1f}
+.msg{font-size:11.5px;color:var(--dim);margin-top:5px;min-height:14px}
+footer{text-align:center;color:var(--dim);font-size:11px;padding:14px 0 6px}
 </style>
 </head>
 <body>
 
-<!-- TOP NAV HEADER -->
-<div class="top-nav">
-  <div class="brand-group">
-    <div class="brand-icon">📶</div>
-    <div>
-      <div class="brand-title">Ibn e Ilyas Repeater</div>
-      <div class="brand-sub">Enterprise Management Console</div>
-    </div>
+<header>
+  <div class="t">Sarfraz Ibn E Ilyas<small id="fwLine">WiFi Repeater Admin</small></div>
+  <button onclick="doLogout()">Logout</button>
+</header>
+
+<!-- STATUS: always visible, compact grid -->
+<div class="card"><div class="pad">
+  <div class="grid2" id="statGrid"><div class="stat"><div class="k">Status</div><div class="v">Loading...</div></div></div>
+</div></div>
+
+<!-- CONNECTED DEVICES -->
+<details class="card" id="d-clients">
+  <summary><h2>Connected Devices</h2><span class="badge" id="clientCount">-</span></summary>
+  <div class="pad"><div class="tblwrap" id="clientsTbl">-</div></div>
+</details>
+
+<!-- WHITELIST -->
+<details class="card" id="d-wl">
+  <summary><h2>MAC Whitelist</h2><span class="badge" id="wlCount">-</span></summary>
+  <div class="pad">
+    <small class="hint">Empty list = everyone allowed. Add your own device first.</small>
+    <div id="wlList"></div>
+    <input id="newmac" placeholder="AA:BB:CC:DD:EE:FF" autocomplete="off">
+    <input id="newname" placeholder="Device name" autocomplete="off">
+    <input id="newlimit" type="number" placeholder="Upload limit Kbps (blank = unlimited)" autocomplete="off">
+    <button class="act" onclick="addMac()">Add to Whitelist</button>
+    <div class="msg" id="wlMsg"></div>
   </div>
-  <div class="status-pill">
-    <div class="dot"></div>
-    <div>
-      <span class="status-text">System Online</span>
-      <span class="uptime-text" id="uptime">Uptime: --</span>
+</details>
+
+<!-- UPSTREAM WIFI -->
+<details class="card" id="d-wifi">
+  <summary><h2>Upstream WiFi</h2></summary>
+  <div class="pad">
+    <label>Network name (SSID)</label>
+    <input id="sta_ssid" placeholder="Your main router's WiFi name" autocomplete="off">
+    <label>Password</label>
+    <div style="position:relative">
+      <input id="sta_pass" type="password" placeholder="Blank = keep current" autocomplete="off" style="padding-right:48px">
+      <button class="ghost small" style="position:absolute;right:4px;top:50%;transform:translateY(-50%)" onclick="pwToggle('sta_pass',this)">SHOW</button>
     </div>
+    <button class="act" onclick="saveWifi()">Save &amp; Reboot</button>
+    <div class="msg" id="wifiMsg"></div>
   </div>
-</div>
+</details>
 
-<div class="main-wrapper">
-  <!-- SIDEBAR -->
-  <div class="sidebar">
-    <ul class="nav-menu">
-      <li class="nav-item active">📊 Overview &amp; Control</li>
-      <li class="nav-item">🌐 Repeater AP</li>
-      <li class="nav-item">🔒 Access Control</li>
-      <li class="nav-item">⚡ Bandwidth (QoS)</li>
-      <li class="nav-item">⚙️ Settings</li>
-    </ul>
-    <div class="sidebar-footer">
-      <div style="font-size:20px">⛰️</div>
-      <h4>Ibn e Ilyas WiFi</h4>
-      <p>Stronger Signal, Wider Reach</p>
-    </div>
+<!-- DATA USAGE -->
+<details class="card" id="d-usage">
+  <summary><h2>Data Usage</h2></summary>
+  <div class="pad">
+    <small class="hint" id="usageNote"></small>
+    <div id="overallUsage"></div>
+    <div style="margin-top:8px;color:var(--dim);font-size:11px">Per-device (upload only)</div>
+    <div id="usageBody" class="tblwrap"></div>
+    <small class="hint" style="margin-top:6px">Whole-repeater figures include downloads/streaming. Per-device rows only count uploads - see FEATURES.md.</small>
   </div>
+</details>
 
-  <!-- CONTENT -->
-  <div class="content-area">
-    
-    <!-- METRICS CARDS -->
-    <div class="metrics-grid">
-      <div class="metric-card">
-        <div class="metric-title">Monthly Repeater Usage</div>
-        <div class="metric-val" id="total_monthly">-- GB</div>
-        <div class="metric-sub">This Month</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-title">Weekly Repeater Usage</div>
-        <div class="metric-val" id="total_weekly">-- GB</div>
-        <div class="metric-sub">Last 7 Days</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-title">Active Devices</div>
-        <div class="metric-val" id="client_count">0</div>
-        <div class="metric-sub">Connected Now</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-title">Global Bandwidth</div>
-        <div class="metric-val">20 Mbps</div>
-        <div class="metric-sub">Max ISP Rate</div>
-      </div>
-    </div>
-
-    <!-- MAIN PANEL CARD -->
-    <div class="panel-card">
-      <div class="panel-header">
-        <div class="panel-icon-box">🛡️</div>
-        <div class="panel-title-area">
-          <h2>Client Usage, Bandwidth &amp; Data Quota Limits</h2>
-          <p>Monitor real-time MB/GB usage per device, set individual speed caps (Mbps), and enforce data limits.</p>
-        </div>
-      </div>
-
-      <div class="toggle-card">
-        <label class="switch">
-          <input type="checkbox" id="qos_toggle" checked onchange="toggleQoS(this.checked)">
-          <span class="slider"></span>
-        </label>
-        <span class="toggle-label">Enable Speed &amp; Quota Control (QoS)</span>
-        <span class="badge-active">Active</span>
-      </div>
-
-      <!-- CLIENTS TABLE -->
-      <div class="table-responsive">
-        <table class="custom-table">
-          <thead>
-            <tr>
-              <th>Device / MAC</th>
-              <th>IP Address</th>
-              <th>Usage (Weekly / Monthly)</th>
-              <th>Speed Limit (Mbps)</th>
-              <th>Data Quota (GB/MB)</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="client_tbody">
-            <!-- Dynamic Data -->
-          </tbody>
-        </table>
-      </div>
-
-      <div class="info-footer">
-        <div>ℹ️ Devices that exceed their assigned Data Quota will automatically have internet blocked until reset.</div>
-        <div style="color:var(--accent-blue);font-weight:600">Active Rule Engine: C++ Native Packet Filtering</div>
-      </div>
-    </div>
-
+<!-- SPEED HISTORY -->
+<details class="card" id="d-speed">
+  <summary><h2>Speed History</h2></summary>
+  <div class="pad">
+    <small class="hint">Latency to 1.1.1.1 sampled every ~15 min. Green=ok, red=down.</small>
+    <div class="chart" id="shChart"></div>
+    <div class="msg" id="shNote"></div>
   </div>
-</div>
+</details>
+
+<!-- STABILITY LOG -->
+<details class="card" id="d-stab">
+  <summary><h2>Upstream Stability</h2></summary>
+  <div class="pad tblwrap" id="stabBody">-</div>
+</details>
+
+<!-- ADVANCED SETTINGS -->
+<details class="card" id="d-adv">
+  <summary><h2>Advanced Settings</h2></summary>
+  <div class="pad">
+    <small class="hint">Every setting has a safe default. Saving reboots the repeater.</small>
+    <div id="advGroups">Loading...</div>
+    <div class="row" style="margin-top:8px">
+      <button class="ghost" onclick="fillDefaults()">Fill all defaults</button>
+      <button class="act" onclick="saveSettings()">Save &amp; Reboot</button>
+    </div>
+    <div class="msg" id="advMsg"></div>
+  </div>
+</details>
+
+<!-- BACKUP -->
+<details class="card" id="d-backup">
+  <summary><h2>Config Backup</h2></summary>
+  <div class="pad">
+    <button class="ghost" onclick="exportCfg()">Export JSON</button>
+    <textarea id="importbox" rows="4" placeholder="Paste config JSON here to import"></textarea>
+    <button class="act" onclick="importCfg()">Import &amp; Reboot</button>
+  </div>
+</details>
+
+<!-- DANGER ZONE -->
+<details class="card danger-zone" id="d-danger">
+  <summary><h2 style="color:var(--bad)">Danger Zone</h2></summary>
+  <div class="pad">
+    <button class="danger" style="width:100%" onclick="doReboot()">Reboot Device</button>
+    <button class="danger" style="width:100%;margin-top:8px" onclick="doFactoryReset()">Factory Reset (erase everything)</button>
+    <small class="hint" style="margin-top:8px">Hardware reset: hold BOOT ~8s, release when the LED blinks fast.</small>
+  </div>
+</details>
+
+<footer>WiFi Tools: <a href="/tools" style="color:var(--accent2)">/tools</a> &middot; AI Chat: <a href="/chat" style="color:var(--accent2)">/chat</a></footer>
 
 <script>
-async function loadData() {
-  try {
-    const res = await fetch('/api/stats');
-    const data = await res.json();
-    
-    document.getElementById('uptime').innerText = 'Uptime: ' + data.uptime;
-    document.getElementById('total_monthly').innerText = data.monthly_gb + ' GB';
-    document.getElementById('total_weekly').innerText = data.weekly_gb + ' GB';
-    document.getElementById('client_count').innerText = data.clients.length;
+'use strict';
+function $(id){ return document.getElementById(id); }
+function el(t,attrs,txt){ var e=document.createElement(t); if(attrs) for(var k in attrs) e.setAttribute(k,attrs[k]); if(txt!==undefined) e.textContent=txt; return e; }
+function fmtTime(s){ s=Math.max(0,Math.round(s)); var d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60); return (d?d+'d ':'')+h+'h '+m+'m'; }
+function fmtBytes(b){ b=Number(b)||0; if(b>1073741824) return (b/1073741824).toFixed(2)+' GB'; if(b>1048576) return (b/1048576).toFixed(1)+' MB'; if(b>1024) return (b/1024).toFixed(0)+' KB'; return b+' B'; }
+function pwToggle(id,btn){ var i=$(id); if(i.type==='password'){i.type='text';btn.textContent='HIDE';} else {i.type='password';btn.textContent='SHOW';} }
+function authFail(r){ if(r.status===401){ location.href='/'; return true; } return false; }
+async function post(url,obj){
+  try{
+    var r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(obj||{})});
+    if(authFail(r)) return null;
+    try{ return await r.json(); }catch(e){ return {ok:true}; }
+  }catch(e){ return {ok:false,error:'Network error - lost connection to the repeater'}; }
+}
+var REASONS={1:'Unspecified',2:'Auth expired',3:'Router disconnected us',4:'Inactivity timeout',5:'Too many devices',
+  6:'Bad frame',7:'Bad frame',8:'Router said we left',15:'Wrong password (handshake failed)',200:'Signal lost',
+  201:'Router not found / off',202:'Wrong WiFi password',203:'Association rejected',204:'Handshake timeout'};
 
-    const tbody = document.getElementById('client_tbody');
-    tbody.innerHTML = data.clients.map((c, i) => {
-      let statusBadge = '<span class="badge-status status-ok">Active</span>';
-      if(c.blocked) {
-        statusBadge = '<span class="badge-status status-block">Blocked</span>';
-      } else if(c.quota_exceeded) {
-        statusBadge = '<span class="badge-status status-warn">Quota Exceeded</span>';
-      }
+/* ---------------- STATUS (always visible) ---------------- */
+var loadedWifiField=false;
+async function refreshStatus(){
+  try{
+    var r=await fetch('/api/status',{cache:'no-store'}); if(authFail(r))return; var j=await r.json();
+    $('fwLine').textContent='v'+j.fw+' \u00b7 WiFi Repeater Admin';
 
-      return `
-        <tr>
-          <td>
-            <strong>${c.name}</strong><br>
-            <small style="font-family:monospace;color:var(--text-muted)">${c.mac}</small>
-          </td>
-          <td style="font-family:monospace">${c.ip}</td>
-          <td>
-            <span style="color:#fff;font-weight:600">${c.weekly_usage}</span> / 
-            <span style="color:var(--accent-blue);font-weight:600">${c.monthly_usage}</span>
-          </td>
-          <td>
-            <select class="select-box" id="speed_${i}">
-              <option value="0" ${c.speed_limit == 0 ? 'selected':''}>Unlimited</option>
-              <option value="1" ${c.speed_limit == 1 ? 'selected':''}>1 Mbps</option>
-              <option value="2" ${c.speed_limit == 2 ? 'selected':''}>2 Mbps</option>
-              <option value="4" ${c.speed_limit == 4 ? 'selected':''}>4 Mbps</option>
-              <option value="8" ${c.speed_limit == 8 ? 'selected':''}>8 Mbps</option>
-            </select>
-          </td>
-          <td>
-            <select class="select-box" id="quota_${i}">
-              <option value="0" ${c.quota_limit == 0 ? 'selected':''}>Unlimited</option>
-              <option value="500" ${c.quota_limit == 500 ? 'selected':''}>500 MB</option>
-              <option value="1000" ${c.quota_limit == 1000 ? 'selected':''}>1 GB</option>
-              <option value="2000" ${c.quota_limit == 2000 ? 'selected':''}>2 GB</option>
-              <option value="5000" ${c.quota_limit == 5000 ? 'selected':''}>5 GB</option>
-              <option value="10000" ${c.quota_limit == 10000 ? 'selected':''}>10 GB</option>
-            </select>
-          </td>
-          <td>${statusBadge}</td>
-          <td>
-            <button class="btn-sm btn-save" onclick="saveRule('${c.mac}', ${i})">Save</button>
-            <button class="btn-sm btn-danger" onclick="toggleBlock('${c.mac}', ${!c.blocked})">${c.blocked ? 'Unblock':'Block'}</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
-  } catch(e) {
-    console.log('Fetching error or offline mode');
-  }
+    var g=$('statGrid'); g.innerHTML='';
+    function stat(k,v,cls){ var d=el('div',{'class':'stat'}); d.appendChild(el('div',{'class':'k'},k)); d.appendChild(el('div',{'class':'v '+(cls||'')},v)); g.appendChild(d); }
+    stat('Upstream', j.sta_connected?('Connected':'Offline'), j.sta_connected?'ok':'bad');
+    stat('Upstream IP', j.sta_connected?j.sta_ip:'-');
+    stat('Session uptime', j.sta_connected?fmtTime(j.session_uptime_s):'-');
+    stat('Repeater IP', j.ap_ip);
+    stat('Total uptime', fmtTime(j.uptime_s));
+    stat('Free memory', Math.round(j.free_heap/1024)+' KB');
+
+    if(!loadedWifiField){ $('sta_ssid').value=j.sta_ssid||''; loadedWifiField=true; }
+
+    $('clientCount').textContent=j.clients.length;
+    var ct=$('clientsTbl'); ct.innerHTML='';
+    if(!j.clients.length){ ct.appendChild(el('small',{'class':'hint'},'No devices connected right now.')); }
+    else{
+      var t=el('table'); var h=el('tr');
+      ['Name','MAC','IP','dBm','Net',''].forEach(function(x){h.appendChild(el('th',null,x));}); t.appendChild(h);
+      j.clients.forEach(function(c){
+        var tr=el('tr');
+        tr.appendChild(el('td',null,c.name||'-'));
+        tr.appendChild(el('td',null,c.mac));
+        tr.appendChild(el('td',null,c.ip));
+        tr.appendChild(el('td',null,String(c.rssi)));
+        var netTd=el('td'); netTd.appendChild(el('span',{'class':'tag '+(c.authorized?'ok':'bad')},c.authorized?'OK':'Guest'));
+        tr.appendChild(netTd);
+        var td=el('td');
+        var wb=el('button',{'class':'ghost small'},'+WL');
+        wb.onclick=(function(mac){ return function(){ $('newmac').value=mac; $('d-wl').open=true; $('newname').focus(); }; })(c.mac);
+        var kb=el('button',{'class':'ghost small','style':'margin-left:4px'},'Kick');
+        kb.onclick=(function(mac){ return function(){ kickDevice(mac); }; })(c.mac);
+        td.appendChild(wb); td.appendChild(kb); tr.appendChild(td);
+        t.appendChild(tr);
+      });
+      ct.appendChild(t);
+    }
+
+    $('wlCount').textContent=j.whitelist.length;
+    var wl=$('wlList'); wl.innerHTML='';
+    if(!j.whitelist.length){ wl.appendChild(el('small',{'class':'hint'},'No restrictions - everyone has full access.')); }
+    else{
+      j.whitelist.forEach(function(w){
+        var row=el('div',{'class':'wlrow'});
+        var nm=el('div',{'class':'nm'});
+        nm.appendChild(el('b',null,w.name||w.mac));
+        nm.appendChild(el('span',null,w.mac+(w.limit_kbps?(' \u00b7 '+w.limit_kbps+' Kbps'):'')));
+        row.appendChild(nm);
+        var rb=el('button',{'class':'ghost small'},'Remove');
+        rb.onclick=(function(mac){ return function(){ removeMac(mac); }; })(w.mac);
+        row.appendChild(rb);
+        wl.appendChild(row);
+      });
+    }
+
+    $('stabBody').innerHTML='';
+    if(!j.discon_log || !j.discon_log.length){ $('stabBody').appendChild(el('small',{'class':'hint'},'No disconnects recorded this session.')); }
+    else{
+      var st=el('table'); var sh=el('tr'); ['Ago','Reason'].forEach(function(x){sh.appendChild(el('th',null,x));}); st.appendChild(sh);
+      j.discon_log.forEach(function(e){ var tr=el('tr'); tr.appendChild(el('td',null,fmtTime(e.ago_s)+' ago')); tr.appendChild(el('td',null,REASONS[e.reason]||('code '+e.reason))); st.appendChild(tr); });
+      $('stabBody').appendChild(st);
+    }
+  }catch(e){ /* one failed refresh shouldn't break the page - next tick retries */ }
 }
 
-async function saveRule(mac, index) {
-  const speed = document.getElementById('speed_' + index).value;
-  const quota = document.getElementById('quota_' + index).value;
-  await fetch('/api/set_client_limit', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ mac: mac, speed_limit: parseInt(speed), quota_limit: parseInt(quota) })
+/* ---------------- WHITELIST actions ---------------- */
+async function addMac(){
+  var m=$('newmac').value.trim(); if(!m){ $('wlMsg').textContent='Enter a MAC address first.'; return; }
+  var n=$('newname').value.trim();
+  var lim=parseInt($('newlimit').value)||0;
+  var j=await post('/api/whitelist',{action:'add',mac:m,name:n,limit_kbps:lim});
+  if(!j){ return; }
+  if(j.ok===false){ $('wlMsg').textContent=j.error; return; }
+  $('newmac').value=''; $('newname').value=''; $('newlimit').value=''; $('wlMsg').textContent='Added.';
+  refreshStatus();
+}
+async function removeMac(m){
+  var j=await post('/api/whitelist',{action:'remove',mac:m});
+  if(j) refreshStatus();
+}
+async function kickDevice(m){
+  if(!confirm('Disconnect this device now?')) return;
+  var j=await post('/api/kick',{mac:m});
+  if(j && j.ok===false) alert(j.error);
+  setTimeout(refreshStatus,1200);
+}
+
+/* ---------------- UPSTREAM WIFI ---------------- */
+async function saveWifi(){
+  var o={ssid:$('sta_ssid').value, password:$('sta_pass').value};
+  var j=await post('/api/wifi',o);
+  if(!j) return;
+  $('wifiMsg').textContent = j.ok===false ? ('Error: '+j.error) : 'Saved - rebooting...';
+}
+
+/* ---------------- USAGE (lazy loaded on open) ---------------- */
+var usageLoaded=false;
+$('d-usage').addEventListener('toggle', function(){ if(this.open && !usageLoaded){ usageLoaded=true; loadUsage(); } });
+async function loadUsage(){
+  try{
+    var r=await fetch('/api/usage'); if(authFail(r))return; var j=await r.json();
+    $('usageNote').textContent = j.time_synced ? '' : 'Clock not synced yet (needs internet) - totals start once it syncs.';
+    var ov=$('overallUsage'); ov.innerHTML='';
+    var t=el('table');
+    var h=el('tr'); ['Whole repeater','Week','Month','All-time'].forEach(function(x){h.appendChild(el('th',null,x));}); t.appendChild(h);
+    var r1=el('tr'); r1.appendChild(el('td',null,'Down')); r1.appendChild(el('td',null,fmtBytes(j.overall.download_week_bytes))); r1.appendChild(el('td',null,fmtBytes(j.overall.download_month_bytes))); r1.appendChild(el('td',null,fmtBytes(j.overall.download_total_bytes))); t.appendChild(r1);
+    var r2=el('tr'); r2.appendChild(el('td',null,'Up')); r2.appendChild(el('td',null,fmtBytes(j.overall.upload_week_bytes))); r2.appendChild(el('td',null,fmtBytes(j.overall.upload_month_bytes))); r2.appendChild(el('td',null,fmtBytes(j.overall.upload_total_bytes))); t.appendChild(r2);
+    var wrap=el('div',{'class':'tblwrap'}); wrap.appendChild(t); ov.appendChild(wrap);
+
+    var b=$('usageBody'); b.innerHTML='';
+    if(!j.devices.length){ b.appendChild(el('small',{'class':'hint'},'No per-device data yet.')); return; }
+    var t2=el('table'); var h2=el('tr'); ['Device','Week','Month','All-time'].forEach(function(x){h2.appendChild(el('th',null,x));}); t2.appendChild(h2);
+    j.devices.forEach(function(d){ var tr=el('tr'); tr.appendChild(el('td',null,d.name||d.mac)); tr.appendChild(el('td',null,fmtBytes(d.week_bytes))); tr.appendChild(el('td',null,fmtBytes(d.month_bytes))); tr.appendChild(el('td',null,fmtBytes(d.total_bytes))); t2.appendChild(tr); });
+    b.appendChild(t2);
+  }catch(e){ $('usageNote').textContent='Could not load usage data.'; }
+}
+
+/* ---------------- SPEED HISTORY (lazy loaded) ---------------- */
+var speedLoaded=false;
+$('d-speed').addEventListener('toggle', function(){ if(this.open && !speedLoaded){ speedLoaded=true; loadSpeedHistory(); } });
+async function loadSpeedHistory(){
+  try{
+    var r=await fetch('/api/speedhistory'); if(authFail(r))return; var j=await r.json();
+    var box=$('shChart'); box.innerHTML='';
+    if(!j.samples.length){ $('shNote').textContent='No samples yet - first one appears ~15 min after going online.'; return; }
+    var samples=j.samples.slice().reverse();
+    var mx=Math.max(50, Math.max.apply(null, samples.map(function(s){return s.ok?s.ms:0;})));
+    samples.forEach(function(s){
+      var bar=el('i'); bar.style.background = s.ok ? 'var(--accent)' : 'var(--bad)';
+      bar.style.height = (s.ok ? Math.max(4,Math.round(s.ms/mx*68)) : 68)+'px';
+      box.appendChild(bar);
+    });
+    var okc=samples.filter(function(s){return s.ok;}).length;
+    $('shNote').textContent=okc+'/'+samples.length+' checks reachable.';
+  }catch(e){ $('shNote').textContent='Could not load speed history.'; }
+}
+
+/* ---------------- ADVANCED SETTINGS (lazy loaded, grouped) ---------------- */
+var advLoaded=false;
+var GROUP_LABEL={wifi:'WiFi & Network',security:'Security & Access',network:'Advanced Network',bandwidth:'Bandwidth Limits',ai:'AI Chat'};
+var GROUP_ORDER=['wifi','security','network','bandwidth','ai'];
+$('d-adv').addEventListener('toggle', function(){ if(this.open && !advLoaded){ advLoaded=true; loadSettings(); } });
+async function loadSettings(){
+  try{
+    var r=await fetch('/api/settings'); if(authFail(r))return; var j=await r.json();
+    var box=$('advGroups'); box.innerHTML='';
+    var byGroup={};
+    j.items.forEach(function(it){ (byGroup[it.group]=byGroup[it.group]||[]).push(it); });
+    GROUP_ORDER.forEach(function(g){
+      if(!byGroup[g]) return;
+      var d=el('details',{'class':'subgroup'});
+      d.appendChild(el('summary',null,GROUP_LABEL[g]||g));
+      var pad=el('div',{'class':'pad','style':'padding:8px 10px'});
+      byGroup[g].forEach(function(it){
+        var field=el('div');
+        var isPw=(it.type==='password'||it.type==='password_keep');
+        var inp;
+        if(it.type==='bool'){
+          inp=el('select');
+          [['0','No'],['1','Yes']].forEach(function(o){ inp.appendChild(el('option',{value:o[0]},o[1])); });
+          inp.value=it.value;
+        } else {
+          inp=el('input');
+          inp.type = isPw ? 'password' : (it.type==='number' ? 'number' : 'text');
+          inp.value=it.value;
+          if(it.type==='password_keep') inp.placeholder='(leave blank to keep current)';
+        }
+        inp.setAttribute('data-key',it.key);
+        inp.setAttribute('data-def',it.def);
+        inp.setAttribute('data-type',it.type);
+        inp.setAttribute('autocomplete','off');
+        field.appendChild(el('label',null,it.label));
+        if(isPw){
+          var wrap=el('div',{'style':'position:relative'});
+          inp.style.paddingRight='48px';
+          var pid='fld_'+it.key; inp.id=pid;
+          wrap.appendChild(inp);
+          var btn=el('button',{'type':'button','class':'ghost small','style':'position:absolute;right:4px;top:50%;transform:translateY(-50%)'},'SHOW');
+          btn.onclick=(function(id,b){ return function(){ pwToggle(id,b); }; })(pid,btn);
+          wrap.appendChild(btn);
+          field.appendChild(wrap);
+        } else { field.appendChild(inp); }
+        field.appendChild(el('small',{'class':'hint'}, it.hint+' (default: '+(it.def===''?'blank':it.def)+')'));
+        pad.appendChild(field);
+      });
+      d.appendChild(pad);
+      box.appendChild(d);
+    });
+  }catch(e){ $('advGroups').innerHTML=''; $('advGroups').appendChild(el('small',{'class':'hint'},'Could not load settings.')); }
+}
+function fillDefaults(){
+  document.querySelectorAll('#advGroups [data-key]').forEach(function(e){
+    if(e.getAttribute('data-type')!=='password_keep') e.value=e.getAttribute('data-def');
   });
-  alert('Rule updated for ' + mac);
-  loadData();
+}
+async function saveSettings(){
+  var o={};
+  document.querySelectorAll('#advGroups [data-key]').forEach(function(e){ o[e.getAttribute('data-key')]=e.value; });
+  var j=await post('/api/settings',o);
+  if(!j) return;
+  $('advMsg').textContent = j.ok ? 'Saved - rebooting...' : ('Not saved: '+j.error);
 }
 
-async function toggleBlock(mac, block) {
-  await fetch('/api/block_client', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ mac: mac, block: block })
-  });
-  loadData();
+/* ---------------- BACKUP ---------------- */
+async function exportCfg(){
+  try{ var r=await fetch('/api/config/export'); if(authFail(r))return; $('importbox').value=await r.text(); }
+  catch(e){ $('importbox').value=''; }
+}
+async function importCfg(){
+  var parsed;
+  try{ parsed=JSON.parse($('importbox').value||'{}'); }
+  catch(e){ alert('That text is not valid JSON - paste an export produced by this repeater.'); return; }
+  var j=await post('/api/config/import', parsed);
+  if(!j) return;
+  alert(j.ok ? 'Imported - rebooting...' : ('Import failed: '+j.error));
 }
 
-setInterval(loadData, 5000);
-loadData();
+/* ---------------- DANGER ZONE ---------------- */
+async function doReboot(){ if(confirm('Reboot the repeater now?')) await post('/api/reboot'); }
+async function doFactoryReset(){ if(confirm('Erase ALL settings and return to factory defaults?')){ await post('/api/factory_reset'); alert('Reset started - repeater is rebooting with default settings.'); } }
+async function doLogout(){ await post('/api/logout'); location.href='/'; }
+
+refreshStatus();
+setInterval(refreshStatus, 5000);
 </script>
 </body>
 </html>

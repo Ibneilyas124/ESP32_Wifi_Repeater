@@ -37,9 +37,18 @@ Andar yeh sab editable hai:
 - Skills wali list: `<li>...</li>` wali 5 lines
 - Neeche wala quote: `Build it. Break it. Fix it. Learn from it.`
 
-## 4. Admin page ka heading — "Sarfraz Ibn E Ilyas — WiFi Repeater Admin"
+## 4. Admin page ka heading — "Sarfraz Ibn E Ilyas"
 **File:** `main/admin.html`
-**Dhoondo:** `Sarfraz Ibn E Ilyas</h1>` aur thodi neeche `Ibn e Ilyas Technologies`
+**Dhoondo:** `Sarfraz Ibn E Ilyas<small>`
+
+Yeh page ab **fresh, compact, mobile design** mein hai — har section (Connected
+Devices, Whitelist, Data Usage, Advanced Settings, waghera) apna alag
+`<details class="card">` block hai, native tap-to-open/close (JS bug se
+"frozen" hone ka chance nahi). Advanced Settings ke andar 5 chhote groups hain
+(WiFi & Network, Security & Access, Advanced Network, Bandwidth Limits, AI
+Chat) — group ka naam `GROUP_LABEL` object mein milega (`admin.html` ke JS
+mein), aur kaunsi setting kis group mein hai woh `main/main.c` ke
+`SETTINGS[]` table ki aakhri column mein hai.
 
 ## 5. Company/business ka naam jo main router mein dikhta hai
 Yeh **code mein nahi**, balke ek **setting** hai — dashboard mein khud login
