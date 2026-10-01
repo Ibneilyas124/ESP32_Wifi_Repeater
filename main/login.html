@@ -39,7 +39,7 @@ footer a{color:#7fd9bd;text-decoration:none}
 .mbox .q{margin-top:14px;font-style:italic;color:#c9e7df;text-align:center}
 .mclose{position:absolute;top:8px;right:12px;background:none;border:none;color:#aaa;font-size:24px;cursor:pointer;width:auto;margin:0;padding:0}
 
-/* Compact Fullscreen AI Overlay Styling */
+/* Fullscreen AI Modal */
 .ai-modal{position:fixed;inset:0;background:#0c1416;display:none;flex-direction:column;z-index:99;padding:10px}
 .ai-modal.on{display:flex}
 .ai-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2c4a50;padding-bottom:6px;margin-bottom:6px}
@@ -125,6 +125,56 @@ footer a{color:#7fd9bd;text-decoration:none}
 </div>
 
 <script>
+// --- MAC OUI VENDOR LOOKUP TABLE ---
+function getVendorFromMac(mac) {
+    if (!mac) return "Unknown";
+    var cleanMac = mac.toUpperCase().replace(/[:-]/g, '');
+    var p6 = cleanMac.substring(0, 6);
+    var v = {
+        "C83A35":"Tenda", "00B00C":"Tenda", "CC3429":"Tenda", "502B73":"Tenda", "0495E6":"Tenda",
+        "001E10":"Huawei", "00259E":"Huawei", "286ED4":"Huawei", "00464B":"Huawei", "7054D2":"Huawei", "80B686":"Huawei", "E8088B":"Huawei",
+        "0015EB":"ZTE", "001E73":"ZTE", "002293":"ZTE", "74B57E":"ZTE", "D476EA":"ZTE", "F8EDA5":"ZTE",
+        "001D0F":"TP-Link", "14CC20":"TP-Link", "50C7BF":"TP-Link", "E894F6":"TP-Link", "F81A67":"TP-Link", "A0F3C1":"TP-Link",
+        "00055D":"D-Link", "000F3D":"D-Link", "001346":"D-Link", "1C7EE5":"D-Link", "28107B":"D-Link",
+        "00095B":"Netgear", "000FB5":"Netgear", "204E71":"Netgear", "841B5E":"Netgear",
+        "8C97EA":"Xiaomi", "640980":"Xiaomi", "84D81B":"Mercury", "0023CD":"Mercury",
+        "00000C":"Cisco", "001A3A":"Cisco", "0008A1":"Technicolor"
+    };
+    return v[p6] || "Unknown";
+}
+
+// --- OPTIMIZED FAST SPEED TEST ---
+async function runFastSpeedTest(urlTarget, resultElemId) {
+    var elem = document.getElementById(resultElemId);
+    if(elem) elem.innerText = "Testing...";
+    var tStart = performance.now();
+    var bytesDownloaded = 0;
+    var maxDuration = 3500; // 3.5 Seconds cap for fast response
+
+    try {
+        var controller = new AbortController();
+        var timer = setTimeout(() => controller.abort(), maxDuration);
+        var res = await fetch(urlTarget + '?' + Date.now(), { signal: controller.signal });
+        var reader = res.body.getReader();
+
+        while (true) {
+            var { done, value } = await reader.read();
+            if (done) break;
+            bytesDownloaded += value.length;
+        }
+        clearTimeout(timer);
+    } catch (e) {}
+
+    var tEnd = performance.now();
+    var duration = (tEnd - tStart) / 1000;
+    if (duration > 0 && bytesDownloaded > 0) {
+        var mbps = ((bytesDownloaded * 8) / (duration * 1024 * 1024)).toFixed(2);
+        if(elem) elem.innerText = mbps + " Mbps";
+    } else {
+        if(elem) elem.innerText = "Failed";
+    }
+}
+
 function openAbout(){document.getElementById('about').classList.add('on');}
 function closeAbout(){document.getElementById('about').classList.remove('on');}
 
