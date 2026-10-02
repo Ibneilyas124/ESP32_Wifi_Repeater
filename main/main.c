@@ -1155,6 +1155,8 @@ static esp_err_t status_get_handler(httpd_req_t *req) {
     cJSON_AddStringToObject(root, "sta_ip", s_sta_ip);
     cJSON_AddNumberToObject(root, "uptime_s", (double)((esp_timer_get_time() - s_boot_time_us) / 1000000));
     cJSON_AddNumberToObject(root, "free_heap", esp_get_free_heap_size());
+    cJSON_AddNumberToObject(root, "free_heap_min", esp_get_minimum_free_heap_size());
+    cJSON_AddStringToObject(root, "last_reset_reason", reset_reason_str());
 
     char v[40];
     nvs_get_string("sta_ssid", v, sizeof(v), "");
@@ -2020,6 +2022,26 @@ static void start_webserver(void) {
         httpd_register_uri_handler(server, &uris[i]);
     }
     ESP_LOGI(TAG, "Web dashboard started on port 80");
+}
+
+/* Captured once at boot - tells you WHY the device restarted last time:
+ * panic/crash, watchdog timeout, brownout (power supply issue), or a normal
+ * reboot you triggered yourself. Shown on the admin dashboard so a crash can
+ * be diagnosed from the browser with no serial cable needed. */
+static const char *reset_reason_str(void) {
+    switch (esp_reset_reason()) {
+        case ESP_RST_POWERON:   return "Power-on (normal)";
+        case ESP_RST_EXT:       return "External reset";
+        case ESP_RST_SW:        return "Software reboot (Save/Reboot button)";
+        case ESP_RST_PANIC:     return "CRASH (panic) - firmware fault";
+        case ESP_RST_INT_WDT:   return "CRASH (interrupt watchdog)";
+        case ESP_RST_TASK_WDT:  return "CRASH (task watchdog - something hung)";
+        case ESP_RST_WDT:       return "CRASH (other watchdog)";
+        case ESP_RST_DEEPSLEEP: return "Woke from deep sleep";
+        case ESP_RST_BROWNOUT:  return "CRASH (brownout - power supply dipped)";
+        case ESP_RST_SDIO:      return "SDIO reset";
+        default:                return "Unknown";
+    }
 }
 
 void app_main(void) {

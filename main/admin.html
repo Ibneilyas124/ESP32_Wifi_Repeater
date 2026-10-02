@@ -323,6 +323,9 @@ async function refreshStatus(){
     stat('Repeater IP', j.ap_ip);
     stat('Total uptime', fmtTime(j.uptime_s));
     stat('Free memory', Math.round(j.free_heap/1024)+' KB');
+    stat('Lowest-ever memory', Math.round(j.free_heap_min/1024)+' KB', j.free_heap_min<20000?'bad':'');
+    var crashed = /CRASH/.test(j.last_reset_reason||'');
+    stat('Last reboot reason', j.last_reset_reason||'-', crashed?'bad':'ok');
 
     $('wUpStat').textContent = j.sta_connected?'Connected':'Offline';
     $('wUpStat').className = 'v '+(j.sta_connected?'ok':'bad');
