@@ -293,7 +293,7 @@ async function kickDevice(m){
 /* ---------------- UPSTREAM WIFI ---------------- */
 async function saveWifi(){
   var o={ssid:$('sta_ssid').value, password:$('sta_pass').value};
-  var j=await post('/api/wifi',o);
+  var j=await post('/api/wifi',o); if(j&&j.ok){alert('Saved. Repeater is restarting to apply new WiFi. Reconnect to Sarfraz and reopen this page in 15-20 seconds.');}
   if(!j) return;
   $('wifiMsg').textContent = j.ok===false ? ('Error: '+j.error) : 'Saved - rebooting...';
 }

@@ -1068,9 +1068,13 @@ static esp_err_t send_result(httpd_req_t *req, bool ok, const char *err) {
     return send_json(req, r);
 }
 
-static void restart_soon(void) {
+static void restart_task(void *arg) {
     vTaskDelay(pdMS_TO_TICKS(700));
     esp_restart();
+}
+
+static void restart_soon(void) {
+    xTaskCreate(restart_task, "restart_task", 2048, NULL, 5, NULL);
 }
 
 /* ================= HTTP handlers ================= */
