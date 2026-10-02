@@ -1146,6 +1146,8 @@ static esp_err_t logout_post_handler(httpd_req_t *req) {
     return send_result(req, true, NULL);
 }
 
+static const char *reset_reason_str(void);
+
 static esp_err_t status_get_handler(httpd_req_t *req) {
     if (require_session_api(req) != ESP_OK) return ESP_OK;
 
