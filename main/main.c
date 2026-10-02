@@ -27,7 +27,6 @@
 #include "esp_private/wifi.h"
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
-#include "esp_http_client.h"
 #include "esp_crt_bundle.h"
 #include "esp_sntp.h"
 #include <time.h>
@@ -51,7 +50,6 @@ static const char *TAG = "repeater";
 extern const char login_html_start[] asm("_binary_login_html_start");
 extern const char admin_html_start[] asm("_binary_admin_html_start");
 extern const char tools_html_start[] asm("_binary_tools_html_start");
-extern const char chat_html_start[] asm("_binary_chat_html_start");
 
 #define FW_VERSION "2.1.0"
 
@@ -114,12 +112,6 @@ static volatile int s_scan_state = 0;    /* 0 idle/done, 1 running, 2 error */
 static volatile int s_diag_state = 0;    /* 0 idle, 1 running, 2 done */
 static cJSON *s_diag_result = NULL;
 
-/* ---- AI chat: the outbound HTTPS call runs in its own task so the
- * single-threaded web server is never blocked while waiting on it - every
- * other page/API stays responsive while an AI reply is in flight. */
-static volatile int s_chat_state = 0;    /* 0 idle, 1 running, 2 done-ok, 3 done-error */
-static char *s_chat_reply = NULL;        /* malloc'd, replaced each run */
-static char s_chat_err[160] = "";
 
 /* ================= Settings table (single source of truth) ================= */
 
@@ -153,10 +145,6 @@ static const setting_t SETTINGS[] = {
     {"auto_reboot_hours","Auto-restart every N hours",   "0",                        "number",        "0 = never. Otherwise the repeater reboots itself every N hours (1-168) to stay fresh", "network"},
     {"overall_up_kbps",  "Overall upload cap (all devices)", "0",                    "number",        "0 = unlimited. Total upload speed shared by every connected device combined, in Kbps", "bandwidth"},
     {"overall_down_kbps","Overall download cap (all devices)","0",                   "number",        "0 = unlimited. Total download/streaming speed shared by every connected device combined, in Kbps", "bandwidth"},
-    {"ai_enabled",  "Enable public AI chat (/chat)",     "0",                        "bool",          "OFF by default. Anyone connected can use it once ON - it spends YOUR API key's money per message", "ai"},
-    {"ai_api_key",  "AI API key",                        "",                         "password_keep", "Your own OpenAI (or compatible) API key. Leave blank to keep the current one. Never shown to chat users", "ai"},
-    {"ai_model",    "AI model name",                     "gpt-4o-mini",              "text",          "e.g. gpt-4o-mini (cheap, fast) or gpt-4o (smarter, costs more)", "ai"},
-    {"ai_api_base", "AI API endpoint URL",                "https://api.openai.com/v1/chat/completions", "text", "Change only if pointing at a different OpenAI-compatible provider", "ai"},
 };
 #define N_SETTINGS (sizeof(SETTINGS) / sizeof(SETTINGS[0]))
 
@@ -314,14 +302,6 @@ static bool validate_setting(const char *key, const char *v, char *err, size_t n
         if (!int_in_range(v, 0, 168)) { snprintf(err, n, "must be 0-168"); return false; }
     } else if (strcmp(key, "overall_up_kbps") == 0 || strcmp(key, "overall_down_kbps") == 0) {
         if (!int_in_range(v, 0, 9999)) { snprintf(err, n, "must be 0-9999 Kbps (0 = unlimited)"); return false; }
-    } else if (strcmp(key, "ai_enabled") == 0) {
-        if (strcmp(v, "0") != 0 && strcmp(v, "1") != 0) { snprintf(err, n, "must be 0 or 1"); return false; }
-    } else if (strcmp(key, "ai_model") == 0) {
-        if (len < 1 || len > 40) { snprintf(err, n, "must be 1-40 characters"); return false; }
-    } else if (strcmp(key, "ai_api_base") == 0) {
-        if (len < 9 || len > 127 || strncmp(v, "https://", 8) != 0) { snprintf(err, n, "must be a https:// URL"); return false; }
-    } else if (strcmp(key, "ai_api_key") == 0) {
-        if (len > 127) { snprintf(err, n, "too long (max 127 characters)"); return false; }
     } else if (strcmp(key, "guest_filter") == 0 || strcmp(key, "deauth_monitor") == 0) {
         if (strcmp(v, "0") != 0 && strcmp(v, "1") != 0) { snprintf(err, n, "must be 0 or 1"); return false; }
     } else if (strcmp(key, "deauth_alert") == 0) {
@@ -1363,7 +1343,7 @@ static esp_err_t config_export_get_handler(httpd_req_t *req) {
     cJSON *root = cJSON_CreateObject();
     char v[WL_BUF];
     for (size_t i = 0; i < N_SETTINGS; i++) {
-        if (strcmp(SETTINGS[i].type, "password_keep") == 0) continue; /* never export secrets (admin_pass, ai_api_key) */
+        if (strcmp(SETTINGS[i].type, "password_keep") == 0) continue; /* never export secrets (admin_pass) */
         get_setting(SETTINGS[i].key, v, sizeof(v));
         cJSON_AddStringToObject(root, SETTINGS[i].key, v);
     }
@@ -1461,170 +1441,6 @@ static esp_err_t tools_get_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "text/html");
     httpd_resp_send(req, tools_html_start, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
-}
-
-static esp_err_t chat_get_handler(httpd_req_t *req) {
-    httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, chat_html_start, HTTPD_RESP_USE_STRLEN);
-    return ESP_OK;
-}
-
-/* ================= AI chat (public - no login - opt-in) ================= */
-
-#define AI_RESP_CAP 8192
-
-typedef struct { char *buf; int len; int cap; } http_resp_buf_t;
-
-static esp_err_t chat_http_event_handler(esp_http_client_event_t *evt) {
-    if (evt->event_id == HTTP_EVENT_ON_DATA) {
-        http_resp_buf_t *rb = (http_resp_buf_t *)evt->user_data;
-        if (rb && rb->buf && rb->len + evt->data_len < rb->cap - 1) {
-            memcpy(rb->buf + rb->len, evt->data, evt->data_len);
-            rb->len += evt->data_len;
-            rb->buf[rb->len] = '\0';
-        }
-    }
-    return ESP_OK;
-}
-
-/* Runs in its own task so the HTTPS round-trip (up to ~25s) never blocks the
- * single-threaded web server. arg is a malloc'd JSON payload string; this
- * task owns it and frees it before exiting. Single-flight by design (see
- * s_chat_state check in chat_post_handler) so no locking is needed here. */
-static void chat_task(void *arg) {
-    char *payload_str = (char *)arg;
-    char api_key[128]; get_setting("ai_api_key", api_key, sizeof(api_key));
-    char base[128]; get_setting("ai_api_base", base, sizeof(base));
-
-    http_resp_buf_t rb = { .cap = AI_RESP_CAP, .len = 0, .buf = NULL };
-    cJSON *resp = NULL;
-
-    rb.buf = malloc(AI_RESP_CAP);
-    if (!rb.buf) {
-        snprintf(s_chat_err, sizeof(s_chat_err), "out of memory");
-        s_chat_state = 3;
-        goto finish;
-    }
-    rb.buf[0] = '\0';
-
-    {
-        esp_http_client_config_t config = {
-            .url = base,
-            .method = HTTP_METHOD_POST,
-            .timeout_ms = 25000,
-            .event_handler = chat_http_event_handler,
-            .user_data = &rb,
-            .crt_bundle_attach = esp_crt_bundle_attach,
-        };
-        esp_http_client_handle_t client = esp_http_client_init(&config);
-        esp_http_client_set_header(client, "Content-Type", "application/json");
-        char auth_hdr[160];
-        snprintf(auth_hdr, sizeof(auth_hdr), "Bearer %s", api_key);
-        esp_http_client_set_header(client, "Authorization", auth_hdr);
-        esp_http_client_set_post_field(client, payload_str, strlen(payload_str));
-
-        esp_err_t err = esp_http_client_perform(client);
-        int status = esp_http_client_get_status_code(client);
-        esp_http_client_cleanup(client);
-
-        if (err != ESP_OK) {
-            snprintf(s_chat_err, sizeof(s_chat_err), "could not reach the AI service: %s", esp_err_to_name(err));
-            s_chat_state = 3;
-            goto finish;
-        }
-        if (status != 200) {
-            snprintf(s_chat_err, sizeof(s_chat_err), "AI service returned an error (HTTP %d) - check the API key/model in Advanced Settings", status);
-            s_chat_state = 3;
-            goto finish;
-        }
-    }
-
-    resp = cJSON_Parse(rb.buf);
-    if (!resp) {
-        snprintf(s_chat_err, sizeof(s_chat_err), "AI service sent an unreadable response");
-        s_chat_state = 3;
-        goto finish;
-    }
-    {
-        cJSON *choices = cJSON_GetObjectItem(resp, "choices");
-        cJSON *first = cJSON_IsArray(choices) ? cJSON_GetArrayItem(choices, 0) : NULL;
-        cJSON *msgobj = first ? cJSON_GetObjectItem(first, "message") : NULL;
-        cJSON *content = msgobj ? cJSON_GetObjectItem(msgobj, "content") : NULL;
-        if (cJSON_IsString(content)) {
-            if (s_chat_reply) { free(s_chat_reply); s_chat_reply = NULL; }
-            s_chat_reply = strdup(content->valuestring);
-            s_chat_state = 2;
-        } else {
-            snprintf(s_chat_err, sizeof(s_chat_err), "AI service response did not include a reply");
-            s_chat_state = 3;
-        }
-    }
-
-finish:
-    if (resp) cJSON_Delete(resp);
-    if (rb.buf) free(rb.buf);
-    free(payload_str);
-    vTaskDelete(NULL);
-}
-
-static esp_err_t chat_post_handler(httpd_req_t *req) {
-    char en[4]; get_setting("ai_enabled", en, sizeof(en));
-    if (en[0] != '1') return send_result(req, false, "AI chat is currently turned off by the repeater admin");
-
-    char api_key[128]; get_setting("ai_api_key", api_key, sizeof(api_key));
-    if (api_key[0] == '\0') return send_result(req, false, "AI chat is on, but no API key has been set yet - ask the admin to add one in Advanced Settings");
-
-    if (s_chat_state == 1) return send_result(req, false, "Still replying to the last message - wait a moment and try again.");
-
-    char model[40]; get_setting("ai_model", model, sizeof(model));
-
-    char *body = malloc(4096);
-    if (!body) { httpd_resp_send_500(req); return ESP_OK; }
-    read_body(req, body, 4096);
-    cJSON *in = cJSON_Parse(body);
-    free(body);
-    if (!in) return send_result(req, false, "invalid request");
-
-    cJSON *msgs = cJSON_GetObjectItem(in, "messages");
-    if (!cJSON_IsArray(msgs) || cJSON_GetArraySize(msgs) == 0) {
-        cJSON_Delete(in);
-        return send_result(req, false, "invalid request");
-    }
-
-    cJSON *payload = cJSON_CreateObject();
-    cJSON_AddStringToObject(payload, "model", model);
-    cJSON_AddItemToObject(payload, "messages", cJSON_Duplicate(msgs, true));
-    cJSON_AddNumberToObject(payload, "max_tokens", 500);
-    cJSON_Delete(in);
-    char *payload_str = cJSON_PrintUnformatted(payload);
-    cJSON_Delete(payload);
-    if (!payload_str) { httpd_resp_send_500(req); return ESP_OK; }
-
-    s_chat_state = 1;
-    if (xTaskCreate(chat_task, "chat_task", 10240, payload_str, 4, NULL) != pdPASS) {
-        s_chat_state = 0;
-        free(payload_str);
-        return send_result(req, false, "repeater is too busy right now - try again in a moment");
-    }
-    return send_result(req, true, NULL);  /* accepted - frontend polls /api/chat/poll for the reply */
-}
-
-static esp_err_t chat_poll_get_handler(httpd_req_t *req) {
-    cJSON *r = cJSON_CreateObject();
-    if (s_chat_state == 1) {
-        cJSON_AddStringToObject(r, "state", "running");
-    } else if (s_chat_state == 2) {
-        cJSON_AddStringToObject(r, "state", "done");
-        cJSON_AddBoolToObject(r, "ok", true);
-        cJSON_AddStringToObject(r, "reply", s_chat_reply ? s_chat_reply : "");
-    } else if (s_chat_state == 3) {
-        cJSON_AddStringToObject(r, "state", "done");
-        cJSON_AddBoolToObject(r, "ok", false);
-        cJSON_AddStringToObject(r, "error", s_chat_err);
-    } else {
-        cJSON_AddStringToObject(r, "state", "idle");
-    }
-    return send_json(req, r);
 }
 
 /* ================= WiFi Analyzer (scan) ================= */
@@ -2006,9 +1822,6 @@ static void start_webserver(void) {
         {.uri = "/api/kick",           .method = HTTP_POST, .handler = kick_post_handler},
         {.uri = "/api/me",             .method = HTTP_GET,  .handler = me_get_handler},
         {.uri = "/tools",              .method = HTTP_GET,  .handler = tools_get_handler},
-        {.uri = "/chat",                .method = HTTP_GET,  .handler = chat_get_handler},
-        {.uri = "/api/chat",            .method = HTTP_POST, .handler = chat_post_handler},
-        {.uri = "/api/chat/poll",       .method = HTTP_GET,  .handler = chat_poll_get_handler},
         {.uri = "/api/scan/start",     .method = HTTP_POST, .handler = scan_start_post_handler},
         {.uri = "/api/scan",           .method = HTTP_GET,  .handler = scan_get_handler},
         {.uri = "/api/deauth",         .method = HTTP_GET,  .handler = deauth_get_handler},
