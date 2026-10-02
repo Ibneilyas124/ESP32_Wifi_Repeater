@@ -114,6 +114,13 @@ static volatile int s_scan_state = 0;    /* 0 idle/done, 1 running, 2 error */
 static volatile int s_diag_state = 0;    /* 0 idle, 1 running, 2 done */
 static cJSON *s_diag_result = NULL;
 
+/* ---- AI chat: the outbound HTTPS call runs in its own task so the
+ * single-threaded web server is never blocked while waiting on it - every
+ * other page/API stays responsive while an AI reply is in flight. */
+static volatile int s_chat_state = 0;    /* 0 idle, 1 running, 2 done-ok, 3 done-error */
+static char *s_chat_reply = NULL;        /* malloc'd, replaced each run */
+static char s_chat_err[160] = "";
+
 /* ================= Settings table (single source of truth) ================= */
 
 typedef struct {
@@ -1476,6 +1483,86 @@ static esp_err_t chat_http_event_handler(esp_http_client_event_t *evt) {
     return ESP_OK;
 }
 
+/* Runs in its own task so the HTTPS round-trip (up to ~25s) never blocks the
+ * single-threaded web server. arg is a malloc'd JSON payload string; this
+ * task owns it and frees it before exiting. Single-flight by design (see
+ * s_chat_state check in chat_post_handler) so no locking is needed here. */
+static void chat_task(void *arg) {
+    char *payload_str = (char *)arg;
+    char api_key[128]; get_setting("ai_api_key", api_key, sizeof(api_key));
+    char base[128]; get_setting("ai_api_base", base, sizeof(base));
+
+    http_resp_buf_t rb = { .cap = AI_RESP_CAP, .len = 0, .buf = NULL };
+    cJSON *resp = NULL;
+
+    rb.buf = malloc(AI_RESP_CAP);
+    if (!rb.buf) {
+        snprintf(s_chat_err, sizeof(s_chat_err), "out of memory");
+        s_chat_state = 3;
+        goto finish;
+    }
+    rb.buf[0] = '\0';
+
+    {
+        esp_http_client_config_t config = {
+            .url = base,
+            .method = HTTP_METHOD_POST,
+            .timeout_ms = 25000,
+            .event_handler = chat_http_event_handler,
+            .user_data = &rb,
+            .crt_bundle_attach = esp_crt_bundle_attach,
+        };
+        esp_http_client_handle_t client = esp_http_client_init(&config);
+        esp_http_client_set_header(client, "Content-Type", "application/json");
+        char auth_hdr[160];
+        snprintf(auth_hdr, sizeof(auth_hdr), "Bearer %s", api_key);
+        esp_http_client_set_header(client, "Authorization", auth_hdr);
+        esp_http_client_set_post_field(client, payload_str, strlen(payload_str));
+
+        esp_err_t err = esp_http_client_perform(client);
+        int status = esp_http_client_get_status_code(client);
+        esp_http_client_cleanup(client);
+
+        if (err != ESP_OK) {
+            snprintf(s_chat_err, sizeof(s_chat_err), "could not reach the AI service: %s", esp_err_to_name(err));
+            s_chat_state = 3;
+            goto finish;
+        }
+        if (status != 200) {
+            snprintf(s_chat_err, sizeof(s_chat_err), "AI service returned an error (HTTP %d) - check the API key/model in Advanced Settings", status);
+            s_chat_state = 3;
+            goto finish;
+        }
+    }
+
+    resp = cJSON_Parse(rb.buf);
+    if (!resp) {
+        snprintf(s_chat_err, sizeof(s_chat_err), "AI service sent an unreadable response");
+        s_chat_state = 3;
+        goto finish;
+    }
+    {
+        cJSON *choices = cJSON_GetObjectItem(resp, "choices");
+        cJSON *first = cJSON_IsArray(choices) ? cJSON_GetArrayItem(choices, 0) : NULL;
+        cJSON *msgobj = first ? cJSON_GetObjectItem(first, "message") : NULL;
+        cJSON *content = msgobj ? cJSON_GetObjectItem(msgobj, "content") : NULL;
+        if (cJSON_IsString(content)) {
+            if (s_chat_reply) { free(s_chat_reply); s_chat_reply = NULL; }
+            s_chat_reply = strdup(content->valuestring);
+            s_chat_state = 2;
+        } else {
+            snprintf(s_chat_err, sizeof(s_chat_err), "AI service response did not include a reply");
+            s_chat_state = 3;
+        }
+    }
+
+finish:
+    if (resp) cJSON_Delete(resp);
+    if (rb.buf) free(rb.buf);
+    free(payload_str);
+    vTaskDelete(NULL);
+}
+
 static esp_err_t chat_post_handler(httpd_req_t *req) {
     char en[4]; get_setting("ai_enabled", en, sizeof(en));
     if (en[0] != '1') return send_result(req, false, "AI chat is currently turned off by the repeater admin");
@@ -1483,8 +1570,9 @@ static esp_err_t chat_post_handler(httpd_req_t *req) {
     char api_key[128]; get_setting("ai_api_key", api_key, sizeof(api_key));
     if (api_key[0] == '\0') return send_result(req, false, "AI chat is on, but no API key has been set yet - ask the admin to add one in Advanced Settings");
 
+    if (s_chat_state == 1) return send_result(req, false, "Still replying to the last message - wait a moment and try again.");
+
     char model[40]; get_setting("ai_model", model, sizeof(model));
-    char base[128]; get_setting("ai_api_base", base, sizeof(base));
 
     char *body = malloc(4096);
     if (!body) { httpd_resp_send_500(req); return ESP_OK; }
@@ -1508,61 +1596,31 @@ static esp_err_t chat_post_handler(httpd_req_t *req) {
     cJSON_Delete(payload);
     if (!payload_str) { httpd_resp_send_500(req); return ESP_OK; }
 
-    http_resp_buf_t rb = { .cap = AI_RESP_CAP, .len = 0 };
-    rb.buf = malloc(AI_RESP_CAP);
-    if (!rb.buf) { free(payload_str); httpd_resp_send_500(req); return ESP_OK; }
-    rb.buf[0] = '\0';
-
-    esp_http_client_config_t config = {
-        .url = base,
-        .method = HTTP_METHOD_POST,
-        .timeout_ms = 25000,
-        .event_handler = chat_http_event_handler,
-        .user_data = &rb,
-        .crt_bundle_attach = esp_crt_bundle_attach,
-    };
-    esp_http_client_handle_t client = esp_http_client_init(&config);
-    esp_http_client_set_header(client, "Content-Type", "application/json");
-    char auth_hdr[160];
-    snprintf(auth_hdr, sizeof(auth_hdr), "Bearer %s", api_key);
-    esp_http_client_set_header(client, "Authorization", auth_hdr);
-    esp_http_client_set_post_field(client, payload_str, strlen(payload_str));
-
-    esp_err_t err = esp_http_client_perform(client);
-    int status = esp_http_client_get_status_code(client);
-    esp_http_client_cleanup(client);
-    free(payload_str);
-
-    if (err != ESP_OK) {
-        char e[100]; snprintf(e, sizeof(e), "could not reach the AI service: %s", esp_err_to_name(err));
-        free(rb.buf);
-        return send_result(req, false, e);
+    s_chat_state = 1;
+    if (xTaskCreate(chat_task, "chat_task", 6144, payload_str, 4, NULL) != pdPASS) {
+        s_chat_state = 0;
+        free(payload_str);
+        return send_result(req, false, "repeater is too busy right now - try again in a moment");
     }
-    if (status != 200) {
-        char e[150]; snprintf(e, sizeof(e), "AI service returned an error (HTTP %d) - check the API key/model in Advanced Settings", status);
-        free(rb.buf);
-        return send_result(req, false, e);
-    }
+    return send_result(req, true, NULL);  /* accepted - frontend polls /api/chat/poll for the reply */
+}
 
-    cJSON *resp = cJSON_Parse(rb.buf);
-    free(rb.buf);
-    if (!resp) return send_result(req, false, "AI service sent an unreadable response");
-
-    cJSON *choices = cJSON_GetObjectItem(resp, "choices");
-    cJSON *first = cJSON_IsArray(choices) ? cJSON_GetArrayItem(choices, 0) : NULL;
-    cJSON *msgobj = first ? cJSON_GetObjectItem(first, "message") : NULL;
-    cJSON *content = msgobj ? cJSON_GetObjectItem(msgobj, "content") : NULL;
-
-    cJSON *out = cJSON_CreateObject();
-    if (cJSON_IsString(content)) {
-        cJSON_AddBoolToObject(out, "ok", true);
-        cJSON_AddStringToObject(out, "reply", content->valuestring);
+static esp_err_t chat_poll_get_handler(httpd_req_t *req) {
+    cJSON *r = cJSON_CreateObject();
+    if (s_chat_state == 1) {
+        cJSON_AddStringToObject(r, "state", "running");
+    } else if (s_chat_state == 2) {
+        cJSON_AddStringToObject(r, "state", "done");
+        cJSON_AddBoolToObject(r, "ok", true);
+        cJSON_AddStringToObject(r, "reply", s_chat_reply ? s_chat_reply : "");
+    } else if (s_chat_state == 3) {
+        cJSON_AddStringToObject(r, "state", "done");
+        cJSON_AddBoolToObject(r, "ok", false);
+        cJSON_AddStringToObject(r, "error", s_chat_err);
     } else {
-        cJSON_AddBoolToObject(out, "ok", false);
-        cJSON_AddStringToObject(out, "error", "AI service response did not include a reply");
+        cJSON_AddStringToObject(r, "state", "idle");
     }
-    cJSON_Delete(resp);
-    return send_json(req, out);
+    return send_json(req, r);
 }
 
 /* ================= WiFi Analyzer (scan) ================= */
@@ -1946,6 +2004,7 @@ static void start_webserver(void) {
         {.uri = "/tools",              .method = HTTP_GET,  .handler = tools_get_handler},
         {.uri = "/chat",                .method = HTTP_GET,  .handler = chat_get_handler},
         {.uri = "/api/chat",            .method = HTTP_POST, .handler = chat_post_handler},
+        {.uri = "/api/chat/poll",       .method = HTTP_GET,  .handler = chat_poll_get_handler},
         {.uri = "/api/scan/start",     .method = HTTP_POST, .handler = scan_start_post_handler},
         {.uri = "/api/scan",           .method = HTTP_GET,  .handler = scan_get_handler},
         {.uri = "/api/deauth",         .method = HTTP_GET,  .handler = deauth_get_handler},
