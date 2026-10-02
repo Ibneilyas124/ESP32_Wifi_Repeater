@@ -147,7 +147,7 @@ static const setting_t SETTINGS[] = {
     {"overall_up_kbps",  "Overall upload cap (all devices)", "0",                    "number",        "0 = unlimited. Total upload speed shared by every connected device combined, in Kbps", "bandwidth"},
     {"overall_down_kbps","Overall download cap (all devices)","0",                   "number",        "0 = unlimited. Total download/streaming speed shared by every connected device combined, in Kbps", "bandwidth"},
     {"ai_enabled",  "Enable public AI chat (/chat)",     "0",                        "bool",          "OFF by default. Anyone connected can use it once ON - it spends YOUR API key's money per message", "ai"},
-    {"ai_api_key",  "AI API key",                        "",                         "password",      "Your own OpenAI (or compatible) API key. Stored only on this device, never shown to chat users", "ai"},
+    {"ai_api_key",  "AI API key",                        "",                         "password_keep", "Your own OpenAI (or compatible) API key. Leave blank to keep the current one. Never shown to chat users", "ai"},
     {"ai_model",    "AI model name",                     "gpt-4o-mini",              "text",          "e.g. gpt-4o-mini (cheap, fast) or gpt-4o (smarter, costs more)", "ai"},
     {"ai_api_base", "AI API endpoint URL",                "https://api.openai.com/v1/chat/completions", "text", "Change only if pointing at a different OpenAI-compatible provider", "ai"},
 };
@@ -1326,7 +1326,7 @@ static esp_err_t settings_post_handler(httpd_req_t *req) {
     for (size_t i = 0; i < N_SETTINGS && ok; i++) {
         cJSON *it = cJSON_GetObjectItem(j, SETTINGS[i].key);
         if (!cJSON_IsString(it)) continue;
-        if (strcmp(SETTINGS[i].key, "admin_pass") == 0 && it->valuestring[0] == '\0') continue;
+        if (strcmp(SETTINGS[i].type, "password_keep") == 0 && it->valuestring[0] == '\0') continue;
         char why[80] = "";
         if (!validate_setting(SETTINGS[i].key, it->valuestring, why, sizeof(why))) {
             snprintf(err, sizeof(err), "%.50s: %.80s", SETTINGS[i].label, why);
@@ -1337,7 +1337,7 @@ static esp_err_t settings_post_handler(httpd_req_t *req) {
         for (size_t i = 0; i < N_SETTINGS; i++) {
             cJSON *it = cJSON_GetObjectItem(j, SETTINGS[i].key);
             if (!cJSON_IsString(it)) continue;
-            if (strcmp(SETTINGS[i].key, "admin_pass") == 0 && it->valuestring[0] == '\0') continue;
+            if (strcmp(SETTINGS[i].type, "password_keep") == 0 && it->valuestring[0] == '\0') continue;
             nvs_set_string(SETTINGS[i].key, it->valuestring);
         }
     }
@@ -1352,6 +1352,7 @@ static esp_err_t config_export_get_handler(httpd_req_t *req) {
     cJSON *root = cJSON_CreateObject();
     char v[WL_BUF];
     for (size_t i = 0; i < N_SETTINGS; i++) {
+        if (strcmp(SETTINGS[i].type, "password_keep") == 0) continue; /* never export secrets (admin_pass, ai_api_key) */
         get_setting(SETTINGS[i].key, v, sizeof(v));
         cJSON_AddStringToObject(root, SETTINGS[i].key, v);
     }
