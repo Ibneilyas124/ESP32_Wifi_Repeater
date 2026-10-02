@@ -1597,7 +1597,7 @@ static esp_err_t chat_post_handler(httpd_req_t *req) {
     if (!payload_str) { httpd_resp_send_500(req); return ESP_OK; }
 
     s_chat_state = 1;
-    if (xTaskCreate(chat_task, "chat_task", 6144, payload_str, 4, NULL) != pdPASS) {
+    if (xTaskCreate(chat_task, "chat_task", 10240, payload_str, 4, NULL) != pdPASS) {
         s_chat_state = 0;
         free(payload_str);
         return send_result(req, false, "repeater is too busy right now - try again in a moment");
