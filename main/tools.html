@@ -328,14 +328,24 @@ async function lookupOnline(){
   if(!todo.length){ $('onlineMsg').textContent='Nothing unknown left to look up.'; return; }
   await doLookup(todo);
 }
+async function lookupOne(mac){
+  var ac=new AbortController(); var tm=setTimeout(function(){ac.abort();},5000);
+  try{
+    var r=await fetch('https://api.macvendors.com/'+encodeURIComponent(mac),{signal:ac.signal});
+    clearTimeout(tm);
+    return r;
+  }catch(e){ clearTimeout(tm); throw e; }
+}
 async function doLookup(todo){
   var done=0, failed=0;
   for(var i=0;i<todo.length;i++){
     try{
-      var r=await fetch('https://api.macvendors.com/'+encodeURIComponent(todo[i].bssid));
+      var r;
+      try{ r=await lookupOne(todo[i].bssid); }
+      catch(e1){ await sleep(600); r=await lookupOne(todo[i].bssid); }
       if(r.ok){ todo[i].vendor=(await r.text()).trim(); done++; }
       else if(r.status===429){ $('onlineMsg').textContent='The lookup service is rate-limiting us - try "Look up more" again in a minute.'; break; }
-    }catch(e){ failed++; }  /* one bad lookup shouldn't stop the rest */
+    }catch(e){ failed++; }
     $('onlineMsg').textContent='Looked up '+(i+1)+'/'+todo.length+'...'; renderNets(); await sleep(1200);
   }
   if(failed && hasInternet===false) $('onlineMsg').textContent='This device has no internet, so online lookups can\'t work - see the notice above.';
