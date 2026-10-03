@@ -1291,7 +1291,7 @@ static esp_err_t settings_get_handler(httpd_req_t *req) {
     cJSON *root = cJSON_CreateObject();
     cJSON *items = cJSON_CreateArray();
     for (size_t i = 0; i < N_SETTINGS; i++) {
-        char v[80];
+        char v[136];   /* must fit the longest allowed setting value (ai_api_key/ai_api_base: 127 chars) */
         if (strcmp(SETTINGS[i].type, "password_keep") == 0) v[0] = '\0';
         else get_setting(SETTINGS[i].key, v, sizeof(v));
         cJSON *o = cJSON_CreateObject();
@@ -1478,7 +1478,7 @@ static esp_err_t chat_post_handler(httpd_req_t *req) {
     char api_key[128]; get_setting("ai_api_key", api_key, sizeof(api_key));
     if (api_key[0] == '\0') return send_result(req, false, "AI chat is on, but no API key has been set yet - ask the admin to add one in Advanced Settings");
 
-    char model[40]; get_setting("ai_model", model, sizeof(model));
+    char model[48]; get_setting("ai_model", model, sizeof(model));
     char base[128]; get_setting("ai_api_base", base, sizeof(base));
 
     char *body = malloc(4096);
@@ -1970,7 +1970,6 @@ void app_main(void) {
 
     down_usage_load();
 
-    s_boot_time_us = esp_timer_get_time();
     wifi_init();
     start_webserver();
     xTaskCreate(button_task, "reset_btn", 3072, NULL, 5, NULL);
