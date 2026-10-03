@@ -27,7 +27,6 @@
 #include "esp_private/wifi.h"
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
-#include "esp_http_client.h"
 #include "esp_crt_bundle.h"
 #include "esp_sntp.h"
 #include <time.h>
@@ -51,7 +50,6 @@ static const char *TAG = "repeater";
 extern const char login_html_start[] asm("_binary_login_html_start");
 extern const char admin_html_start[] asm("_binary_admin_html_start");
 extern const char tools_html_start[] asm("_binary_tools_html_start");
-extern const char chat_html_start[] asm("_binary_chat_html_start");
 
 #define FW_VERSION "2.1.0"
 
@@ -114,6 +112,7 @@ static volatile int s_scan_state = 0;    /* 0 idle/done, 1 running, 2 error */
 static volatile int s_diag_state = 0;    /* 0 idle, 1 running, 2 done */
 static cJSON *s_diag_result = NULL;
 
+
 /* ================= Settings table (single source of truth) ================= */
 
 typedef struct {
@@ -146,10 +145,6 @@ static const setting_t SETTINGS[] = {
     {"auto_reboot_hours","Auto-restart every N hours",   "0",                        "number",        "0 = never. Otherwise the repeater reboots itself every N hours (1-168) to stay fresh", "network"},
     {"overall_up_kbps",  "Overall upload cap (all devices)", "0",                    "number",        "0 = unlimited. Total upload speed shared by every connected device combined, in Kbps", "bandwidth"},
     {"overall_down_kbps","Overall download cap (all devices)","0",                   "number",        "0 = unlimited. Total download/streaming speed shared by every connected device combined, in Kbps", "bandwidth"},
-    {"ai_enabled",  "Enable public AI chat (/chat)",     "0",                        "bool",          "OFF by default. Anyone connected can use it once ON - it spends YOUR API key's money per message", "ai"},
-    {"ai_api_key",  "AI API key",                        "",                         "password",      "Your own OpenAI (or compatible) API key. Stored only on this device, never shown to chat users", "ai"},
-    {"ai_model",    "AI model name",                     "gpt-4o-mini",              "text",          "e.g. gpt-4o-mini (cheap, fast) or gpt-4o (smarter, costs more)", "ai"},
-    {"ai_api_base", "AI API endpoint URL",                "https://api.openai.com/v1/chat/completions", "text", "Change only if pointing at a different OpenAI-compatible provider", "ai"},
 };
 #define N_SETTINGS (sizeof(SETTINGS) / sizeof(SETTINGS[0]))
 
@@ -307,14 +302,6 @@ static bool validate_setting(const char *key, const char *v, char *err, size_t n
         if (!int_in_range(v, 0, 168)) { snprintf(err, n, "must be 0-168"); return false; }
     } else if (strcmp(key, "overall_up_kbps") == 0 || strcmp(key, "overall_down_kbps") == 0) {
         if (!int_in_range(v, 0, 9999)) { snprintf(err, n, "must be 0-9999 Kbps (0 = unlimited)"); return false; }
-    } else if (strcmp(key, "ai_enabled") == 0) {
-        if (strcmp(v, "0") != 0 && strcmp(v, "1") != 0) { snprintf(err, n, "must be 0 or 1"); return false; }
-    } else if (strcmp(key, "ai_model") == 0) {
-        if (len < 1 || len > 40) { snprintf(err, n, "must be 1-40 characters"); return false; }
-    } else if (strcmp(key, "ai_api_base") == 0) {
-        if (len < 9 || len > 127 || strncmp(v, "https://", 8) != 0) { snprintf(err, n, "must be a https:// URL"); return false; }
-    } else if (strcmp(key, "ai_api_key") == 0) {
-        if (len > 127) { snprintf(err, n, "too long (max 127 characters)"); return false; }
     } else if (strcmp(key, "guest_filter") == 0 || strcmp(key, "deauth_monitor") == 0) {
         if (strcmp(v, "0") != 0 && strcmp(v, "1") != 0) { snprintf(err, n, "must be 0 or 1"); return false; }
     } else if (strcmp(key, "deauth_alert") == 0) {
@@ -549,8 +536,8 @@ static void usage_load(usage_entry_t *e) {
     char key[16]; usage_key(e->mac, key, sizeof(key));
     char v[96] = "";
     nvs_get_string(key, v, sizeof(v), "");
-    unsigned long long tb = 0; unsigned wb = 0; int wn = 0; unsigned mb = 0; int mn = 0;
-    if (sscanf(v, "%llu,%u,%d,%u,%d", &tb, &wb, &wn, &mb, &mn) == 5) {
+    unsigned long long tb = 0; unsigned long wb = 0; int wn = 0; unsigned long mb = 0; int mn = 0;
+    if (sscanf(v, "%llu,%lu,%d,%lu,%d", &tb, &wb, &wn, &mb, &mn) == 5) {
         e->total_bytes = tb; e->week_bytes = wb; e->week_no = wn; e->month_bytes = mb; e->month_no = mn;
     }
 }
@@ -558,7 +545,7 @@ static void usage_load(usage_entry_t *e) {
 static void usage_save(usage_entry_t *e) {
     char key[16]; usage_key(e->mac, key, sizeof(key));
     char v[96];
-    snprintf(v, sizeof(v), "%llu,%u,%d,%u,%d", (unsigned long long)e->total_bytes, e->week_bytes, e->week_no, e->month_bytes, e->month_no);
+    snprintf(v, sizeof(v), "%llu,%lu,%d,%lu,%d", (unsigned long long)e->total_bytes, e->week_bytes, e->week_no, e->month_bytes, e->month_no);
     nvs_set_string(key, v);
 }
 
@@ -566,8 +553,8 @@ static void usage_save(usage_entry_t *e) {
 static void down_usage_load(void) {
     char v[96] = "";
     nvs_get_string("down_total", v, sizeof(v), "");
-    unsigned long long tb = 0; unsigned wb = 0; int wn = 0; unsigned mb = 0; int mn = 0;
-    if (sscanf(v, "%llu,%u,%d,%u,%d", &tb, &wb, &wn, &mb, &mn) == 5) {
+    unsigned long long tb = 0; unsigned long wb = 0; int wn = 0; unsigned long mb = 0; int mn = 0;
+    if (sscanf(v, "%llu,%lu,%d,%lu,%d", &tb, &wb, &wn, &mb, &mn) == 5) {
         s_down_usage.total_bytes = tb; s_down_usage.week_bytes = wb; s_down_usage.week_no = wn;
         s_down_usage.month_bytes = mb; s_down_usage.month_no = mn;
     }
@@ -575,7 +562,7 @@ static void down_usage_load(void) {
 
 static void down_usage_save(void) {
     char v[96];
-    snprintf(v, sizeof(v), "%llu,%u,%d,%u,%d", (unsigned long long)s_down_usage.total_bytes,
+    snprintf(v, sizeof(v), "%llu,%lu,%d,%lu,%d", (unsigned long long)s_down_usage.total_bytes,
              s_down_usage.week_bytes, s_down_usage.week_no, s_down_usage.month_bytes, s_down_usage.month_no);
     nvs_set_string("down_total", v);
 }
@@ -1068,9 +1055,13 @@ static esp_err_t send_result(httpd_req_t *req, bool ok, const char *err) {
     return send_json(req, r);
 }
 
-static void restart_soon(void) {
+static void restart_task(void *arg) {
     vTaskDelay(pdMS_TO_TICKS(700));
     esp_restart();
+}
+
+static void restart_soon(void) {
+    xTaskCreate(restart_task, "restart_task", 2048, NULL, 5, NULL);
 }
 
 /* ================= HTTP handlers ================= */
@@ -1135,6 +1126,8 @@ static esp_err_t logout_post_handler(httpd_req_t *req) {
     return send_result(req, true, NULL);
 }
 
+static const char *reset_reason_str(void);
+
 static esp_err_t status_get_handler(httpd_req_t *req) {
     if (require_session_api(req) != ESP_OK) return ESP_OK;
 
@@ -1144,6 +1137,8 @@ static esp_err_t status_get_handler(httpd_req_t *req) {
     cJSON_AddStringToObject(root, "sta_ip", s_sta_ip);
     cJSON_AddNumberToObject(root, "uptime_s", (double)((esp_timer_get_time() - s_boot_time_us) / 1000000));
     cJSON_AddNumberToObject(root, "free_heap", esp_get_free_heap_size());
+    cJSON_AddNumberToObject(root, "free_heap_min", esp_get_minimum_free_heap_size());
+    cJSON_AddStringToObject(root, "last_reset_reason", reset_reason_str());
 
     char v[40];
     nvs_get_string("sta_ssid", v, sizeof(v), "");
@@ -1322,7 +1317,7 @@ static esp_err_t settings_post_handler(httpd_req_t *req) {
     for (size_t i = 0; i < N_SETTINGS && ok; i++) {
         cJSON *it = cJSON_GetObjectItem(j, SETTINGS[i].key);
         if (!cJSON_IsString(it)) continue;
-        if (strcmp(SETTINGS[i].key, "admin_pass") == 0 && it->valuestring[0] == '\0') continue;
+        if (strcmp(SETTINGS[i].type, "password_keep") == 0 && it->valuestring[0] == '\0') continue;
         char why[80] = "";
         if (!validate_setting(SETTINGS[i].key, it->valuestring, why, sizeof(why))) {
             snprintf(err, sizeof(err), "%.50s: %.80s", SETTINGS[i].label, why);
@@ -1333,7 +1328,7 @@ static esp_err_t settings_post_handler(httpd_req_t *req) {
         for (size_t i = 0; i < N_SETTINGS; i++) {
             cJSON *it = cJSON_GetObjectItem(j, SETTINGS[i].key);
             if (!cJSON_IsString(it)) continue;
-            if (strcmp(SETTINGS[i].key, "admin_pass") == 0 && it->valuestring[0] == '\0') continue;
+            if (strcmp(SETTINGS[i].type, "password_keep") == 0 && it->valuestring[0] == '\0') continue;
             nvs_set_string(SETTINGS[i].key, it->valuestring);
         }
     }
@@ -1348,6 +1343,7 @@ static esp_err_t config_export_get_handler(httpd_req_t *req) {
     cJSON *root = cJSON_CreateObject();
     char v[WL_BUF];
     for (size_t i = 0; i < N_SETTINGS; i++) {
+        if (strcmp(SETTINGS[i].type, "password_keep") == 0) continue; /* never export secrets (admin_pass) */
         get_setting(SETTINGS[i].key, v, sizeof(v));
         cJSON_AddStringToObject(root, SETTINGS[i].key, v);
     }
@@ -1939,8 +1935,6 @@ static void start_webserver(void) {
         {.uri = "/api/kick",           .method = HTTP_POST, .handler = kick_post_handler},
         {.uri = "/api/me",             .method = HTTP_GET,  .handler = me_get_handler},
         {.uri = "/tools",              .method = HTTP_GET,  .handler = tools_get_handler},
-        {.uri = "/chat",                .method = HTTP_GET,  .handler = chat_get_handler},
-        {.uri = "/api/chat",            .method = HTTP_POST, .handler = chat_post_handler},
         {.uri = "/api/scan/start",     .method = HTTP_POST, .handler = scan_start_post_handler},
         {.uri = "/api/scan",           .method = HTTP_GET,  .handler = scan_get_handler},
         {.uri = "/api/deauth",         .method = HTTP_GET,  .handler = deauth_get_handler},
@@ -1956,6 +1950,26 @@ static void start_webserver(void) {
         httpd_register_uri_handler(server, &uris[i]);
     }
     ESP_LOGI(TAG, "Web dashboard started on port 80");
+}
+
+/* Captured once at boot - tells you WHY the device restarted last time:
+ * panic/crash, watchdog timeout, brownout (power supply issue), or a normal
+ * reboot you triggered yourself. Shown on the admin dashboard so a crash can
+ * be diagnosed from the browser with no serial cable needed. */
+static const char *reset_reason_str(void) {
+    switch (esp_reset_reason()) {
+        case ESP_RST_POWERON:   return "Power-on (normal)";
+        case ESP_RST_EXT:       return "External reset";
+        case ESP_RST_SW:        return "Software reboot (Save/Reboot button)";
+        case ESP_RST_PANIC:     return "CRASH (panic) - firmware fault";
+        case ESP_RST_INT_WDT:   return "CRASH (interrupt watchdog)";
+        case ESP_RST_TASK_WDT:  return "CRASH (task watchdog - something hung)";
+        case ESP_RST_WDT:       return "CRASH (other watchdog)";
+        case ESP_RST_DEEPSLEEP: return "Woke from deep sleep";
+        case ESP_RST_BROWNOUT:  return "CRASH (brownout - power supply dipped)";
+        case ESP_RST_SDIO:      return "SDIO reset";
+        default:                return "Unknown";
+    }
 }
 
 void app_main(void) {

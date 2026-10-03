@@ -58,6 +58,7 @@ td,th{border-bottom:1px solid #262b2d;padding:5px 3px;text-align:left}
   <button id="tb-de" onclick="showTab('de')">&#128737; Deauth</button>
   <button id="tb-sp" onclick="showTab('sp')">&#9889; Speed</button>
   <button id="tb-dg" onclick="showTab('dg')">&#129658; Diagnose</button>
+  <button onclick="location.href='/chat'">&#128172; AI Chat</button>
 </div>
 
 <!-- ============ ANALYZER ============ -->
@@ -190,7 +191,7 @@ function showTab(id){
 var OUI={};
 function add(v,l){ l.split(' ').forEach(function(p){ if(p) OUI[p]=v; }); }
 add('TP-Link','50C7BF F4F26D EC086B 14CC20 14CF92 98DAC4 A0F3C1 C46E1F D807B6 E894F6 30B5C2 1C3BF3 54C80F 60E327 90F652 AC84C6 B04E26 C025E9 F81A67 18D6C7');
-add('Huawei','00E0FC 001882 001E10 00259E 00464B 04F938 101B54 20F3A3 346BD3 4846FB 548998 78F557 80FB06 8853D4 ACE215 D46E5C E0247F F4C714');
+add('Huawei','00E0FC 001882 001E10 00259E 00464B 04F938 101B54 20F3A3 346BD3 4846FB 548998 78F557 80FB06 8853D4 ACE215 D46E5C E0247F F4C714 0C184E 1086F4 2845AC 4C2B3B 58B18F 60B0E8 881566 A44380 A809B1 B83C20 E4B107 002568');
 add('ZTE','0015EB 0019C6 001E73 002293 002512 0026ED 344B50 4C09B4 5422F8 C864C7 D476EA FCC897');
 add('Tenda','C83A35 0495E6 502B73');
 add('D-Link','001195 001346 0015E9 001B11 001CF0 001E58 002191 0022B0 00265A 14D64D 1C7EE5 28107B 340804 5CD998 78542E 84C9B2 9094E4 B8A386 C0A0BB C8BE19 CCB255 F07D68');
@@ -317,7 +318,7 @@ async function useUpstream(n){
   var j=await r.json(); alert(j.ok===false?('Error: '+j.error):'Saved. The repeater is rebooting - reconnect to its WiFi in ~20 s.');
 }
 async function autoLookup(){
-  if(!scanData) return; var todo=scanData.nets.filter(function(n){return isUnknown(vendorOf(n.bssid));}).slice(0,8);
+  if(!scanData) return; var todo=scanData.nets.filter(function(n){return isUnknown(vendorOf(n.bssid));}).slice(0,15);
   if(!todo.length) return;
   $('onlineMsg').textContent='Looking up unknown vendors online...';
   await doLookup(todo);
@@ -327,14 +328,24 @@ async function lookupOnline(){
   if(!todo.length){ $('onlineMsg').textContent='Nothing unknown left to look up.'; return; }
   await doLookup(todo);
 }
+async function lookupOne(mac){
+  var ac=new AbortController(); var tm=setTimeout(function(){ac.abort();},5000);
+  try{
+    var r=await fetch('https://api.macvendors.com/'+encodeURIComponent(mac),{signal:ac.signal});
+    clearTimeout(tm);
+    return r;
+  }catch(e){ clearTimeout(tm); throw e; }
+}
 async function doLookup(todo){
   var done=0, failed=0;
   for(var i=0;i<todo.length;i++){
     try{
-      var r=await fetch('https://api.macvendors.com/'+encodeURIComponent(todo[i].bssid));
+      var r;
+      try{ r=await lookupOne(todo[i].bssid); }
+      catch(e1){ await sleep(600); r=await lookupOne(todo[i].bssid); }
       if(r.ok){ todo[i].vendor=(await r.text()).trim(); done++; }
       else if(r.status===429){ $('onlineMsg').textContent='The lookup service is rate-limiting us - try "Look up more" again in a minute.'; break; }
-    }catch(e){ failed++; }  /* one bad lookup shouldn't stop the rest */
+    }catch(e){ failed++; }
     $('onlineMsg').textContent='Looked up '+(i+1)+'/'+todo.length+'...'; renderNets(); await sleep(1200);
   }
   if(failed && hasInternet===false) $('onlineMsg').textContent='This device has no internet, so online lookups can\'t work - see the notice above.';
@@ -370,7 +381,7 @@ async function runSpeed(){
   var b=$('spBtn'); b.disabled=true; ['r_ping','r_jit','r_dn','r_up','i_ping','i_jit','i_dn','i_up'].forEach(function(i){$(i).textContent='-';});
   var msg=$('spMsg'); msg.textContent='Testing WiFi link to repeater...';
   try{
-    var t=[]; for(var i=0;i<10;i++){ var s=performance.now(); await fetch('/api/ping?'+Math.random(),{cache:'no-store'}); t.push(performance.now()-s); }
+    var t=[]; for(var i=0;i<6;i++){ var s=performance.now(); await fetch('/api/ping?'+Math.random(),{cache:'no-store'}); t.push(performance.now()-s); }
     var st=stat(t); $('r_ping').textContent=st.avg.toFixed(0)+' ms'; $('r_jit').textContent=st.jit.toFixed(0)+' ms';
     var s0=performance.now(); var rd=await fetch('/api/speed?kb=768&_='+Math.random(),{cache:'no-store'}); var buf=await rd.arrayBuffer(); var sec=(performance.now()-s0)/1000;
     $('r_dn').textContent=(buf.byteLength*8/sec/1e6).toFixed(1);
@@ -379,15 +390,22 @@ async function runSpeed(){
   }catch(e){ msg.textContent='Link test failed: '+e; }
   msg.textContent='Testing internet (Cloudflare)...';
   try{
-    var t2=[]; for(var k=0;k<6;k++){ var q=performance.now(); await fetch('https://speed.cloudflare.com/__down?bytes=0&r='+Math.random(),{cache:'no-store'}); t2.push(performance.now()-q); }
+    var t2=[]; for(var k=0;k<4;k++){ var q=performance.now(); await fetch('https://speed.cloudflare.com/__down?bytes=0&r='+Math.random(),{cache:'no-store'}); t2.push(performance.now()-q); }
     var st2=stat(t2.slice(1)); $('i_ping').textContent=st2.avg.toFixed(0)+' ms'; $('i_jit').textContent=st2.jit.toFixed(0)+' ms';
-    var ac=new AbortController(); var tm=setTimeout(function(){ac.abort();},8000); var got=0, t0=performance.now();
-    try{ var resp=await fetch('https://speed.cloudflare.com/__down?bytes=30000000&r='+Math.random(),{cache:'no-store',signal:ac.signal}); var rd2=resp.body.getReader();
+    var ac=new AbortController(); var tm=setTimeout(function(){ac.abort();},6000); var got=0, t0=performance.now();
+    try{ var resp=await fetch('https://speed.cloudflare.com/__down?bytes=20000000&r='+Math.random(),{cache:'no-store',signal:ac.signal}); var rd2=resp.body.getReader();
       while(true){ var x=await rd2.read(); if(x.done) break; got+=x.value.length; $('i_dn').textContent=(got*8/((performance.now()-t0)/1000)/1e6).toFixed(1); }
     }catch(e){} clearTimeout(tm);
     $('i_dn').textContent=(got*8/((performance.now()-t0)/1000)/1e6).toFixed(1);
-    var chunk=new Blob([new Uint8Array(1024*1024)],{type:'text/plain'}); var sent=0; t0=performance.now();
-    for(var u=0;u<4;u++){ await fetch('https://speed.cloudflare.com/__up',{method:'POST',body:chunk,headers:{'Content-Type':'text/plain'}}); sent+=1024*1024; $('i_up').textContent=(sent*8/((performance.now()-t0)/1000)/1e6).toFixed(1); }
+    var ac2=new AbortController(); var tm2=setTimeout(function(){ac2.abort();},6000);
+    var chunk=new Blob([new Uint8Array(512*1024)],{type:'text/plain'}); var sent=0; t0=performance.now();
+    try{
+      for(var u=0;u<3;u++){
+        await fetch('https://speed.cloudflare.com/__up',{method:'POST',body:chunk,headers:{'Content-Type':'text/plain'},signal:ac2.signal});
+        sent+=512*1024; $('i_up').textContent=(sent*8/((performance.now()-t0)/1000)/1e6).toFixed(1);
+      }
+    }catch(e){}
+    clearTimeout(tm2);
     msg.textContent='Done.';
   }catch(e){ msg.textContent='Internet test failed. This device may have no internet access (not whitelisted?), or the browser blocked the request.'; }
   b.disabled=false;
