@@ -44,11 +44,11 @@ Andar yeh sab editable hai:
 Yeh page ab **fresh, compact, mobile design** mein hai — har section (Connected
 Devices, Whitelist, Data Usage, Advanced Settings, waghera) apna alag
 `<details class="card">` block hai, native tap-to-open/close (JS bug se
-"frozen" hone ka chance nahi). Advanced Settings ke andar 5 chhote groups hain
-(WiFi & Network, Security & Access, Advanced Network, Bandwidth Limits, AI
-Chat) — group ka naam `GROUP_LABEL` object mein milega (`admin.html` ke JS
-mein), aur kaunsi setting kis group mein hai woh `main/main.c` ke
-`SETTINGS[]` table ki aakhri column mein hai.
+"frozen" hone ka chance nahi). Advanced Settings ke andar 4 chhote groups hain
+(WiFi & Network, Security & Access, Advanced Network, Bandwidth Limits) —
+group ka naam `GROUP_LABEL` object mein milega (`admin.html` ke JS mein),
+aur kaunsi setting kis group mein hai woh `main/main.c` ke `SETTINGS[]`
+table ki aakhri column mein hai.
 
 ## 5. Company/business ka naam jo main router mein dikhta hai
 Yeh **code mein nahi**, balke ek **setting** hai — dashboard mein khud login
@@ -67,10 +67,6 @@ wali value badalna, baaki kuch nahi.
 ## 7. WiFi Tools page ka heading aur tabs (Analyzer/Deauth/Speed/Diagnose)
 **File:** `main/tools.html`
 **Dhoondo:** `WiFi Tools`, ya tab names jaise `Analyzer`, `Deauth`, `Speed`, `Diagnose`
-
-## 7b. AI Chat page (heading, placeholder text)
-**File:** `main/chat.html`
-**Dhoondo:** `AI Chat` (heading), `Message...` (input box ka placeholder)
 
 ## 8. Konse buttons/labels kahan hain (quick reference)
 | Screen par jo dikhta hai | File | Kya dhoondo |

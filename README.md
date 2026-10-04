@@ -153,13 +153,18 @@ hardware addition, not a firmware-only change).
   banner, added accurate whole-repeater usage tracking covering both
   directions, and an overall (all-devices-combined) bandwidth cap for
   both upload and download
-- **v7** — Public opt-in AI chat page (`/chat`, admin supplies
-  their own API key, OFF by default), a factory-reset counter so a reset
-  can always be verified, rewrote this README and FEATURES.md fully in
-  English. Google Drive backup sync: Cloud Console setup documented, the
-  on-device OAuth implementation is intentionally phased as a dedicated
-  follow-up (see FEATURES.md "Known limitations")
-- **v8** (current) — Completely rebuilt the admin dashboard: compact,
-  mobile-first layout using native collapsible sections (immune to the
-  "page frozen, nothing opens" class of bug), settings grouped into
-  5 logical categories instead of one long list
+- **v7** — Added a factory-reset counter so a reset can always be
+  verified, rewrote this README and FEATURES.md fully in English.
+  Google Drive backup sync: Cloud Console setup documented, the on-device
+  OAuth implementation is intentionally phased as a dedicated follow-up
+  (see FEATURES.md "Known limitations"). (This version briefly included
+  an opt-in AI chat page — removed again in v9, see below.)
+- **v8** — Completely rebuilt the admin dashboard: compact, mobile-first
+  layout using native collapsible sections (immune to the "page frozen,
+  nothing opens" class of bug), settings grouped into 5 logical
+  categories instead of one long list
+- **v9** (current) — Full code audit: fixed two real buffer-size bugs
+  (an AI-chat model-name buffer, and the settings-display buffer being
+  too small for long values), removed the AI chat feature entirely per
+  request (was spending the admin's API budget on a feature not wanted
+  right now; can be re-added later if desired)

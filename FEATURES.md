@@ -46,20 +46,6 @@ admin dashboard header too).
   happened even when a value looks unchanged because it matched the
   factory default anyway — shown on the login page footer and in `/api/me`
 
-## AI Chat (`/chat`, public — opt-in, OFF by default)
-- A ChatGPT-style chat page anyone connected to the repeater can use,
-  **without logging in** — but only once the admin explicitly turns it on
-  and pastes their own API key (Advanced Settings). Off by default, since
-  a public chat left on would spend the admin's own API budget.
-- Uses the admin's own OpenAI-compatible API key (never shown to chat
-  users, stored only on the device)
-- Chat history lives in the visitor's own browser (localStorage) — the
-  repeater itself does not store conversation transcripts, both for
-  privacy and because the flash chip isn't suited to that kind of
-  continuous writing
-- Admin controls: enable/disable, API key, model name, API endpoint URL
-  (Advanced Settings)
-
 ## Admin dashboard (`/admin`, login required)
 - Fixed username `Sarfraz` (not editable — by design), changeable
   password, default `admin`

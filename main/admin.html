@@ -6,269 +6,178 @@
 <title>Sarfraz Ibn E Ilyas - Admin</title>
 <style>
 :root{
-  --bg:#0a0e18; --card:#131a2a; --card2:#101624; --line:#202a3e; --text:#e9edf5; --dim:#8893a8;
-  --accent:#2f7df0; --accent-soft:#1a3a66; --ok:#1fae63; --ok-bg:#0d2a1c; --bad:#e5484d; --bad-bg:#2a1414; --warn:#e0a83c;
+  --bg:#0b0d0e; --card:#141718; --line:#242a2c; --text:#e8e8e8; --dim:#8a9794;
+  --accent:#00e0a0; --accent2:#00a3ff; --bad:#e04a4a; --warn:#e0a83c;
 }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,sans-serif;
-  margin:0;padding:0;font-size:14px;line-height:1.4;max-width:520px;margin:0 auto 70px}
+  margin:0;padding:10px;font-size:14px;line-height:1.4;max-width:480px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:center;padding:4px 2px 10px;border-bottom:1px solid var(--line);margin-bottom:10px}
+header .t{font-size:1.05em;font-weight:700;color:var(--accent)}
+header .t small{display:block;font-weight:400;color:var(--dim);font-size:.62em;margin-top:1px}
+header button{background:#1c2122;color:var(--dim);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-size:12px}
 
-/* ---------- header ---------- */
-header{display:flex;justify-content:space-between;align-items:flex-start;padding:14px 14px 12px;border-bottom:1px solid var(--line)}
-header .left{display:flex;gap:10px;align-items:center}
-header .hb{color:var(--dim);cursor:pointer;flex:0 0 auto}
-header .wi{color:var(--accent);flex:0 0 auto}
-header .t{font-size:1.1em;font-weight:700;color:var(--text)}
-header .t small{display:block;font-weight:400;color:var(--dim);font-size:.68em;margin-top:1px}
-header .right{text-align:right;font-size:11.5px;flex:0 0 auto;padding-top:2px}
-header .right .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px}
-header .right .st{font-weight:700}
-header .right .st.on{color:var(--ok)} header .right .st.on .dot{background:var(--ok)}
-header .right .st.off{color:var(--bad)} header .right .st.off .dot{background:var(--bad)}
-header .right .up{color:var(--dim);margin-top:2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden}
+.card>.pad{padding:10px}
+summary{padding:10px;cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:'\\25BE';color:var(--dim);transition:transform .15s}
+details[open]>summary::after{transform:rotate(180deg)}
+summary .badge{background:#1c2122;color:var(--dim);border-radius:10px;padding:1px 7px;font-size:11px;font-weight:400;margin-left:6px}
+details>.pad{padding:0 10px 10px}
+h2{font-size:.95em;margin:0;color:var(--text)}
 
-/* ---------- top tab cards ---------- */
-.tabbar{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;padding:12px 10px 4px}
-.tabcard{background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:10px 4px;text-align:center;cursor:pointer}
-.tabcard svg{display:block;margin:0 auto 5px}
-.tabcard .lbl{font-size:11px;color:var(--dim);font-weight:600;line-height:1.2}
-.tabcard.active{background:var(--accent-soft);border-color:var(--accent);border-bottom:2.5px solid var(--accent)}
-.tabcard.active .lbl{color:var(--text)}
-
-main{padding:10px}
-.pane{display:none}
-.pane.active{display:block}
-
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
-.card>.pad{padding:14px}
-.card h2{font-size:1em;margin:0 0 3px;display:flex;align-items:center;gap:8px}
-.card h2 .ic{flex:0 0 auto}
-.card p.desc{color:var(--dim);font-size:12.5px;margin:0 0 10px}
-
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-.stat{background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:8px 9px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stat{background:#101314;border:1px solid var(--line);border-radius:7px;padding:7px 8px}
 .stat .k{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.3px}
-.stat .v{font-size:13.5px;font-weight:600;margin-top:2px;word-break:break-word}
-.stat .v.ok{color:var(--ok)} .stat .v.bad{color:var(--bad)}
+.stat .v{font-size:13.5px;font-weight:600;margin-top:1px;word-break:break-word}
+.stat .v.ok{color:var(--accent)} .stat .v.bad{color:var(--bad)}
 
-input,select,textarea{width:100%;background:var(--card2);color:var(--text);border:1px solid #2a3450;
-  border-radius:8px;padding:9px 10px;font-size:13.5px;margin:4px 0}
-input::placeholder{color:#5c6680}
-label{font-size:11.5px;color:var(--dim);display:block;margin-top:8px}
-small.hint{color:var(--dim);font-size:10.5px;display:block;margin-top:3px}
-
-button.act{background:var(--accent);color:#fff;font-weight:700;border:none;border-radius:8px;
-  padding:10px;font-size:13.5px;cursor:pointer;width:100%;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:7px}
-button.ghost{background:var(--card2);color:var(--dim);border:1px solid var(--line);border-radius:8px;
-  padding:8px 10px;font-size:12px;cursor:pointer}
-button.danger{background:var(--bad);color:#fff;border:none;border-radius:8px;padding:10px;font-size:13.5px;cursor:pointer;width:100%}
-button.remove{background:var(--bad-bg);color:#ff9c9c;border:1px solid #4a2222;border-radius:7px;padding:6px 11px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap}
-button.small{padding:5px 9px;font-size:11px;border-radius:6px}
-.row{display:flex;gap:7px;align-items:center}
+input,select,textarea{width:100%;background:#101314;color:var(--text);border:1px solid #2c3234;
+  border-radius:7px;padding:8px 9px;font-size:13.5px;margin:4px 0}
+label{font-size:11.5px;color:var(--dim);display:block;margin-top:7px}
+small.hint{color:var(--dim);font-size:10.5px;display:block;margin-top:2px}
+button.act{background:var(--accent);color:#06201a;font-weight:700;border:none;border-radius:7px;
+  padding:9px;font-size:13px;cursor:pointer;width:100%;margin-top:6px}
+button.ghost{background:#1c2122;color:var(--dim);border:1px solid var(--line);border-radius:7px;
+  padding:7px 9px;font-size:12px;cursor:pointer}
+button.danger{background:var(--bad);color:#fff;border:none;border-radius:7px;padding:9px;font-size:13px;cursor:pointer}
+button.small{padding:4px 8px;font-size:11px;border-radius:6px}
+.row{display:flex;gap:6px;align-items:center}
 .row>*{flex:1}
 .row>button{flex:0 0 auto}
 
 .tblwrap{overflow-x:auto;margin-top:6px}
 table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap}
-th{color:var(--dim);text-align:left;font-weight:600;font-size:10.5px;text-transform:uppercase;padding:7px 8px;border-bottom:1px solid var(--line)}
-td{padding:8px;border-bottom:1px solid #182136;vertical-align:middle}
-.tag{display:inline-flex;align-items:center;gap:4px;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600}
-.tag.ok{background:var(--ok-bg);color:#4fd48a} .tag.bad{background:var(--bad-bg);color:#ff9c9c}
-.tag .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+th{color:var(--dim);text-align:left;font-weight:600;font-size:10.5px;text-transform:uppercase;padding:4px 7px;border-bottom:1px solid var(--line)}
+td{padding:5px 7px;border-bottom:1px solid #1a1e1f}
+.tag{display:inline-block;border-radius:5px;padding:1px 6px;font-size:10.5px}
+.tag.ok{background:#0d2b22;color:var(--accent)} .tag.bad{background:#2b1414;color:#ff9c9c}
 
-.wlrow{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #182136;font-size:12.5px}
+.wlrow{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #1a1e1f;font-size:12.5px}
 .wlrow .nm{flex:1;overflow:hidden;text-overflow:ellipsis}
 .wlrow .nm b{color:var(--text)} .wlrow .nm span{color:var(--dim);display:block;font-size:10.5px}
 
 .chart{display:flex;align-items:flex-end;gap:2px;height:72px;margin-top:6px}
 .chart i{flex:1;min-width:3px;border-radius:2px 2px 0 0;display:block}
-.subgroup summary{font-size:.88em;padding:9px 10px;background:var(--card2);cursor:pointer;list-style:none;display:flex;justify-content:space-between}
-.subgroup summary::-webkit-details-marker{display:none}
-.subgroup summary::after{content:'\\25BE';color:var(--dim)}
-.subgroup[open] summary::after{content:'\\25B4'}
-.subgroup{border:1px solid var(--line);border-radius:8px;margin:7px 0;overflow:hidden}
-.subgroup>.pad{padding:10px}
+.subgroup summary{font-size:.85em;padding:8px 10px;background:#101314}
+.subgroup{border:1px solid var(--line);border-radius:8px;margin:6px 0;overflow:hidden}
 .danger-zone{border-color:#3a1f1f}
-.msg{font-size:11.5px;color:var(--dim);margin-top:6px;min-height:14px}
-.footnote{display:flex;gap:10px;align-items:flex-start;background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:11.5px;color:var(--dim);margin-top:4px}
-.footnote .side{text-align:right;white-space:nowrap;color:var(--text);font-weight:600;font-size:11px}
-footer.links{text-align:center;color:var(--dim);font-size:11px;padding:6px 0 4px}
-footer.links a{color:var(--accent)}
-
-/* ---------- bottom nav ---------- */
-.bottomnav{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:0 auto;background:#0d1322;border-top:1px solid var(--line);
-  display:grid;grid-template-columns:repeat(4,1fr);padding:8px 0 10px}
-.bottomnav .bi{text-align:center;color:var(--dim);cursor:pointer;font-size:11px;font-weight:600}
-.bottomnav .bi svg{display:block;margin:0 auto 3px}
-.bottomnav .bi.active{color:var(--accent)}
+.msg{font-size:11.5px;color:var(--dim);margin-top:5px;min-height:14px}
+footer{text-align:center;color:var(--dim);font-size:11px;padding:14px 0 6px}
 </style>
 </head>
 <body>
 
 <header>
-  <div class="left">
-    <svg class="hb" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-    <svg class="wi" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13a10 10 0 0 1 14 0"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg>
-    <div class="t">Sarfraz Ibn E Ilyas<small id="fwLine">WiFi Repeater Admin</small></div>
-  </div>
-  <div class="right">
-    <div class="st on" id="sysBadge"><span class="dot"></span><span id="sysText">Checking...</span></div>
-    <div class="up" id="sysUptime">Uptime: -</div>
-  </div>
+  <div class="t">Sarfraz Ibn E Ilyas<small id="fwLine">WiFi Repeater Admin</small></div>
+  <button onclick="doLogout()">Logout</button>
 </header>
 
-<div class="tabbar">
-  <div class="tabcard" data-tab="wifi" onclick="selectTab('wifi')">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/></svg>
-    <div class="lbl">Wi-Fi<br>Extender</div>
-  </div>
-  <div class="tabcard" data-tab="ap" onclick="selectTab('ap')">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/></svg>
-    <div class="lbl">Repeater<br>AP</div>
-  </div>
-  <div class="tabcard" data-tab="wl" onclick="selectTab('wl')">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/></svg>
-    <div class="lbl">MAC<br>Whitelist</div>
-  </div>
-  <div class="tabcard" data-tab="tools" onclick="selectTab('tools')">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/></svg>
-    <div class="lbl">Tools &amp;<br>Speed</div>
-  </div>
-</div>
+<!-- STATUS: always visible, compact grid -->
+<div class="card"><div class="pad">
+  <div class="grid2" id="statGrid"><div class="stat"><div class="k">Status</div><div class="v">Loading...</div></div></div>
+</div></div>
 
-<main>
+<!-- CONNECTED DEVICES -->
+<details class="card" id="d-clients">
+  <summary><h2>Connected Devices</h2><span class="badge" id="clientCount">-</span></summary>
+  <div class="pad"><div class="tblwrap" id="clientsTbl">-</div></div>
+</details>
 
-<!-- ============ PANE: WI-FI EXTENDER ============ -->
-<div class="pane" id="pane-wifi">
-  <div class="card"><div class="pad">
-    <h2>Upstream WiFi</h2>
-    <p class="desc">Connect this repeater to your main router/internet source.</p>
-    <div class="grid2" style="margin-bottom:8px">
-      <div class="stat"><div class="k">Upstream</div><div class="v" id="wUpStat">-</div></div>
-      <div class="stat"><div class="k">Upstream IP</div><div class="v" id="wUpIp">-</div></div>
-    </div>
+<!-- WHITELIST -->
+<details class="card" id="d-wl">
+  <summary><h2>MAC Whitelist</h2><span class="badge" id="wlCount">-</span></summary>
+  <div class="pad">
+    <small class="hint">Empty list = everyone allowed. Add your own device first.</small>
+    <div id="wlList"></div>
+    <input id="newmac" placeholder="AA:BB:CC:DD:EE:FF" autocomplete="off">
+    <input id="newname" placeholder="Device name" autocomplete="off">
+    <input id="newlimit" type="number" placeholder="Upload limit Kbps (blank = unlimited)" autocomplete="off">
+    <button class="act" onclick="addMac()">Add to Whitelist</button>
+    <div class="msg" id="wlMsg"></div>
+  </div>
+</details>
+
+<!-- UPSTREAM WIFI -->
+<details class="card" id="d-wifi">
+  <summary><h2>Upstream WiFi</h2></summary>
+  <div class="pad">
     <label>Network name (SSID)</label>
     <input id="sta_ssid" placeholder="Your main router's WiFi name" autocomplete="off">
     <label>Password</label>
     <div style="position:relative">
-      <input id="sta_pass" type="password" placeholder="Blank = keep current" autocomplete="off" style="padding-right:52px">
+      <input id="sta_pass" type="password" placeholder="Blank = keep current" autocomplete="off" style="padding-right:48px">
       <button class="ghost small" style="position:absolute;right:4px;top:50%;transform:translateY(-50%)" onclick="pwToggle('sta_pass',this)">SHOW</button>
     </div>
     <button class="act" onclick="saveWifi()">Save &amp; Reboot</button>
     <div class="msg" id="wifiMsg"></div>
-  </div></div>
-
-  <div class="card"><div class="pad">
-    <h2>Upstream Stability</h2>
-    <div class="tblwrap" id="stabBody">-</div>
-  </div></div>
-</div>
-
-<!-- ============ PANE: REPEATER AP (home) ============ -->
-<div class="pane active" id="pane-ap">
-  <div class="card"><div class="pad">
-    <div class="grid2" id="statGrid"><div class="stat"><div class="k">Status</div><div class="v">Loading...</div></div></div>
-  </div></div>
-
-  <div class="card"><div class="pad">
-    <h2>Connected Devices <span class="msg" id="clientCount" style="display:inline;margin:0 0 0 4px"></span></h2>
-    <div class="tblwrap" id="clientsTbl">-</div>
-  </div></div>
-
-  <div class="card"><div class="pad">
-    <h2>Advanced Settings</h2>
-    <p class="desc">Every setting has a safe default. Saving reboots the repeater.</p>
-    <div id="advGroups">Loading...</div>
-    <div class="row" style="margin-top:8px">
-      <button class="ghost" onclick="fillDefaults()">Fill all defaults</button>
-      <button class="act" style="margin-top:0" onclick="saveSettings()">Save &amp; Reboot</button>
-    </div>
-    <div class="msg" id="advMsg"></div>
-  </div></div>
-
-  <div class="card danger-zone"><div class="pad">
-    <h2 style="color:var(--bad)">Danger Zone</h2>
-    <button class="danger" onclick="doReboot()">Reboot Device</button>
-    <button class="danger" style="margin-top:8px" onclick="doFactoryReset()">Factory Reset (erase everything)</button>
-    <small class="hint" style="margin-top:8px">Hardware reset: hold BOOT ~8s, release when the LED blinks fast.</small>
-  </div></div>
-</div>
-
-<!-- ============ PANE: MAC WHITELIST ============ -->
-<div class="pane" id="pane-wl">
-  <div class="card"><div class="pad">
-    <h2>
-      <svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V5z"/><path d="M9 12l2 2 4-4"/></svg>
-      MAC Whitelist Filter
-    </h2>
-    <p class="desc">Add devices here to make sure they're always treated as trusted. Leave the list empty to allow every device.</p>
-
-    <label>Add Device (MAC Address)</label>
-    <input id="newmac" placeholder="e.g. 4A:11:22:33:44:55" autocomplete="off">
-    <input id="newname" placeholder="Device name" autocomplete="off">
-    <input id="newlimit" type="number" placeholder="Upload limit Kbps (blank = unlimited)" autocomplete="off">
-    <button class="act" onclick="addMac()">+ Add Device</button>
-    <div class="msg" id="wlMsg"></div>
-  </div></div>
-
-  <div class="card"><div class="pad">
-    <div id="wlList"></div>
-  </div></div>
-
-  <div class="footnote">
-    <div style="flex:1">Only devices with MAC addresses in this list will be able to connect to your network (if the list isn't empty).</div>
-    <div class="side">Total:<br><span id="wlCount">-</span> devices</div>
   </div>
-</div>
+</details>
 
-<!-- ============ PANE: TOOLS & SPEED ============ -->
-<div class="pane" id="pane-tools">
-  <div class="card"><div class="pad">
-    <h2>Data Usage</h2>
+<!-- DATA USAGE -->
+<details class="card" id="d-usage">
+  <summary><h2>Data Usage</h2></summary>
+  <div class="pad">
     <small class="hint" id="usageNote"></small>
     <div id="overallUsage"></div>
     <div style="margin-top:8px;color:var(--dim);font-size:11px">Per-device (upload only)</div>
     <div id="usageBody" class="tblwrap"></div>
     <small class="hint" style="margin-top:6px">Whole-repeater figures include downloads/streaming. Per-device rows only count uploads - see FEATURES.md.</small>
-  </div></div>
+  </div>
+</details>
 
-  <div class="card"><div class="pad">
-    <h2>Speed History</h2>
+<!-- SPEED HISTORY -->
+<details class="card" id="d-speed">
+  <summary><h2>Speed History</h2></summary>
+  <div class="pad">
     <small class="hint">Latency to 1.1.1.1 sampled every ~15 min. Green=ok, red=down.</small>
     <div class="chart" id="shChart"></div>
     <div class="msg" id="shNote"></div>
-  </div></div>
+  </div>
+</details>
 
-  <div class="card"><div class="pad">
-    <h2>Config Backup</h2>
+<!-- STABILITY LOG -->
+<details class="card" id="d-stab">
+  <summary><h2>Upstream Stability</h2></summary>
+  <div class="pad tblwrap" id="stabBody">-</div>
+</details>
+
+<!-- ADVANCED SETTINGS -->
+<details class="card" id="d-adv">
+  <summary><h2>Advanced Settings</h2></summary>
+  <div class="pad">
+    <small class="hint">Every setting has a safe default. Saving reboots the repeater.</small>
+    <div id="advGroups">Loading...</div>
+    <div class="row" style="margin-top:8px">
+      <button class="ghost" onclick="fillDefaults()">Fill all defaults</button>
+      <button class="act" onclick="saveSettings()">Save &amp; Reboot</button>
+    </div>
+    <div class="msg" id="advMsg"></div>
+  </div>
+</details>
+
+<!-- BACKUP -->
+<details class="card" id="d-backup">
+  <summary><h2>Config Backup</h2></summary>
+  <div class="pad">
     <button class="ghost" onclick="exportCfg()">Export JSON</button>
     <textarea id="importbox" rows="4" placeholder="Paste config JSON here to import"></textarea>
     <button class="act" onclick="importCfg()">Import &amp; Reboot</button>
-  </div></div>
+  </div>
+</details>
 
-  <footer class="links">WiFi Tools: <a href="/tools">/tools</a> &middot; AI Chat: <a href="/chat">/chat</a> &middot; <a href="#" onclick="doLogout();return false;">Logout</a></footer>
-</div>
+<!-- DANGER ZONE -->
+<details class="card danger-zone" id="d-danger">
+  <summary><h2 style="color:var(--bad)">Danger Zone</h2></summary>
+  <div class="pad">
+    <button class="danger" style="width:100%" onclick="doReboot()">Reboot Device</button>
+    <button class="danger" style="width:100%;margin-top:8px" onclick="doFactoryReset()">Factory Reset (erase everything)</button>
+    <small class="hint" style="margin-top:8px">Hardware reset: hold BOOT ~8s, release when the LED blinks fast.</small>
+  </div>
+</details>
 
-</main>
-
-<div class="bottomnav">
-  <div class="bi active" data-tab="ap" onclick="selectTab('ap')">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10l9-7 9 7"/><path d="M5 9v11h14V9"/></svg>
-    Home
-  </div>
-  <div class="bi" data-tab="wifi" onclick="selectTab('wifi')">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13a10 10 0 0 1 14 0"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg>
-    Wi-Fi
-  </div>
-  <div class="bi" data-tab="wl" onclick="selectTab('wl')">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V5z"/><path d="M9 12l2 2 4-4"/></svg>
-    Whitelist
-  </div>
-  <div class="bi" data-tab="tools" onclick="selectTab('tools')">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
-    Settings
-  </div>
-</div>
+<footer>WiFi Tools: <a href="/tools" style="color:var(--accent2)">/tools</a></footer>
 
 <script>
 'use strict';
@@ -289,51 +198,25 @@ var REASONS={1:'Unspecified',2:'Auth expired',3:'Router disconnected us',4:'Inac
   6:'Bad frame',7:'Bad frame',8:'Router said we left',15:'Wrong password (handshake failed)',200:'Signal lost',
   201:'Router not found / off',202:'Wrong WiFi password',203:'Association rejected',204:'Handshake timeout'};
 
-/* ---------------- TAB SWITCHING ---------------- */
-var PANES={wifi:'pane-wifi', ap:'pane-ap', wl:'pane-wl', tools:'pane-tools'};
-function selectTab(name){
-  Object.keys(PANES).forEach(function(k){ $(PANES[k]).classList.toggle('active', k===name); });
-  document.querySelectorAll('.tabcard').forEach(function(c){ c.classList.toggle('active', c.getAttribute('data-tab')===name); });
-  document.querySelectorAll('.bottomnav .bi').forEach(function(c){ c.classList.toggle('active', c.getAttribute('data-tab')===name); });
-  if(name==='ap' && !advLoaded){ advLoaded=true; loadSettings(); }
-  if(name==='tools'){
-    if(!usageLoaded){ usageLoaded=true; loadUsage(); }
-    if(!speedLoaded){ speedLoaded=true; loadSpeedHistory(); }
-  }
-}
-selectTab('ap');
-
 /* ---------------- STATUS (always visible) ---------------- */
 var loadedWifiField=false;
-var failStreak=0;
 async function refreshStatus(){
   try{
     var r=await fetch('/api/status',{cache:'no-store'}); if(authFail(r))return; var j=await r.json();
-    failStreak=0;
     $('fwLine').textContent='v'+j.fw+' \u00b7 WiFi Repeater Admin';
-    var badge=$('sysBadge');
-    badge.className='st on'; $('sysText').textContent='System Online';
-    $('sysUptime').textContent='Uptime: '+fmtTime(j.uptime_s);
 
     var g=$('statGrid'); g.innerHTML='';
     function stat(k,v,cls){ var d=el('div',{'class':'stat'}); d.appendChild(el('div',{'class':'k'},k)); d.appendChild(el('div',{'class':'v '+(cls||'')},v)); g.appendChild(d); }
-    stat('Upstream', j.sta_connected?('Connected'):'Offline', j.sta_connected?'ok':'bad');
+    stat('Upstream', j.sta_connected?('Connected':'Offline'), j.sta_connected?'ok':'bad');
     stat('Upstream IP', j.sta_connected?j.sta_ip:'-');
     stat('Session uptime', j.sta_connected?fmtTime(j.session_uptime_s):'-');
     stat('Repeater IP', j.ap_ip);
     stat('Total uptime', fmtTime(j.uptime_s));
     stat('Free memory', Math.round(j.free_heap/1024)+' KB');
-    stat('Lowest-ever memory', Math.round(j.free_heap_min/1024)+' KB', j.free_heap_min<20000?'bad':'');
-    var crashed = /CRASH/.test(j.last_reset_reason||'');
-    stat('Last reboot reason', j.last_reset_reason||'-', crashed?'bad':'ok');
-
-    $('wUpStat').textContent = j.sta_connected?'Connected':'Offline';
-    $('wUpStat').className = 'v '+(j.sta_connected?'ok':'bad');
-    $('wUpIp').textContent = j.sta_connected?j.sta_ip:'-';
 
     if(!loadedWifiField){ $('sta_ssid').value=j.sta_ssid||''; loadedWifiField=true; }
 
-    $('clientCount').textContent='('+j.clients.length+' online)';
+    $('clientCount').textContent=j.clients.length;
     var ct=$('clientsTbl'); ct.innerHTML='';
     if(!j.clients.length){ ct.appendChild(el('small',{'class':'hint'},'No devices connected right now.')); }
     else{
@@ -345,13 +228,11 @@ async function refreshStatus(){
         tr.appendChild(el('td',null,c.mac));
         tr.appendChild(el('td',null,c.ip));
         tr.appendChild(el('td',null,String(c.rssi)));
-        var netTd=el('td');
-        var tag=el('span',{'class':'tag '+(c.authorized?'ok':'bad')}); tag.appendChild(el('span',{'class':'dot'})); tag.appendChild(document.createTextNode(c.authorized?'Allowed':'Guest'));
-        netTd.appendChild(tag);
+        var netTd=el('td'); netTd.appendChild(el('span',{'class':'tag '+(c.authorized?'ok':'bad')},c.authorized?'OK':'Guest'));
         tr.appendChild(netTd);
         var td=el('td');
         var wb=el('button',{'class':'ghost small'},'+WL');
-        wb.onclick=(function(mac){ return function(){ $('newmac').value=mac; selectTab('wl'); $('newname').focus(); }; })(c.mac);
+        wb.onclick=(function(mac){ return function(){ $('newmac').value=mac; $('d-wl').open=true; $('newname').focus(); }; })(c.mac);
         var kb=el('button',{'class':'ghost small','style':'margin-left:4px'},'Kick');
         kb.onclick=(function(mac){ return function(){ kickDevice(mac); }; })(c.mac);
         td.appendChild(wb); td.appendChild(kb); tr.appendChild(td);
@@ -370,9 +251,7 @@ async function refreshStatus(){
         nm.appendChild(el('b',null,w.name||w.mac));
         nm.appendChild(el('span',null,w.mac+(w.limit_kbps?(' \u00b7 '+w.limit_kbps+' Kbps'):'')));
         row.appendChild(nm);
-        var tag=el('span',{'class':'tag ok','style':'margin-right:6px'}); tag.appendChild(el('span',{'class':'dot'})); tag.appendChild(document.createTextNode('Allowed'));
-        row.appendChild(tag);
-        var rb=el('button',{'class':'remove'},'Remove');
+        var rb=el('button',{'class':'ghost small'},'Remove');
         rb.onclick=(function(mac){ return function(){ removeMac(mac); }; })(w.mac);
         row.appendChild(rb);
         wl.appendChild(row);
@@ -386,13 +265,7 @@ async function refreshStatus(){
       j.discon_log.forEach(function(e){ var tr=el('tr'); tr.appendChild(el('td',null,fmtTime(e.ago_s)+' ago')); tr.appendChild(el('td',null,REASONS[e.reason]||('code '+e.reason))); st.appendChild(tr); });
       $('stabBody').appendChild(st);
     }
-  }catch(e){
-    failStreak++;
-    if(failStreak>=2){
-      $('sysBadge').className='st off'; $('sysText').textContent='Reconnecting...';
-      $('sysUptime').textContent='Repeater is rebooting or out of range';
-    }
-  }
+  }catch(e){ /* one failed refresh shouldn't break the page - next tick retries */ }
 }
 
 /* ---------------- WHITELIST actions ---------------- */
@@ -422,12 +295,12 @@ async function saveWifi(){
   var o={ssid:$('sta_ssid').value, password:$('sta_pass').value};
   var j=await post('/api/wifi',o);
   if(!j) return;
-  if(j.ok){ $('wifiMsg').textContent='Saved - rebooting...'; alert('Saved. Repeater is restarting to apply new WiFi. Reconnect to Sarfraz and reopen this page in 15-20 seconds.'); }
-  else { $('wifiMsg').textContent='Error: '+j.error; }
+  $('wifiMsg').textContent = j.ok===false ? ('Error: '+j.error) : 'Saved - rebooting...';
 }
 
-/* ---------------- USAGE (lazy loaded) ---------------- */
+/* ---------------- USAGE (lazy loaded on open) ---------------- */
 var usageLoaded=false;
+$('d-usage').addEventListener('toggle', function(){ if(this.open && !usageLoaded){ usageLoaded=true; loadUsage(); } });
 async function loadUsage(){
   try{
     var r=await fetch('/api/usage'); if(authFail(r))return; var j=await r.json();
@@ -449,6 +322,7 @@ async function loadUsage(){
 
 /* ---------------- SPEED HISTORY (lazy loaded) ---------------- */
 var speedLoaded=false;
+$('d-speed').addEventListener('toggle', function(){ if(this.open && !speedLoaded){ speedLoaded=true; loadSpeedHistory(); } });
 async function loadSpeedHistory(){
   try{
     var r=await fetch('/api/speedhistory'); if(authFail(r))return; var j=await r.json();
@@ -457,7 +331,7 @@ async function loadSpeedHistory(){
     var samples=j.samples.slice().reverse();
     var mx=Math.max(50, Math.max.apply(null, samples.map(function(s){return s.ok?s.ms:0;})));
     samples.forEach(function(s){
-      var bar=el('i'); bar.style.background = s.ok ? 'var(--ok)' : 'var(--bad)';
+      var bar=el('i'); bar.style.background = s.ok ? 'var(--accent)' : 'var(--bad)';
       bar.style.height = (s.ok ? Math.max(4,Math.round(s.ms/mx*68)) : 68)+'px';
       box.appendChild(bar);
     });
@@ -468,8 +342,9 @@ async function loadSpeedHistory(){
 
 /* ---------------- ADVANCED SETTINGS (lazy loaded, grouped) ---------------- */
 var advLoaded=false;
-var GROUP_LABEL={wifi:'WiFi & Network',security:'Security & Access',network:'Advanced Network',bandwidth:'Bandwidth Limits',ai:'AI Chat'};
-var GROUP_ORDER=['wifi','security','network','bandwidth','ai'];
+var GROUP_LABEL={wifi:'WiFi & Network',security:'Security & Access',network:'Advanced Network',bandwidth:'Bandwidth Limits'};
+var GROUP_ORDER=['wifi','security','network','bandwidth'];
+$('d-adv').addEventListener('toggle', function(){ if(this.open && !advLoaded){ advLoaded=true; loadSettings(); } });
 async function loadSettings(){
   try{
     var r=await fetch('/api/settings'); if(authFail(r))return; var j=await r.json();
@@ -480,7 +355,7 @@ async function loadSettings(){
       if(!byGroup[g]) return;
       var d=el('details',{'class':'subgroup'});
       d.appendChild(el('summary',null,GROUP_LABEL[g]||g));
-      var pad=el('div',{'class':'pad'});
+      var pad=el('div',{'class':'pad','style':'padding:8px 10px'});
       byGroup[g].forEach(function(it){
         var field=el('div');
         var isPw=(it.type==='password'||it.type==='password_keep');
@@ -502,7 +377,7 @@ async function loadSettings(){
         field.appendChild(el('label',null,it.label));
         if(isPw){
           var wrap=el('div',{'style':'position:relative'});
-          inp.style.paddingRight='52px';
+          inp.style.paddingRight='48px';
           var pid='fld_'+it.key; inp.id=pid;
           wrap.appendChild(inp);
           var btn=el('button',{'type':'button','class':'ghost small','style':'position:absolute;right:4px;top:50%;transform:translateY(-50%)'},'SHOW');

@@ -27,7 +27,6 @@
 #include "esp_private/wifi.h"
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
-#include "esp_crt_bundle.h"
 #include "esp_sntp.h"
 #include <time.h>
 #include "esp_timer.h"
@@ -111,7 +110,6 @@ static int s_speedhist_head = 0, s_speedhist_count = 0;
 static volatile int s_scan_state = 0;    /* 0 idle/done, 1 running, 2 error */
 static volatile int s_diag_state = 0;    /* 0 idle, 1 running, 2 done */
 static cJSON *s_diag_result = NULL;
-
 
 /* ================= Settings table (single source of truth) ================= */
 
@@ -536,8 +534,8 @@ static void usage_load(usage_entry_t *e) {
     char key[16]; usage_key(e->mac, key, sizeof(key));
     char v[96] = "";
     nvs_get_string(key, v, sizeof(v), "");
-    unsigned long long tb = 0; unsigned long wb = 0; int wn = 0; unsigned long mb = 0; int mn = 0;
-    if (sscanf(v, "%llu,%lu,%d,%lu,%d", &tb, &wb, &wn, &mb, &mn) == 5) {
+    unsigned long long tb = 0; unsigned wb = 0; int wn = 0; unsigned mb = 0; int mn = 0;
+    if (sscanf(v, "%llu,%u,%d,%u,%d", &tb, &wb, &wn, &mb, &mn) == 5) {
         e->total_bytes = tb; e->week_bytes = wb; e->week_no = wn; e->month_bytes = mb; e->month_no = mn;
     }
 }
@@ -545,7 +543,7 @@ static void usage_load(usage_entry_t *e) {
 static void usage_save(usage_entry_t *e) {
     char key[16]; usage_key(e->mac, key, sizeof(key));
     char v[96];
-    snprintf(v, sizeof(v), "%llu,%lu,%d,%lu,%d", (unsigned long long)e->total_bytes, e->week_bytes, e->week_no, e->month_bytes, e->month_no);
+    snprintf(v, sizeof(v), "%llu,%u,%d,%u,%d", (unsigned long long)e->total_bytes, e->week_bytes, e->week_no, e->month_bytes, e->month_no);
     nvs_set_string(key, v);
 }
 
@@ -553,8 +551,8 @@ static void usage_save(usage_entry_t *e) {
 static void down_usage_load(void) {
     char v[96] = "";
     nvs_get_string("down_total", v, sizeof(v), "");
-    unsigned long long tb = 0; unsigned long wb = 0; int wn = 0; unsigned long mb = 0; int mn = 0;
-    if (sscanf(v, "%llu,%lu,%d,%lu,%d", &tb, &wb, &wn, &mb, &mn) == 5) {
+    unsigned long long tb = 0; unsigned wb = 0; int wn = 0; unsigned mb = 0; int mn = 0;
+    if (sscanf(v, "%llu,%u,%d,%u,%d", &tb, &wb, &wn, &mb, &mn) == 5) {
         s_down_usage.total_bytes = tb; s_down_usage.week_bytes = wb; s_down_usage.week_no = wn;
         s_down_usage.month_bytes = mb; s_down_usage.month_no = mn;
     }
@@ -562,7 +560,7 @@ static void down_usage_load(void) {
 
 static void down_usage_save(void) {
     char v[96];
-    snprintf(v, sizeof(v), "%llu,%lu,%d,%lu,%d", (unsigned long long)s_down_usage.total_bytes,
+    snprintf(v, sizeof(v), "%llu,%u,%d,%u,%d", (unsigned long long)s_down_usage.total_bytes,
              s_down_usage.week_bytes, s_down_usage.week_no, s_down_usage.month_bytes, s_down_usage.month_no);
     nvs_set_string("down_total", v);
 }
@@ -1055,13 +1053,9 @@ static esp_err_t send_result(httpd_req_t *req, bool ok, const char *err) {
     return send_json(req, r);
 }
 
-static void restart_task(void *arg) {
+static void restart_soon(void) {
     vTaskDelay(pdMS_TO_TICKS(700));
     esp_restart();
-}
-
-static void restart_soon(void) {
-    xTaskCreate(restart_task, "restart_task", 2048, NULL, 5, NULL);
 }
 
 /* ================= HTTP handlers ================= */
@@ -1126,8 +1120,6 @@ static esp_err_t logout_post_handler(httpd_req_t *req) {
     return send_result(req, true, NULL);
 }
 
-static const char *reset_reason_str(void);
-
 static esp_err_t status_get_handler(httpd_req_t *req) {
     if (require_session_api(req) != ESP_OK) return ESP_OK;
 
@@ -1137,8 +1129,6 @@ static esp_err_t status_get_handler(httpd_req_t *req) {
     cJSON_AddStringToObject(root, "sta_ip", s_sta_ip);
     cJSON_AddNumberToObject(root, "uptime_s", (double)((esp_timer_get_time() - s_boot_time_us) / 1000000));
     cJSON_AddNumberToObject(root, "free_heap", esp_get_free_heap_size());
-    cJSON_AddNumberToObject(root, "free_heap_min", esp_get_minimum_free_heap_size());
-    cJSON_AddStringToObject(root, "last_reset_reason", reset_reason_str());
 
     char v[40];
     nvs_get_string("sta_ssid", v, sizeof(v), "");
@@ -1286,7 +1276,7 @@ static esp_err_t settings_get_handler(httpd_req_t *req) {
     cJSON *root = cJSON_CreateObject();
     cJSON *items = cJSON_CreateArray();
     for (size_t i = 0; i < N_SETTINGS; i++) {
-        char v[136];   /* must fit the longest allowed setting value (ai_api_key/ai_api_base: 127 chars) */
+        char v[136];   /* generous margin for the longest allowed setting value */
         if (strcmp(SETTINGS[i].type, "password_keep") == 0) v[0] = '\0';
         else get_setting(SETTINGS[i].key, v, sizeof(v));
         cJSON *o = cJSON_CreateObject();
@@ -1317,7 +1307,7 @@ static esp_err_t settings_post_handler(httpd_req_t *req) {
     for (size_t i = 0; i < N_SETTINGS && ok; i++) {
         cJSON *it = cJSON_GetObjectItem(j, SETTINGS[i].key);
         if (!cJSON_IsString(it)) continue;
-        if (strcmp(SETTINGS[i].type, "password_keep") == 0 && it->valuestring[0] == '\0') continue;
+        if (strcmp(SETTINGS[i].key, "admin_pass") == 0 && it->valuestring[0] == '\0') continue;
         char why[80] = "";
         if (!validate_setting(SETTINGS[i].key, it->valuestring, why, sizeof(why))) {
             snprintf(err, sizeof(err), "%.50s: %.80s", SETTINGS[i].label, why);
@@ -1328,7 +1318,7 @@ static esp_err_t settings_post_handler(httpd_req_t *req) {
         for (size_t i = 0; i < N_SETTINGS; i++) {
             cJSON *it = cJSON_GetObjectItem(j, SETTINGS[i].key);
             if (!cJSON_IsString(it)) continue;
-            if (strcmp(SETTINGS[i].type, "password_keep") == 0 && it->valuestring[0] == '\0') continue;
+            if (strcmp(SETTINGS[i].key, "admin_pass") == 0 && it->valuestring[0] == '\0') continue;
             nvs_set_string(SETTINGS[i].key, it->valuestring);
         }
     }
@@ -1343,7 +1333,6 @@ static esp_err_t config_export_get_handler(httpd_req_t *req) {
     cJSON *root = cJSON_CreateObject();
     char v[WL_BUF];
     for (size_t i = 0; i < N_SETTINGS; i++) {
-        if (strcmp(SETTINGS[i].type, "password_keep") == 0) continue; /* never export secrets (admin_pass) */
         get_setting(SETTINGS[i].key, v, sizeof(v));
         cJSON_AddStringToObject(root, SETTINGS[i].key, v);
     }
@@ -1441,119 +1430,6 @@ static esp_err_t tools_get_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "text/html");
     httpd_resp_send(req, tools_html_start, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
-}
-
-static esp_err_t chat_get_handler(httpd_req_t *req) {
-    httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, chat_html_start, HTTPD_RESP_USE_STRLEN);
-    return ESP_OK;
-}
-
-/* ================= AI chat (public - no login - opt-in) ================= */
-
-#define AI_RESP_CAP 8192
-
-typedef struct { char *buf; int len; int cap; } http_resp_buf_t;
-
-static esp_err_t chat_http_event_handler(esp_http_client_event_t *evt) {
-    if (evt->event_id == HTTP_EVENT_ON_DATA) {
-        http_resp_buf_t *rb = (http_resp_buf_t *)evt->user_data;
-        if (rb && rb->buf && rb->len + evt->data_len < rb->cap - 1) {
-            memcpy(rb->buf + rb->len, evt->data, evt->data_len);
-            rb->len += evt->data_len;
-            rb->buf[rb->len] = '\0';
-        }
-    }
-    return ESP_OK;
-}
-
-static esp_err_t chat_post_handler(httpd_req_t *req) {
-    char en[4]; get_setting("ai_enabled", en, sizeof(en));
-    if (en[0] != '1') return send_result(req, false, "AI chat is currently turned off by the repeater admin");
-
-    char api_key[128]; get_setting("ai_api_key", api_key, sizeof(api_key));
-    if (api_key[0] == '\0') return send_result(req, false, "AI chat is on, but no API key has been set yet - ask the admin to add one in Advanced Settings");
-
-    char model[48]; get_setting("ai_model", model, sizeof(model));
-    char base[128]; get_setting("ai_api_base", base, sizeof(base));
-
-    char *body = malloc(4096);
-    if (!body) { httpd_resp_send_500(req); return ESP_OK; }
-    read_body(req, body, 4096);
-    cJSON *in = cJSON_Parse(body);
-    free(body);
-    if (!in) return send_result(req, false, "invalid request");
-
-    cJSON *msgs = cJSON_GetObjectItem(in, "messages");
-    if (!cJSON_IsArray(msgs) || cJSON_GetArraySize(msgs) == 0) {
-        cJSON_Delete(in);
-        return send_result(req, false, "invalid request");
-    }
-
-    cJSON *payload = cJSON_CreateObject();
-    cJSON_AddStringToObject(payload, "model", model);
-    cJSON_AddItemToObject(payload, "messages", cJSON_Duplicate(msgs, true));
-    cJSON_AddNumberToObject(payload, "max_tokens", 500);
-    cJSON_Delete(in);
-    char *payload_str = cJSON_PrintUnformatted(payload);
-    cJSON_Delete(payload);
-    if (!payload_str) { httpd_resp_send_500(req); return ESP_OK; }
-
-    http_resp_buf_t rb = { .cap = AI_RESP_CAP, .len = 0 };
-    rb.buf = malloc(AI_RESP_CAP);
-    if (!rb.buf) { free(payload_str); httpd_resp_send_500(req); return ESP_OK; }
-    rb.buf[0] = '\0';
-
-    esp_http_client_config_t config = {
-        .url = base,
-        .method = HTTP_METHOD_POST,
-        .timeout_ms = 25000,
-        .event_handler = chat_http_event_handler,
-        .user_data = &rb,
-        .crt_bundle_attach = esp_crt_bundle_attach,
-    };
-    esp_http_client_handle_t client = esp_http_client_init(&config);
-    esp_http_client_set_header(client, "Content-Type", "application/json");
-    char auth_hdr[160];
-    snprintf(auth_hdr, sizeof(auth_hdr), "Bearer %s", api_key);
-    esp_http_client_set_header(client, "Authorization", auth_hdr);
-    esp_http_client_set_post_field(client, payload_str, strlen(payload_str));
-
-    esp_err_t err = esp_http_client_perform(client);
-    int status = esp_http_client_get_status_code(client);
-    esp_http_client_cleanup(client);
-    free(payload_str);
-
-    if (err != ESP_OK) {
-        char e[100]; snprintf(e, sizeof(e), "could not reach the AI service: %s", esp_err_to_name(err));
-        free(rb.buf);
-        return send_result(req, false, e);
-    }
-    if (status != 200) {
-        char e[150]; snprintf(e, sizeof(e), "AI service returned an error (HTTP %d) - check the API key/model in Advanced Settings", status);
-        free(rb.buf);
-        return send_result(req, false, e);
-    }
-
-    cJSON *resp = cJSON_Parse(rb.buf);
-    free(rb.buf);
-    if (!resp) return send_result(req, false, "AI service sent an unreadable response");
-
-    cJSON *choices = cJSON_GetObjectItem(resp, "choices");
-    cJSON *first = cJSON_IsArray(choices) ? cJSON_GetArrayItem(choices, 0) : NULL;
-    cJSON *msgobj = first ? cJSON_GetObjectItem(first, "message") : NULL;
-    cJSON *content = msgobj ? cJSON_GetObjectItem(msgobj, "content") : NULL;
-
-    cJSON *out = cJSON_CreateObject();
-    if (cJSON_IsString(content)) {
-        cJSON_AddBoolToObject(out, "ok", true);
-        cJSON_AddStringToObject(out, "reply", content->valuestring);
-    } else {
-        cJSON_AddBoolToObject(out, "ok", false);
-        cJSON_AddStringToObject(out, "error", "AI service response did not include a reply");
-    }
-    cJSON_Delete(resp);
-    return send_json(req, out);
 }
 
 /* ================= WiFi Analyzer (scan) ================= */
@@ -1950,26 +1826,6 @@ static void start_webserver(void) {
         httpd_register_uri_handler(server, &uris[i]);
     }
     ESP_LOGI(TAG, "Web dashboard started on port 80");
-}
-
-/* Captured once at boot - tells you WHY the device restarted last time:
- * panic/crash, watchdog timeout, brownout (power supply issue), or a normal
- * reboot you triggered yourself. Shown on the admin dashboard so a crash can
- * be diagnosed from the browser with no serial cable needed. */
-static const char *reset_reason_str(void) {
-    switch (esp_reset_reason()) {
-        case ESP_RST_POWERON:   return "Power-on (normal)";
-        case ESP_RST_EXT:       return "External reset";
-        case ESP_RST_SW:        return "Software reboot (Save/Reboot button)";
-        case ESP_RST_PANIC:     return "CRASH (panic) - firmware fault";
-        case ESP_RST_INT_WDT:   return "CRASH (interrupt watchdog)";
-        case ESP_RST_TASK_WDT:  return "CRASH (task watchdog - something hung)";
-        case ESP_RST_WDT:       return "CRASH (other watchdog)";
-        case ESP_RST_DEEPSLEEP: return "Woke from deep sleep";
-        case ESP_RST_BROWNOUT:  return "CRASH (brownout - power supply dipped)";
-        case ESP_RST_SDIO:      return "SDIO reset";
-        default:                return "Unknown";
-    }
 }
 
 void app_main(void) {
