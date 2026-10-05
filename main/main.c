@@ -543,7 +543,7 @@ static void usage_load(usage_entry_t *e) {
 static void usage_save(usage_entry_t *e) {
     char key[16]; usage_key(e->mac, key, sizeof(key));
     char v[96];
-    snprintf(v, sizeof(v), "%llu,%u,%d,%u,%d", (unsigned long long)e->total_bytes, e->week_bytes, e->week_no, e->month_bytes, e->month_no);
+    snprintf(v, sizeof(v), "%llu,%lu,%d,%lu,%d", (unsigned long long)e->total_bytes, (unsigned long)e->week_bytes, e->week_no, (unsigned long)e->month_bytes, e->month_no);
     nvs_set_string(key, v);
 }
 
@@ -560,8 +560,8 @@ static void down_usage_load(void) {
 
 static void down_usage_save(void) {
     char v[96];
-    snprintf(v, sizeof(v), "%llu,%u,%d,%u,%d", (unsigned long long)s_down_usage.total_bytes,
-             s_down_usage.week_bytes, s_down_usage.week_no, s_down_usage.month_bytes, s_down_usage.month_no);
+    snprintf(v, sizeof(v), "%llu,%lu,%d,%lu,%d", (unsigned long long)s_down_usage.total_bytes,
+             (unsigned long)s_down_usage.week_bytes, s_down_usage.week_no, (unsigned long)s_down_usage.month_bytes, s_down_usage.month_no);
     nvs_set_string("down_total", v);
 }
 
