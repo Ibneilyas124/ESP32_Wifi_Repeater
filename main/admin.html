@@ -21,8 +21,9 @@ header button{background:#1c2122;color:var(--dim);border:1px solid var(--line);b
 .card>.pad{padding:10px}
 summary{padding:10px;cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center}
 summary::-webkit-details-marker{display:none}
-summary::after{content:'\\25BE';color:var(--dim);transition:transform .15s}
-details[open]>summary::after{transform:rotate(180deg)}
+summary::after{content:'';width:7px;height:7px;margin:0 3px 3px 8px;flex:0 0 auto;border-right:2px solid var(--dim);border-bottom:2px solid var(--dim);transform:rotate(45deg);transition:transform .15s}
+details[open]>summary::after{transform:rotate(225deg);margin-bottom:-3px}
+summary h2{flex:1}
 summary .badge{background:#1c2122;color:var(--dim);border-radius:10px;padding:1px 7px;font-size:11px;font-weight:400;margin-left:6px}
 details>.pad{padding:0 10px 10px}
 h2{font-size:.95em;margin:0;color:var(--text)}
@@ -45,9 +46,11 @@ button.danger{background:var(--bad);color:#fff;border:none;border-radius:7px;pad
 button.small{padding:4px 8px;font-size:11px;border-radius:6px}
 .row{display:flex;gap:6px;align-items:center}
 .row>*{flex:1}
-.row>button{flex:0 0 auto}
+.row>button{flex:1 1 0;width:auto;min-width:0}
+.row>button.small{flex:0 0 auto}
 
 .tblwrap{overflow-x:auto;margin-top:6px}
+#clientsTbl{margin-top:0}
 table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap}
 th{color:var(--dim);text-align:left;font-weight:600;font-size:10.5px;text-transform:uppercase;padding:4px 7px;border-bottom:1px solid var(--line)}
 td{padding:5px 7px;border-bottom:1px solid #1a1e1f}
@@ -55,6 +58,10 @@ td{padding:5px 7px;border-bottom:1px solid #1a1e1f}
 .tag.ok{background:#0d2b22;color:var(--accent)} .tag.bad{background:#2b1414;color:#ff9c9c}
 
 .wlrow{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #1a1e1f;font-size:12.5px}
+.dev{padding:8px 0;border-bottom:1px solid #1a1e1f}
+.dev .top{display:flex;align-items:center;gap:6px}
+.dev .top b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.dev .sub{color:var(--dim);font-size:10.5px;margin-top:3px;word-break:break-all}
 .wlrow .nm{flex:1;overflow:hidden;text-overflow:ellipsis}
 .wlrow .nm b{color:var(--text)} .wlrow .nm span{color:var(--dim);display:block;font-size:10.5px}
 
@@ -207,7 +214,7 @@ async function refreshStatus(){
 
     var g=$('statGrid'); g.innerHTML='';
     function stat(k,v,cls){ var d=el('div',{'class':'stat'}); d.appendChild(el('div',{'class':'k'},k)); d.appendChild(el('div',{'class':'v '+(cls||'')},v)); g.appendChild(d); }
-    stat('Upstream', j.sta_connected?('Connected':'Offline'), j.sta_connected?'ok':'bad');
+    stat('Upstream', (j.sta_connected?'Connected':'Offline'), j.sta_connected?'ok':'bad');
     stat('Upstream IP', j.sta_connected?j.sta_ip:'-');
     stat('Session uptime', j.sta_connected?fmtTime(j.session_uptime_s):'-');
     stat('Repeater IP', j.ap_ip);
@@ -220,25 +227,20 @@ async function refreshStatus(){
     var ct=$('clientsTbl'); ct.innerHTML='';
     if(!j.clients.length){ ct.appendChild(el('small',{'class':'hint'},'No devices connected right now.')); }
     else{
-      var t=el('table'); var h=el('tr');
-      ['Name','MAC','IP','dBm','Net',''].forEach(function(x){h.appendChild(el('th',null,x));}); t.appendChild(h);
       j.clients.forEach(function(c){
-        var tr=el('tr');
-        tr.appendChild(el('td',null,c.name||'-'));
-        tr.appendChild(el('td',null,c.mac));
-        tr.appendChild(el('td',null,c.ip));
-        tr.appendChild(el('td',null,String(c.rssi)));
-        var netTd=el('td'); netTd.appendChild(el('span',{'class':'tag '+(c.authorized?'ok':'bad')},c.authorized?'OK':'Guest'));
-        tr.appendChild(netTd);
-        var td=el('td');
+        var dev=el('div',{'class':'dev'});
+        var top=el('div',{'class':'top'});
+        top.appendChild(el('b',null,c.name||c.mac));
+        top.appendChild(el('span',{'class':'tag '+(c.authorized?'ok':'bad')},c.authorized?'Internet OK':'Guest'));
         var wb=el('button',{'class':'ghost small'},'+WL');
         wb.onclick=(function(mac){ return function(){ $('newmac').value=mac; $('d-wl').open=true; $('newname').focus(); }; })(c.mac);
-        var kb=el('button',{'class':'ghost small','style':'margin-left:4px'},'Kick');
+        var kb=el('button',{'class':'ghost small'},'Kick');
         kb.onclick=(function(mac){ return function(){ kickDevice(mac); }; })(c.mac);
-        td.appendChild(wb); td.appendChild(kb); tr.appendChild(td);
-        t.appendChild(tr);
+        top.appendChild(wb); top.appendChild(kb);
+        dev.appendChild(top);
+        dev.appendChild(el('div',{'class':'sub'},c.mac+' \u00b7 '+c.ip+' \u00b7 '+c.rssi+' dBm'));
+        ct.appendChild(dev);
       });
-      ct.appendChild(t);
     }
 
     $('wlCount').textContent=j.whitelist.length;

@@ -163,8 +163,13 @@ hardware addition, not a firmware-only change).
   layout using native collapsible sections (immune to the "page frozen,
   nothing opens" class of bug), settings grouped into 5 logical
   categories instead of one long list
-- **v9** (current) — Full code audit: fixed two real buffer-size bugs
+- **v9** — Full code audit: fixed two real buffer-size bugs
   (an AI-chat model-name buffer, and the settings-display buffer being
   too small for long values), removed the AI chat feature entirely per
   request (was spending the admin's API budget on a feature not wanted
   right now; can be re-added later if desired)
+- **v10** (current) — Fixed a JavaScript syntax error in the new admin page that
+  stopped every button (Save, Show password, Logout...) from working and left the
+  status stuck on "Loading...". Made the page phone-friendly (device list as cards,
+  no side-scrolling, buttons no longer overflow), and added `dev-tests/ui_test_admin.js`,
+  a real-browser test that now guards the admin page against this kind of breakage
