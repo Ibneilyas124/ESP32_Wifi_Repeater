@@ -7,6 +7,7 @@
 - GitHub Actions build GREEN hone tak agla phase shuru nahi karna (Sarfraz "Greened successfully" likhta hai)
 - Sabaq: push se pehle `git pull --rebase`; push ka exit code check karna (git push | tail se ghalat result aata hai); force push kabhi nahi; fetch ke baghair "sync hai" mat kehna
 - Sabaq: file ka jo hissa dekha nahi us par edit na likhna, pehle read-only dump mangna. Edit scripts mein har anchor ka aik hi baar milna check karo, warna ABORT (kuch na likho). Pehle se hua ho to bhi ABORT
+- Time kam se kam: jo kuch parhna ho woh aik hi bare command mein mango (alag alag commands nahi); checkpoint/handover mein bhi yehi rule
 - Sabaq: apni ghalti turant maan lo (misal: maine ghalat kaha tha ke partitions.csv mein 2 OTA slots hain, asal mein sirf factory tha, ab theek kiya)
 
 ## Project
@@ -20,6 +21,7 @@
 ## DONE (sab Actions builds GREEN)
 - Huawei HG8546M style redesign (SIRF design; Huawei logo nahi, apna naam "IBN E ILYAS Technologies"): login.html, admin.html (topology Home, System Info / Advanced Configuration menu, left icon nav), tools.html (neeli top bar, left nav buttons tb-an/de/sp/dg, safed cards, script jyun ka tyun, 36 ids). Teeno ka viewport width=1000 (Android aur desktop par aik jaisi shakal), body min-width 1000px
 - Connected Devices: DHCP option 12 hostname capture (main.c dhcp_sniff, sirf printable ASCII, 31 chars; el() textContent istemal karta hai, XSS ka khatra nahi); naam ki tarteeb: whitelist naam, phir DHCP hostname, phir MAC
+- Phone brand/model/OS (build GREEN, device par test baqi): main.c http_sniff (port 80 request ka User-Agent, MAC se), ua_capture (/, /admin, /tools, /api/status par UA, peer IP se), dhcp_sniff mein option 60 (android-dhcp-N = Android N, MSFT = Windows), ua_parse, MODEL_MAP (abhi sirf Samsung SM-xxxx ke naam), brand_from_model; devinfo_get MAC wali entry ko tarjeeh deta hai, IP wali baad mein; clients JSON mein brand/model/os; admin.html Connected Devices mein extra line. Sirf RAM, 16 entries. Limits: naya Chrome UA mein model nahi deta (K ignore), iPhone ka model nahi milta, model tab dikhta hai jab phone ne aik HTTP request bheji ho
 - Vendor (OUI): main/oui_table.h (IEEE MA-L se, 8925 entries, 26 companies, ~44KB flash), main.c oui_vendor_lookup, clients JSON mein "vendor", admin.html MAC ke saath (company); locally-administered/random MAC par "Private MAC"
 - OTA part 1: partitions.csv = nvs 0x9000 (0x6000), phy_init 0xf000, otadata 0x10000 (0x2000), ota_0 0x20000 (0x1E0000), ota_1 0x200000 (0x1E0000); main/CMakeLists.txt mein app_update; workflow merge_bin ab app 0x20000 par
 - OTA part 2: CONFIG_APP_ROLLBACK_ENABLE=y (sdkconfig.defaults); main.c ota_post_handler (/api/ota, login zaroori, size 100000..slot, pehla byte 0xE9, esp_ota_end validate, set_boot_partition, restart); web server start ke baad esp_ota_mark_app_valid_cancel_rollback(); admin.html mein Advanced Configuration ke andar Firmware Update (d-ota, #otafile, #otaStatus, otaUpload, size check 1966080)
@@ -35,6 +37,7 @@
 5. /tools page phone par nazar-e-sani (chart, pill, tags rang naye halke background par); script ke andar ke inline dark rang CSS se override hain (#netBanner h2)
 6. One-Click Diagnosis menu item admin mein (Diagnose abhi tools.html mein hai); FEATURES.md update DONE (vendor, hostname, OTA, design, flash note; OTA asal test baqi)
 7. Naye features ki soch: jo Sarfraz kahe (poochna)
+8. Phone model/OS ka asal device test: kaun se phones par brand/model/OS aaya; phir MODEL_MAP un brands (Xiaomi, Infinix, Tecno...) ke hisaab se bharna. Sarfraz ke phones ka brand/browser abhi nahi pata (poochna)
 
 ## Huawei design (screenshots ka khulasa)
 - Upar halki neeli bar (~#5bb4ef): left model naam, right links; Left: patli icon column, active item neela + chhota teer; sub-menu grey column; Content: halka neela-safed background (#f5f8fc), bara title + patli line, orange description text, safed tables grey header, safed buttons border ke saath

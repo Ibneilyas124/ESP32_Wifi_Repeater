@@ -66,6 +66,17 @@ admin dashboard header too).
   from an IEEE OUI table built into the firmware (8925 entries, about
   44 KB of flash). Phones using a random/private MAC show "Private MAC"
   instead of a company, since the real vendor can't be known
+- **Phone model and OS**: below the MAC line, Connected Devices shows
+  brand, model and OS when they can be learned, e.g. `Samsung · Galaxy A32
+  (SM-A325F) · Android 13`. Sources: the browser User-Agent seen in plain
+  HTTP requests on port 80 (Android's connectivity check is enough, the
+  phone need not open the admin page), the User-Agent of requests to the
+  repeater's own pages, and DHCP option 60 (Android version / Windows).
+  Friendly names exist only for common Samsung codes so far; other models
+  show the raw code. Limits: recent Chrome hides the model in its
+  User-Agent, iPhones never reveal their model over WiFi (only
+  "Apple · iPhone · iOS"), and nothing shows until the device has made at
+  least one HTTP request. Held in RAM only (16 devices), cleared on reboot
 - **Upstream stability log**: recent disconnects with plain-English
   reason (wrong password, router off, signal lost, etc.)
 - **Data usage** per whitelisted device: this week / this month /
