@@ -33,7 +33,7 @@
 3. OTA ka asal test: agla green build ki esp32-wifi-repeater.bin (full-flash NAHI) admin se Firmware Update se upload; ~30 sec mein reconnect; rollback bhi parakhna
 4. Laptop par ui_test_admin.js aur ui_test_tools.js: NODE_PATH=<global node_modules> node dev-tests/ui_test_admin.js (Playwright + Chromium chahiye), phir FAIL lines bhejna. Mumkin fail: admin "arrow icon" check (summary ::after), "no element overflows" (design 1000px ka, admin test 380px par chalta hai)
 5. /tools page phone par nazar-e-sani (chart, pill, tags rang naye halke background par); script ke andar ke inline dark rang CSS se override hain (#netBanner h2)
-6. One-Click Diagnosis menu item admin mein (Diagnose abhi tools.html mein hai); FEATURES.md mein vendor/OTA/hostname ka zikar abhi nahi daala
+6. One-Click Diagnosis menu item admin mein (Diagnose abhi tools.html mein hai); FEATURES.md update DONE (vendor, hostname, OTA, design, flash note; OTA asal test baqi)
 7. Naye features ki soch: jo Sarfraz kahe (poochna)
 
 ## Huawei design (screenshots ka khulasa)

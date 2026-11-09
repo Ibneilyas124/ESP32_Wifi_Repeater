@@ -47,6 +47,11 @@ admin dashboard header too).
   factory default anyway — shown on the login page footer and in `/api/me`
 
 ## Admin dashboard (`/admin`, login required)
+- Router-style web interface (Huawei HG8546M-inspired, own branding):
+  blue top bar, left icon menu (Home Page, System Info, Advanced
+  Configuration), topology Home page. Login, admin and `/tools` pages
+  share the same look and render the same on Android and desktop
+  (fixed 1000 px layout width)
 - Fixed username `Sarfraz` (not editable — by design), changeable
   password, default `admin`
 - Password show/hide toggle on every password field
@@ -54,6 +59,13 @@ admin dashboard header too).
   management IP, free memory
 - Connected-devices table: name, MAC, IP, signal (dBm), internet
   allowed/blocked
+- **Device names and vendor**: each connected device shows the whitelist
+  name if it has one, otherwise the hostname the phone/laptop sends in its
+  DHCP request (option 12, printable ASCII only, up to 31 chars), otherwise
+  just the MAC. Next to the MAC the company is shown, looked up offline
+  from an IEEE OUI table built into the firmware (8925 entries, about
+  44 KB of flash). Phones using a random/private MAC show "Private MAC"
+  instead of a company, since the real vendor can't be known
 - **Upstream stability log**: recent disconnects with plain-English
   reason (wrong password, router off, signal lost, etc.)
 - **Data usage** per whitelisted device: this week / this month /
@@ -63,6 +75,15 @@ admin dashboard header too).
 - **Share this WiFi**: one-tap copy/share of the repeater's own SSID +
   password (native share sheet where supported)
 - Config backup: export/import all settings as JSON
+- **Firmware update (OTA)**: upload a new `esp32-wifi-repeater.bin` from
+  Advanced Configuration > Firmware Update (login required). The firmware
+  checks the file size and the first byte (0xE9), validates the image,
+  switches to the other app slot and restarts. Two app slots of 0x1E0000
+  bytes each; rollback is enabled, so a new firmware that never gets its
+  web server up is reverted to the previous one on the next boot. Use the
+  plain app `.bin` from the release, not the full-flash image. Note: the
+  first flash with the new partition table must be done over USB/serial
+  (see README); the OTA upload itself is not yet tested on a real device
 - Advanced Settings panel: every setting above, all with visible
   defaults and a "Fill defaults" button
 - Reboot button, Factory Reset button (software-triggered, same effect
@@ -90,7 +111,9 @@ admin dashboard header too).
   tests than ESP-IDF's small defaults
 - Single self-contained flash image (`full-flash-padded-0x0.bin`) built
   automatically by GitHub Actions on every push, sized to survive flaky
-  Android flashing apps
+  Android flashing apps. It works on a fresh board with the current
+  partition table, but it erases saved settings (WiFi, whitelist,
+  password); for an already-running repeater use OTA instead
 
 ---
 
