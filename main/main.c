@@ -656,6 +656,238 @@ static bool dhcp_host_lookup(const uint8_t mac[6], char *out, size_t n) {
     return false;
 }
 
+/* ---- Phone model/OS: HTTP User-Agent (port 80 ki request sniff, MAC se; ya repeater ke apne pages se, IP se)
+ * aur DHCP option 60 (vendor class, MAC se). Sirf RAM, boot par khali. Packet kabhi nahi badalta. ---- */
+#define DEVINFO_MAX 16
+typedef struct { uint8_t mac[6]; char vc[32]; bool used; } dhcp_vc_t;
+static dhcp_vc_t s_dhcp_vc[DEVINFO_MAX];
+static int s_dhcp_vc_next = 0;
+
+/* vc hamesha 32 bytes ka, NUL-terminated array hona chahiye */
+static void dhcp_vc_store(const uint8_t mac[6], const char vc[32]) {
+    int slot = -1;
+    for (int i = 0; i < DEVINFO_MAX; i++) {
+        if (s_dhcp_vc[i].used && memcmp(s_dhcp_vc[i].mac, mac, 6) == 0) { slot = i; break; }
+    }
+    if (slot < 0) {
+        for (int i = 0; i < DEVINFO_MAX; i++) {
+            if (!s_dhcp_vc[i].used) { slot = i; break; }
+        }
+    }
+    if (slot < 0) {
+        slot = s_dhcp_vc_next;
+        s_dhcp_vc_next = (s_dhcp_vc_next + 1) % DEVINFO_MAX;
+    }
+    s_dhcp_vc[slot].used = false;
+    memcpy(s_dhcp_vc[slot].mac, mac, 6);
+    memcpy(s_dhcp_vc[slot].vc, vc, 32);
+    s_dhcp_vc[slot].used = true;
+}
+
+static bool dhcp_vc_lookup(const uint8_t mac[6], char *out, size_t n) {
+    for (int i = 0; i < DEVINFO_MAX; i++) {
+        if (s_dhcp_vc[i].used && memcmp(s_dhcp_vc[i].mac, mac, 6) == 0) {
+            snprintf(out, n, "%s", s_dhcp_vc[i].vc);
+            return true;
+        }
+    }
+    return false;
+}
+
+/* kind: 1 = key MAC hai (sniff), 2 = key IP hai (pehle 4 bytes, baqi 0) */
+typedef struct { uint8_t kind; uint8_t key[6]; char model[32]; char os[20]; } ua_info_t;
+static ua_info_t s_ua[DEVINFO_MAX];
+static int s_ua_next = 0;
+static char s_ua_buf[200];   /* sirf WiFi task (http_sniff) istemal karta hai */
+
+typedef struct { const char *pre; const char *name; } model_map_t;
+static const model_map_t MODEL_MAP[] = {
+    {"SM-A042", "Galaxy A04e"}, {"SM-A045", "Galaxy A04"}, {"SM-A055", "Galaxy A05"}, {"SM-A057", "Galaxy A05s"},
+    {"SM-A105", "Galaxy A10"}, {"SM-A107", "Galaxy A10s"}, {"SM-A127", "Galaxy A12"}, {"SM-A135", "Galaxy A13"},
+    {"SM-A145", "Galaxy A14"}, {"SM-A146", "Galaxy A14 5G"}, {"SM-A155", "Galaxy A15"},
+    {"SM-A205", "Galaxy A20"}, {"SM-A217", "Galaxy A21s"}, {"SM-A225", "Galaxy A22"}, {"SM-A236", "Galaxy A23 5G"},
+    {"SM-A307", "Galaxy A30s"}, {"SM-A325", "Galaxy A32"}, {"SM-A515", "Galaxy A51"}, {"SM-A525", "Galaxy A52"},
+    {"SM-A526", "Galaxy A52 5G"}, {"SM-A536", "Galaxy A53 5G"}, {"SM-A546", "Galaxy A54 5G"},
+    {"SM-A705", "Galaxy A70"}, {"SM-A715", "Galaxy A71"}, {"SM-A750", "Galaxy A7 (2018)"},
+    {"SM-M127", "Galaxy M12"}, {"SM-M215", "Galaxy M21"}, {"SM-M236", "Galaxy M23 5G"}, {"SM-M315", "Galaxy M31"},
+    {"SM-G960", "Galaxy S9"}, {"SM-G973", "Galaxy S10"}, {"SM-N975", "Galaxy Note10+"},
+    {"SM-G991", "Galaxy S21"}, {"SM-G996", "Galaxy S21+"}, {"SM-G998", "Galaxy S21 Ultra"},
+    {"SM-S901", "Galaxy S22"}, {"SM-S908", "Galaxy S22 Ultra"}, {"SM-S911", "Galaxy S23"}, {"SM-S918", "Galaxy S23 Ultra"},
+    {"SM-S921", "Galaxy S24"}, {"SM-S928", "Galaxy S24 Ultra"},
+};
+
+static const char *model_friendly(const char *code) {
+    for (size_t i = 0; i < sizeof(MODEL_MAP) / sizeof(MODEL_MAP[0]); i++) {
+        if (strncmp(code, MODEL_MAP[i].pre, strlen(MODEL_MAP[i].pre)) == 0) return MODEL_MAP[i].name;
+    }
+    return NULL;
+}
+
+static const char *brand_from_model(const char *m) {
+    if (strncmp(m, "SM-", 3) == 0) return "Samsung";
+    if (strncasecmp(m, "Redmi", 5) == 0 || strncasecmp(m, "POCO", 4) == 0 ||
+        strncasecmp(m, "Xiaomi", 6) == 0 || strncasecmp(m, "Mi ", 3) == 0) return "Xiaomi";
+    if (strncasecmp(m, "Infinix", 7) == 0) return "Infinix";
+    if (strncasecmp(m, "TECNO", 5) == 0) return "Tecno";
+    if (strncasecmp(m, "itel", 4) == 0) return "itel";
+    if (strncmp(m, "CPH", 3) == 0) return "OPPO";
+    if (strncmp(m, "RMX", 3) == 0) return "realme";
+    if (strncasecmp(m, "vivo", 4) == 0) return "vivo";
+    if (strncasecmp(m, "Pixel", 5) == 0) return "Google";
+    if (strncmp(m, "iPhone", 6) == 0) return "Apple";
+    return "";
+}
+
+/* User-Agent se model code aur OS; kuch na mile to khali string. Chrome ka reduced "K" model ignore */
+static void ua_parse(const char *ua, char *model, size_t mn, char *os, size_t on) {
+    model[0] = 0; os[0] = 0;
+    const char *a = strstr(ua, "Android ");
+    if (a) {
+        const char *v = a + 8;
+        int k = 0;
+        while (v[k] && v[k] != ';' && v[k] != ')' && k < 10) k++;
+        snprintf(os, on, "Android %.*s", k, v);
+        if (v[k] == ';') {
+            const char *m = v + k + 1;
+            while (*m == ' ') m++;
+            int l = 0;
+            while (m[l] && m[l] != ';' && m[l] != ')' && l < 60) l++;
+            for (int z = 0; z + 7 <= l; z++) {
+                if (strncmp(m + z, " Build/", 7) == 0) { l = z; break; }
+            }
+            while (l > 0 && m[l - 1] == ' ') l--;
+            if (l >= 2 && !(l == 2 && m[0] == 'w' && m[1] == 'v')) {
+                size_t q = 0;
+                for (int z = 0; z < l && q + 1 < mn; z++) {
+                    uint8_t ch = (uint8_t)m[z];
+                    if (ch >= 0x20 && ch <= 0x7E) model[q++] = (char)ch;
+                }
+                model[q] = 0;
+            }
+        }
+    } else if (strstr(ua, "iPhone")) {
+        snprintf(model, mn, "iPhone");
+        const char *p = strstr(ua, "iPhone OS ");
+        if (p) {
+            p += 10;
+            char vb[12];
+            int k = 0;
+            while (p[k] && p[k] != ' ' && p[k] != ')' && k < 8) { vb[k] = (p[k] == '_') ? '.' : p[k]; k++; }
+            vb[k] = 0;
+            snprintf(os, on, "iOS %s", vb);
+        }
+    } else if (strstr(ua, "Windows NT")) {
+        snprintf(os, on, "Windows");
+    } else if (strstr(ua, "Macintosh")) {
+        snprintf(os, on, "macOS");
+    }
+}
+
+static void ua_remember(uint8_t kind, const uint8_t key[6], const char *ua) {
+    char model[32] = {0};
+    char os[20] = {0};
+    ua_parse(ua, model, sizeof(model), os, sizeof(os));
+    if (!model[0] && !os[0]) return;
+    int slot = -1;
+    for (int i = 0; i < DEVINFO_MAX; i++) {
+        if (s_ua[i].kind == kind && memcmp(s_ua[i].key, key, 6) == 0) { slot = i; break; }
+    }
+    if (slot < 0) {
+        for (int i = 0; i < DEVINFO_MAX; i++) {
+            if (s_ua[i].kind == 0) { slot = i; break; }
+        }
+        if (slot < 0) {
+            slot = s_ua_next;
+            s_ua_next = (s_ua_next + 1) % DEVINFO_MAX;
+        }
+        memset(&s_ua[slot], 0, sizeof(s_ua[slot]));
+        s_ua[slot].kind = kind;
+        memcpy(s_ua[slot].key, key, 6);
+    }
+    if (model[0]) memcpy(s_ua[slot].model, model, 32);
+    if (os[0]) memcpy(s_ua[slot].os, os, 20);
+}
+
+/* Client ki plain HTTP request (port 80) se User-Agent: Android ka connectivity-check bhi isi mein aata hai */
+static void http_sniff(const uint8_t *f, uint16_t len) {
+    if (len < 14 + 20 + 20 + 30) return;
+    if (f[12] != 0x08 || f[13] != 0x00) return;          /* IPv4 */
+    if ((f[14] >> 4) != 4) return;
+    int ihl = (f[14] & 0x0F) * 4;
+    if (ihl < 20 || f[23] != 6) return;                  /* TCP */
+    int t = 14 + ihl;
+    if (len < t + 20) return;
+    if (f[t + 2] != 0 || f[t + 3] != 80) return;         /* dest port 80 */
+    int thl = (f[t + 12] >> 4) * 4;
+    if (thl < 20) return;
+    int p = t + thl;
+    if (len < p + 30) return;
+    const char *pl = (const char *)f + p;
+    int pn = len - p;
+    if (memcmp(pl, "GET ", 4) != 0 && memcmp(pl, "POST", 4) != 0 && memcmp(pl, "HEAD", 4) != 0) return;
+    for (int i = 0; i + 12 < pn; i++) {
+        if (pl[i] == '\n' && strncasecmp(pl + i + 1, "User-Agent:", 11) == 0) {
+            int s = i + 12;
+            while (s < pn && pl[s] == ' ') s++;
+            int k = 0;
+            while (s < pn && pl[s] != '\r' && pl[s] != '\n' && k < (int)sizeof(s_ua_buf) - 1) s_ua_buf[k++] = pl[s++];
+            s_ua_buf[k] = 0;
+            ua_remember(1, f + 6, s_ua_buf);
+            return;
+        }
+    }
+}
+
+/* Repeater ke apne pages par aane wali request ka User-Agent, peer IP se */
+static void ua_capture(httpd_req_t *req) {
+    char ua[256];
+    if (httpd_req_get_hdr_value_str(req, "User-Agent", ua, sizeof(ua)) != ESP_OK) return;
+    int fd = httpd_req_to_sockfd(req);
+    if (fd < 0) return;
+    struct sockaddr_storage ss;
+    socklen_t sl = sizeof(ss);
+    if (getpeername(fd, (struct sockaddr *)&ss, &sl) != 0) return;
+    if (ss.ss_family != AF_INET) return;
+    uint8_t key[6] = {0};
+    memcpy(key, &((struct sockaddr_in *)&ss)->sin_addr.s_addr, 4);
+    ua_remember(2, key, ua);
+}
+
+/* MAC (pehle) aur IP (baad mein) se jo mila, model/os/brand mein bhar do; kuch na mile to khali */
+static void devinfo_get(const uint8_t mac[6], const uint8_t ip4[4],
+                        char *model, size_t mn, char *os, size_t on, char *brand, size_t bn) {
+    model[0] = 0; os[0] = 0; brand[0] = 0;
+    char raw[32] = {0};
+    char ros[20] = {0};
+    for (int pass = 0; pass < 2; pass++) {
+        uint8_t key[6] = {0};
+        if (pass == 0) {
+            memcpy(key, mac, 6);
+        } else {
+            if (ip4[0] == 0 && ip4[1] == 0 && ip4[2] == 0 && ip4[3] == 0) break;
+            memcpy(key, ip4, 4);
+        }
+        for (int i = 0; i < DEVINFO_MAX; i++) {
+            if (s_ua[i].kind == (pass == 0 ? 1 : 2) && memcmp(s_ua[i].key, key, 6) == 0) {
+                if (!raw[0]) { memcpy(raw, s_ua[i].model, 32); raw[31] = 0; }
+                if (!ros[0]) { memcpy(ros, s_ua[i].os, 20); ros[19] = 0; }
+            }
+        }
+    }
+    char vc[32];
+    if (!ros[0] && dhcp_vc_lookup(mac, vc, sizeof(vc))) {
+        if (strncmp(vc, "android-dhcp-", 13) == 0) snprintf(ros, sizeof(ros), "Android %.8s", vc + 13);
+        else if (strncmp(vc, "MSFT", 4) == 0) snprintf(ros, sizeof(ros), "Windows");
+    }
+    snprintf(os, on, "%.19s", ros);
+    if (raw[0]) {
+        const char *fr = model_friendly(raw);
+        if (fr) snprintf(model, mn, "%.30s (%.31s)", fr, raw);
+        else snprintf(model, mn, "%.31s", raw);
+        snprintf(brand, bn, "%s", brand_from_model(raw));
+    }
+}
+
 #include "oui_table.h"
 
 /* MAC ke pehle 3 bytes se company; locally-administered (private/random) MAC ki company nahi hoti */
@@ -702,7 +934,17 @@ static void dhcp_sniff(const uint8_t *f, uint16_t len) {
             nm[k] = 0;
             for (int z = k + 1; z < 32; z++) nm[z] = 0;
             if (k > 0) dhcp_host_store(f + 6, nm);
-            break;
+        }
+        if (code == 60 && l > 0) {
+            char vcn[32];
+            int q = 0;
+            for (int j = 0; j < l && q < 31; j++) {
+                uint8_t ch = d[i + 2 + j];
+                if (ch >= 0x20 && ch <= 0x7E) vcn[q++] = (char)ch;
+            }
+            vcn[q] = 0;
+            for (int z = q + 1; z < 32; z++) vcn[z] = 0;
+            if (q > 0) dhcp_vc_store(f + 6, vcn);
         }
         i += 2 + l;
     }
@@ -710,6 +952,7 @@ static void dhcp_sniff(const uint8_t *f, uint16_t len) {
 
 static esp_err_t ap_rx_filter(void *buffer, uint16_t len, void *eb) {
     dhcp_sniff((const uint8_t *)buffer, len);
+    http_sniff((const uint8_t *)buffer, len);
     if (!s_guest_filter_on || len < 14) {
         esp_netif_receive(s_ap_netif, buffer, len, eb);
         return ESP_OK;
@@ -1154,6 +1397,7 @@ static void restart_soon(void) {
 /* ================= HTTP handlers ================= */
 
 static esp_err_t root_get_handler(httpd_req_t *req) {
+    ua_capture(req);
     if (check_session(req)) {
         httpd_resp_set_status(req, "302 Found");
         httpd_resp_set_hdr(req, "Location", "/admin");
@@ -1166,6 +1410,7 @@ static esp_err_t root_get_handler(httpd_req_t *req) {
 }
 
 static esp_err_t admin_get_handler(httpd_req_t *req) {
+    ua_capture(req);
     if (!check_session(req)) {
         httpd_resp_set_status(req, "302 Found");
         httpd_resp_set_hdr(req, "Location", "/");
@@ -1214,6 +1459,7 @@ static esp_err_t logout_post_handler(httpd_req_t *req) {
 }
 
 static esp_err_t status_get_handler(httpd_req_t *req) {
+    ua_capture(req);
     if (require_session_api(req) != ESP_OK) return ESP_OK;
 
     cJSON *root = cJSON_CreateObject();
@@ -1259,6 +1505,13 @@ static esp_err_t status_get_handler(httpd_req_t *req) {
             cJSON_AddStringToObject(c, "ip", ipstr);
             cJSON_AddStringToObject(c, "name", name);
             cJSON_AddStringToObject(c, "vendor", oui_vendor_lookup(sta_list.sta[i].mac));
+            uint8_t ip4[4];
+            memcpy(ip4, &pairs[i].ip.addr, 4);
+            char dm[80], dos[24], dbr[16];
+            devinfo_get(sta_list.sta[i].mac, ip4, dm, sizeof(dm), dos, sizeof(dos), dbr, sizeof(dbr));
+            cJSON_AddStringToObject(c, "model", dm);
+            cJSON_AddStringToObject(c, "os", dos);
+            cJSON_AddStringToObject(c, "brand", dbr);
             cJSON_AddNumberToObject(c, "rssi", sta_list.sta[i].rssi);
             cJSON_AddBoolToObject(c, "authorized", whitelist_contains(mac));
             cJSON_AddItemToArray(clients, c);
@@ -1522,6 +1775,7 @@ static esp_err_t me_get_handler(httpd_req_t *req) {
 }
 
 static esp_err_t tools_get_handler(httpd_req_t *req) {
+    ua_capture(req);
     httpd_resp_set_type(req, "text/html");
     httpd_resp_send(req, tools_html_start, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;

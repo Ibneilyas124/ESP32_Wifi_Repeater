@@ -386,6 +386,8 @@ async function refreshStatus(){
         top.appendChild(wb); top.appendChild(kb);
         dev.appendChild(top);
         dev.appendChild(el('div',{'class':'sub'},c.mac+(c.vendor?' ('+c.vendor+')':'')+' \u00b7 '+c.ip+' \u00b7 '+c.rssi+' dBm'));
+        var inf=[]; if(c.brand) inf.push(c.brand); if(c.model) inf.push(c.model); if(c.os) inf.push(c.os);
+        if(inf.length) dev.appendChild(el('div',{'class':'sub'},inf.join(' \u00b7 ')));
         ct.appendChild(dev);
       });
     }
