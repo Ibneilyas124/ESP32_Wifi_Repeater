@@ -19,7 +19,7 @@ console.log('settings parsed from main.c:', items.length);
 const status = {
   fw: '2.1.0', sta_connected: true, sta_ip: '192.168.1.50', uptime_s: 90000, free_heap: 150000,
   sta_ssid: 'HomeNet', ap_ip: '192.168.4.1', wl_active: true, session_uptime_s: 4000, discon_total: 2,
-  clients: [{ mac: 'AA:BB:CC:DD:EE:01', ip: '192.168.4.2', name: 'Ali phone', rssi: -55, authorized: true },
+  clients: [{ mac: 'AA:BB:CC:DD:EE:01', ip: '192.168.4.2', name: 'Ali phone', rssi: -55, authorized: true, vendor: 'Samsung', brand: 'Samsung', model: 'Galaxy A32 (SM-A325F)', os: 'Android 13' },
             { mac: 'AA:BB:CC:DD:EE:02', ip: '192.168.4.3', name: '', rssi: -70, authorized: false }],
   whitelist: [{ mac: 'AA:BB:CC:DD:EE:01', name: 'Ali phone', limit_kbps: 500 }],
   discon_log: [{ ago_s: 300, reason: 201 }, { ago_s: 9000, reason: 3 }]
@@ -83,6 +83,12 @@ const speed = { samples: [{ ago_s: 10, ms: 30, ok: true }, { ago_s: 900, ms: 80,
   // 3. Client + whitelist tables populated
   T('connected devices shown as 2 cards', (await page.locator('#clientsTbl .dev').count()) === 2);
   T('device card shows MAC, IP and signal', /AA:BB:CC:DD:EE:01 · 192\.168\.4\.2 · -55 dBm/.test(await page.locator('#clientsTbl').innerText()));
+  const cardTxt = await page.locator('#clientsTbl .dev').nth(0).innerText();
+  T('device card 1: brand/model/os line', cardTxt.includes('Samsung \u00b7 Galaxy A32 (SM-A325F) \u00b7 Android 13'), cardTxt.replace(/\n/g, ' | '));
+  T('device card 1: vendor next to MAC', cardTxt.includes('AA:BB:CC:DD:EE:01 (Samsung)'));
+  T('device card 2 (no info): no extra info line', (await page.locator('#clientsTbl .dev').nth(1).locator('.sub').count()) === 1);
+  const xss = await page.evaluate(() => { const d = el('div', { 'class': 'sub' }, '<b>x</b>'); return d.querySelectorAll('b').length === 0 && d.textContent === '<b>x</b>'; });
+  T('el() shows model text as text, not HTML', xss);
   T('whitelist shows entry with limit', /500 Kbps/.test(await page.locator('#wlList').innerText()));
   T('stability log shows plain-English reason', /Router not found/.test(await page.locator('#stabBody').innerText()));
   T('usage totals rendered', /MB|GB/.test(await page.locator('#overallUsage').innerText()));
