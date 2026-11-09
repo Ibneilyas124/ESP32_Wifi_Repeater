@@ -898,6 +898,42 @@ static void devinfo_get(const uint8_t mac[6], const uint8_t ip4[4],
     }
 }
 
+/* ---- Device first-seen / connected-since (RAM only, boot par khali, 16 devices) ---- */
+#define SEEN_MAX 16
+typedef struct { uint8_t mac[6]; bool used; int64_t first_us; int64_t conn_us; } seen_t;
+static seen_t s_seen[SEEN_MAX];
+static int s_seen_next = 0;
+
+static void seen_touch(const uint8_t mac[6]) {
+    int64_t now = esp_timer_get_time();
+    for (int i = 0; i < SEEN_MAX; i++) {
+        if (s_seen[i].used && memcmp(s_seen[i].mac, mac, 6) == 0) { s_seen[i].conn_us = now; return; }
+    }
+    int slot = -1;
+    for (int i = 0; i < SEEN_MAX; i++) {
+        if (!s_seen[i].used) { slot = i; break; }
+    }
+    if (slot < 0) { slot = s_seen_next; s_seen_next = (s_seen_next + 1) % SEEN_MAX; }
+    s_seen[slot].used = false;
+    memcpy(s_seen[slot].mac, mac, 6);
+    s_seen[slot].first_us = now;
+    s_seen[slot].conn_us = now;
+    s_seen[slot].used = true;
+}
+
+/* seconds since first seen / since this connection; -1 agar record nahi */
+static void seen_get(const uint8_t mac[6], int *first_ago_s, int *conn_s) {
+    *first_ago_s = -1; *conn_s = -1;
+    int64_t now = esp_timer_get_time();
+    for (int i = 0; i < SEEN_MAX; i++) {
+        if (s_seen[i].used && memcmp(s_seen[i].mac, mac, 6) == 0) {
+            *first_ago_s = (int)((now - s_seen[i].first_us) / 1000000);
+            *conn_s = (int)((now - s_seen[i].conn_us) / 1000000);
+            return;
+        }
+    }
+}
+
 #include "oui_table.h"
 
 /* MAC ke pehle 3 bytes se company; locally-administered (private/random) MAC ki company nahi hoti */
@@ -1145,6 +1181,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t base, int32_t id, voi
         }
         case WIFI_EVENT_AP_STACONNECTED: {
             wifi_event_ap_staconnected_t *ev = (wifi_event_ap_staconnected_t *)data;
+            seen_touch(ev->mac);
             char mac[18];
             snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X",
                      ev->mac[0], ev->mac[1], ev->mac[2], ev->mac[3], ev->mac[4], ev->mac[5]);
@@ -1520,6 +1557,10 @@ static esp_err_t status_get_handler(httpd_req_t *req) {
             char dm[80], dos[24], dbr[16];
             devinfo_get(sta_list.sta[i].mac, ip4, dm, sizeof(dm), dos, sizeof(dos), dbr, sizeof(dbr));
             cJSON_AddStringToObject(c, "model", dm);
+            int sfa, scn;
+            seen_get(sta_list.sta[i].mac, &sfa, &scn);
+            cJSON_AddNumberToObject(c, "first_ago_s", sfa);
+            cJSON_AddNumberToObject(c, "conn_s", scn);
             cJSON_AddStringToObject(c, "os", dos);
             cJSON_AddStringToObject(c, "brand", dbr);
             cJSON_AddNumberToObject(c, "rssi", sta_list.sta[i].rssi);

@@ -379,6 +379,7 @@ async function refreshStatus(){
         var top=el('div',{'class':'top'});
         top.appendChild(el('b',null,c.name||c.mac));
         top.appendChild(el('span',{'class':'tag '+(c.authorized?'ok':'bad')},c.authorized?'Internet OK':'Guest'));
+        if(!c.authorized && c.first_ago_s>=0 && c.first_ago_s<600) top.appendChild(el('span',{'class':'tag'},'New'));
         var wb=el('button',{'class':'ghost small'},'+WL');
         wb.onclick=(function(mac){ return function(){ $('newmac').value=mac; $('d-wl').open=true; $('newname').focus(); }; })(c.mac);
         var kb=el('button',{'class':'ghost small'},'Kick');
@@ -388,6 +389,8 @@ async function refreshStatus(){
         dev.appendChild(el('div',{'class':'sub'},c.mac+(c.vendor?' ('+c.vendor+')':'')+' \u00b7 '+c.ip+' \u00b7 '+c.rssi+' dBm'));
         var inf=[]; if(c.brand) inf.push(c.brand); if(c.model) inf.push(c.model); if(c.os) inf.push(c.os);
         if(inf.length) dev.appendChild(el('div',{'class':'sub'},inf.join(' \u00b7 ')));
+        var seen=[]; if(c.conn_s>=0) seen.push('connected '+fmtTime(c.conn_s)); if(c.first_ago_s>=0 && c.first_ago_s>c.conn_s+60) seen.push('first seen '+fmtTime(c.first_ago_s)+' ago');
+        if(seen.length) dev.appendChild(el('div',{'class':'sub'},seen.join(' \u00b7 ')));
         ct.appendChild(dev);
       });
     }
