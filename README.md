@@ -107,9 +107,9 @@ python3 -m esptool --chip esp32 --port /dev/ttyUSB0 --baud 115200 \
 
 ## Step 4 — First use
 
-1. Connect to WiFi **`Sarfraz`** (password `Sarfraz1`) — 2.4 GHz only
+1. Connect to the repeater's WiFi (SSID and password: see **Defaults** above) — 2.4 GHz only
 2. Open `http://192.168.4.1` in a browser
-3. Log in: username `Sarfraz`, password `admin`
+3. Log in with the admin username and password from **Defaults** above
 4. Under **Upstream WiFi**, enter your real internet router's SSID/password
    and save — the repeater reboots and starts sharing internet
 5. Under **MAC Whitelist**, add your own device's MAC first — an empty
