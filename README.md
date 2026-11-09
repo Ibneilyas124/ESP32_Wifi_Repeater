@@ -85,6 +85,22 @@ Takes about 3–6 minutes:
 
 ## Step 3 — Flash it
 
+> **Partition table changed (two OTA app slots).** The app now lives at
+> `0x20000`, not `0x10000`. `full-flash-padded-0x0.bin` already contains the
+> new layout, so it still works for a **fresh board**. But it writes the whole
+> flash from `0x0`, so it **erases saved settings** (upstream WiFi, whitelist,
+> admin password). To keep settings, flash the three separate files from the
+> Releases page instead (each at its own offset), after clearing `otadata`:
+>
+> ```bash
+> python3 -m esptool --chip esp32 --port /dev/ttyUSB0 erase_region 0x10000 0x2000
+> python3 -m esptool --chip esp32 --port /dev/ttyUSB0 write_flash -z \
+>   --flash_mode dio --flash_freq 40m --flash_size 4MB \
+>   0x1000 bootloader.bin 0x8000 partition-table.bin 0x20000 esp32-wifi-repeater.bin
+> ```
+>
+> Take **Export Config** from the admin page first as a backup.
+
 **Use `full-flash-padded-0x0.bin` from the Releases page** (not
 Actions → Artifacts, which always wraps everything in a zip and has
 caused confusion before). It's a single, pre-merged image — flash it at
@@ -117,6 +133,22 @@ python3 -m esptool --chip esp32 --port /dev/ttyUSB0 --baud 115200 \
    devices get full access (others still connect but get no internet,
    unless "Guests: connect but no internet" is turned off)
 6. Change the admin password from **Advanced Settings**
+
+## Web update (OTA)
+
+After the first flash with the new partition table, later updates need no
+cable:
+
+1. Download `esp32-wifi-repeater.bin` from the latest Release
+   (**not** a `full-flash` file).
+2. Log in to the admin page, open **Advanced Configuration -> Firmware Update**,
+   choose the file and press **Upload and Install**.
+3. The repeater restarts by itself; reconnect after about 30 seconds.
+
+The image is checked before it is installed. If a new firmware fails to start
+its web server, the bootloader rolls back to the previous version
+automatically. The partition table itself cannot be changed over the web, only
+by a cable flash.
 
 ## Hardware factory reset
 

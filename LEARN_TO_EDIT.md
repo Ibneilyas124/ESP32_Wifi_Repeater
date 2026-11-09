@@ -37,18 +37,18 @@ Andar yeh sab editable hai:
 - Skills wali list: `<li>...</li>` wali 5 lines
 - Neeche wala quote: `Build it. Break it. Fix it. Learn from it.`
 
-## 4. Admin page ka heading — "Sarfraz Ibn E Ilyas"
+## 4. Admin page ka heading — "IBN E ILYAS Technologies"
 **File:** `main/admin.html`
-**Dhoondo:** `Sarfraz Ibn E Ilyas<small>`
+**Dhoondo:** `IBN E ILYAS Technologies` (upar wali neeli bar mein)
 
-Yeh page ab **fresh, compact, mobile design** mein hai — har section (Connected
-Devices, Whitelist, Data Usage, Advanced Settings, waghera) apna alag
-`<details class="card">` block hai, native tap-to-open/close (JS bug se
-"frozen" hone ka chance nahi). Advanced Settings ke andar 4 chhote groups hain
-(WiFi & Network, Security & Access, Advanced Network, Bandwidth Limits) —
-group ka naam `GROUP_LABEL` object mein milega (`admin.html` ke JS mein),
-aur kaunsi setting kis group mein hai woh `main/main.c` ke `SETTINGS[]`
-table ki aakhri column mein hai.
+Yeh page **Huawei style** mein hai: upar neeli bar (naam `IBN E ILYAS Technologies`),
+left mein icon menu (Home Page / System Info / Advanced Configuration), aur har
+section ek `<details class="sec">` block hai jo menu se khulta hai. **Element ids
+(jaise `statGrid`, `clientsTbl`, `otafile`) na badalna**, kyunke test aur JS unhi
+par chalte hain. Advanced Settings ke andar 4 chhote groups hain (WiFi & Network,
+Security & Access, Advanced Network, Bandwidth Limits): group ka naam
+`GROUP_LABEL` object mein (`admin.html` ke JS mein) milega, aur kaunsi setting kis
+group mein hai woh `main/main.c` ke `SETTINGS[]` table ki aakhri column mein hai.
 
 ## 5. Company/business ka naam jo main router mein dikhta hai
 Yeh **code mein nahi**, balke ek **setting** hai — dashboard mein khud login
@@ -67,6 +67,12 @@ wali value badalna, baaki kuch nahi.
 ## 7. WiFi Tools page ka heading aur tabs (Analyzer/Deauth/Speed/Diagnose)
 **File:** `main/tools.html`
 **Dhoondo:** `WiFi Tools`, ya tab names jaise `Analyzer`, `Deauth`, `Speed`, `Diagnose`
+Naye design mein tabs left wale menu ke buttons hain (`id="tb-an"`, `tb-de`, `tb-sp`, `tb-dg`), aur upar bar mein `IBN E ILYAS Technologies` likha hai. Buttons ke ids aur `onclick="showTab(...)"` na chhedna.
+
+## 7b. Firmware Update (web se, OTA)
+**File:** `main/admin.html` (section `d-ota`, JS `otaUpload`) aur `main/main.c` (`ota_post_handler`)
+**Dhoondo:** `Firmware Update`
+Sirf text badalna ho to `admin.html` mein `Firmware Update` ke aas paas ka matn badlein. Upload ka size check (`1966080`) `main.c` ke slot size (0x1E0000) se mel khana chahiye; `partitions.csv` badle to dono jagah dekhna.
 
 ## 8. Konse buttons/labels kahan hain (quick reference)
 | Screen par jo dikhta hai | File | Kya dhoondo |
@@ -78,6 +84,7 @@ wali value badalna, baaki kuch nahi.
 | Hardware reset ka instruction | `admin.html` | `hold the BOOT button` |
 | "Share this WiFi" card | `admin.html` | `Share this WiFi` |
 | Upstream stability ke reason names | `admin.html` | `var REASONS=` |
+| "Upload and Install" (firmware update) | `admin.html` | `Upload and Install` |
 
 ---
 
