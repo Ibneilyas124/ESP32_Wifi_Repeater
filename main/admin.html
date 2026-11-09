@@ -256,6 +256,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
 
     <details class="sec" id="d-wl"><summary>MAC Whitelist (<span id="wlCount">0</span>)</summary><div class="body">
       <p class="desc">Whitelisted devices get internet. Everyone else can still reach this admin page. Limit is optional (Kbps, 0 = no limit).</p>
+      <div id="reqList"></div>
       <div id="wlList"></div>
       <div class="frow wl"><input id="newmac" placeholder="AA:BB:CC:DD:EE:FF"><input id="newname" placeholder="Name"><input id="newlimit" type="number" placeholder="Limit Kbps"></div>
       <div class="btnrow"><button onclick="addMac()">Add to Whitelist</button><span class="msg" id="wlMsg"></span></div>
@@ -437,6 +438,26 @@ async function removeMac(m){
   var j=await post('/api/whitelist',{action:'remove',mac:m});
   if(j) refreshStatus();
 }
+async function loadRequests(){
+  try{
+    var r=await fetch('/api/requests',{cache:'no-store'}); if(authFail(r)) return; var j=await r.json();
+    var box=$('reqList'); box.innerHTML='';
+    if(!j.requests||!j.requests.length) return;
+    box.appendChild(el('small',{'class':'hint'},'Access requests from guests ('+j.requests.length+'):'));
+    j.requests.forEach(function(q){
+      var row=el('div',{'class':'wlrow'});
+      var nm=el('div',{'class':'nm'});
+      nm.appendChild(el('b',null,q.name||q.mac)); nm.appendChild(el('span',null,q.mac));
+      row.appendChild(nm);
+      var ap=el('button',{'class':'ghost small'},'Approve');
+      ap.onclick=(function(mac){ return async function(){ var x=await post('/api/requests',{action:'approve',mac:mac}); if(x&&x.ok===false){ $('wlMsg').textContent=x.error; } loadRequests(); refreshStatus(); }; })(q.mac);
+      var rj=el('button',{'class':'ghost small'},'Reject');
+      rj.onclick=(function(mac){ return async function(){ await post('/api/requests',{action:'reject',mac:mac}); loadRequests(); }; })(q.mac);
+      row.appendChild(ap); row.appendChild(rj);
+      box.appendChild(row);
+    });
+  }catch(e){}
+}
 async function kickDevice(m){
   if(!confirm('Disconnect this device now?')) return;
   var j=await post('/api/kick',{mac:m});
@@ -597,6 +618,7 @@ async function doLogout(){ await post('/api/logout'); location.href='/'; }
 
 refreshStatus();
 setInterval(refreshStatus, 5000);
+setInterval(loadRequests, 5000); loadRequests();
 </script>
 </body>
 </html>

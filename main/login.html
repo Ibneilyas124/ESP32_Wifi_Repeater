@@ -72,6 +72,7 @@ background:#fff;color:#333;font-size:15px;cursor:pointer}
   <span class="mk"></span>
   <div class="links"><a href="#" onclick="openAbout();return false">About Developer</a> &nbsp;&middot;&nbsp; <a href="/tools">&#128295; WiFi Tools (no login)</a></div>
   <div id="diagLine" style="opacity:.8"></div>
+  <div style="margin:10px 0"><input id="rqName" maxlength="30" placeholder="Your name" style="height:30px;padding:0 8px;border:1px solid #c3d3de;border-radius:3px"> <button type="button" onclick="reqAccess()" style="height:30px;padding:0 12px;border:1px solid #1384c6;background:#fff;color:#1384c6;border-radius:3px;cursor:pointer">Request internet access</button><div id="rqMsg" style="margin-top:4px;min-height:16px"></div></div>
   <div>Copyright &copy; Ibn e Ilyas Technologies 2026. All rights reserved.</div>
 </div>
 
@@ -101,6 +102,14 @@ function closeAbout(){document.getElementById('about').classList.remove('on');}
 fetch('/api/me').then(function(r){return r.json();}).then(function(j){
   document.getElementById('diagLine').textContent='fw v'+j.fw+' \u00b7 factory resets: '+j.reset_count;
 }).catch(function(){});
+async function reqAccess(){
+  var m=document.getElementById('rqMsg'); m.textContent='';
+  try{
+    var r=await fetch('/api/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('rqName').value})});
+    var j=await r.json();
+    m.textContent=j.ok?'Request sent. Ask the admin to approve it.':(j.error||'Failed');
+  }catch(x){ m.textContent='Could not reach the repeater'; }
+}
 async function doLogin(){
   const e=document.getElementById('err'); e.textContent='';
   try{

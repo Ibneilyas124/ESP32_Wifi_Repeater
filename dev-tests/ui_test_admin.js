@@ -45,6 +45,7 @@ const speed = { samples: [{ ago_s: 10, ms: 30, ok: true }, { ago_s: 900, ms: 80,
     if (p === '/api/status') return json(status);
     if (p === '/api/settings') return json({ items });
     if (p === '/api/usage') return json(usage);
+    if (p === '/api/requests') return json({ requests: [] });
     if (p === '/api/speedhistory') return json(speed);
     if (p === '/api/config/export') return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ap_ssid":"Sarfraz"}' });
     return route.fulfill({ status: 404, body: 'nf' });

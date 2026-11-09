@@ -1789,6 +1789,121 @@ static esp_err_t config_import_post_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+/* ================= Guest "Request access": guest naam bhejta hai, admin Approve/Reject karta hai ================= */
+#define REQ_MAX 8
+typedef struct { uint8_t mac[6]; char name[32]; bool used; } access_req_t;
+static access_req_t s_req[REQ_MAX];   /* sirf RAM, boot par khali */
+
+/* request bhejne wale ka MAC: peer IP se DHCP lease table mein dhoondh kar (guest se MAC nahi manga jata) */
+static bool peer_mac(httpd_req_t *req, uint8_t mac_out[6]) {
+    int fd = httpd_req_to_sockfd(req);
+    if (fd < 0) return false;
+    struct sockaddr_storage ss;
+    socklen_t sln = sizeof(ss);
+    if (getpeername(fd, (struct sockaddr *)&ss, &sln) != 0 || ss.ss_family != AF_INET) return false;
+    uint32_t ip = ((struct sockaddr_in *)&ss)->sin_addr.s_addr;
+    wifi_sta_list_t stl;
+    if (esp_wifi_ap_get_sta_list(&stl) != ESP_OK) return false;
+    esp_netif_pair_mac_ip_t pairs[10] = { 0 };
+    int count = stl.num > 10 ? 10 : stl.num;
+    for (int i = 0; i < count; i++) memcpy(pairs[i].mac, stl.sta[i].mac, 6);
+    esp_netif_dhcps_get_clients_by_mac(s_ap_netif, count, pairs);
+    for (int i = 0; i < count; i++) {
+        if (pairs[i].ip.addr != 0 && pairs[i].ip.addr == ip) { memcpy(mac_out, stl.sta[i].mac, 6); return true; }
+    }
+    return false;
+}
+
+static esp_err_t request_post_handler(httpd_req_t *req) {
+    char buf[160];
+    read_body(req, buf, sizeof(buf));
+    cJSON *j = cJSON_Parse(buf);
+    if (!j) return send_result(req, false, "invalid data");
+    cJSON *nm = cJSON_GetObjectItem(j, "name");
+    char name[32];
+    int k = 0;
+    if (cJSON_IsString(nm)) {
+        for (const char *p = nm->valuestring; *p && k < 31; p++) {
+            uint8_t ch = (uint8_t)*p;
+            if (ch >= 0x20 && ch <= 0x7E && ch != ',' && ch != '|') name[k++] = (char)ch;
+        }
+    }
+    name[k] = 0;
+    cJSON_Delete(j);
+    if (k == 0) return send_result(req, false, "please enter your name");
+    uint8_t m[6];
+    if (!peer_mac(req, m)) return send_result(req, false, "could not identify your device - connect to the repeater's WiFi and try again");
+    char norm[18];
+    snprintf(norm, sizeof(norm), "%02X:%02X:%02X:%02X:%02X:%02X", m[0], m[1], m[2], m[3], m[4], m[5]);
+    if (whitelist_contains(norm)) return send_result(req, false, "this device already has internet access");
+    int slot = -1;
+    for (int i = 0; i < REQ_MAX; i++) {
+        if (s_req[i].used && memcmp(s_req[i].mac, m, 6) == 0) { slot = i; break; }
+    }
+    if (slot < 0) {
+        for (int i = 0; i < REQ_MAX; i++) {
+            if (!s_req[i].used) { slot = i; break; }
+        }
+    }
+    if (slot < 0) return send_result(req, false, "too many pending requests, please try later");
+    s_req[slot].used = false;
+    memcpy(s_req[slot].mac, m, 6);
+    memset(s_req[slot].name, 0, sizeof(s_req[slot].name));
+    memcpy(s_req[slot].name, name, k + 1);
+    s_req[slot].used = true;
+    return send_result(req, true, NULL);
+}
+
+static esp_err_t requests_get_handler(httpd_req_t *req) {
+    if (require_session_api(req) != ESP_OK) return ESP_OK;
+    cJSON *root = cJSON_CreateObject();
+    cJSON *arr = cJSON_CreateArray();
+    for (int i = 0; i < REQ_MAX; i++) {
+        if (!s_req[i].used) continue;
+        char mac[18];
+        snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X",
+                 s_req[i].mac[0], s_req[i].mac[1], s_req[i].mac[2], s_req[i].mac[3], s_req[i].mac[4], s_req[i].mac[5]);
+        cJSON *o = cJSON_CreateObject();
+        cJSON_AddStringToObject(o, "mac", mac);
+        cJSON_AddStringToObject(o, "name", s_req[i].name);
+        cJSON_AddItemToArray(arr, o);
+    }
+    cJSON_AddItemToObject(root, "requests", arr);
+    return send_json(req, root);
+}
+
+static esp_err_t requests_post_handler(httpd_req_t *req) {
+    if (require_session_api(req) != ESP_OK) return ESP_OK;
+    char buf[128];
+    read_body(req, buf, sizeof(buf));
+    cJSON *j = cJSON_Parse(buf);
+    if (!j) return send_result(req, false, "invalid data");
+    cJSON *action = cJSON_GetObjectItem(j, "action");
+    cJSON *mac = cJSON_GetObjectItem(j, "mac");
+    bool ok = false;
+    const char *err = "invalid data";
+    uint8_t m[6];
+    if (cJSON_IsString(action) && cJSON_IsString(mac) && parse_mac(mac->valuestring, m)) {
+        int slot = -1;
+        for (int i = 0; i < REQ_MAX; i++) {
+            if (s_req[i].used && memcmp(s_req[i].mac, m, 6) == 0) { slot = i; break; }
+        }
+        if (slot < 0) {
+            err = "request not found";
+        } else if (strcmp(action->valuestring, "approve") == 0) {
+            char norm[18];
+            snprintf(norm, sizeof(norm), "%02X:%02X:%02X:%02X:%02X:%02X", m[0], m[1], m[2], m[3], m[4], m[5]);
+            if (whitelist_add(norm, s_req[slot].name, 0)) { s_req[slot].used = false; ok = true; }
+            else err = "whitelist is full";
+        } else if (strcmp(action->valuestring, "reject") == 0) {
+            s_req[slot].used = false;
+            ok = true;
+        }
+    }
+    cJSON_Delete(j);
+    return send_result(req, ok, ok ? NULL : err);
+}
+
 /* ================= Kick / identity ================= */
 
 static esp_err_t kick_post_handler(httpd_req_t *req) {
@@ -2236,7 +2351,7 @@ static esp_err_t factory_reset_post_handler(httpd_req_t *req) {
 
 static void start_webserver(void) {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 30;
+    config.max_uri_handlers = 34;
     config.stack_size = 8192;
     httpd_handle_t server = NULL;
     if (httpd_start(&server, &config) != ESP_OK) {
@@ -2259,6 +2374,9 @@ static void start_webserver(void) {
         {.uri = "/api/ota",            .method = HTTP_POST, .handler = ota_post_handler},
         {.uri = "/api/factory_reset",  .method = HTTP_POST, .handler = factory_reset_post_handler},
         {.uri = "/api/kick",           .method = HTTP_POST, .handler = kick_post_handler},
+        {.uri = "/api/request",        .method = HTTP_POST, .handler = request_post_handler},
+        {.uri = "/api/requests",       .method = HTTP_GET,  .handler = requests_get_handler},
+        {.uri = "/api/requests",       .method = HTTP_POST, .handler = requests_post_handler},
         {.uri = "/api/me",             .method = HTTP_GET,  .handler = me_get_handler},
         {.uri = "/tools",              .method = HTTP_GET,  .handler = tools_get_handler},
         {.uri = "/api/scan/start",     .method = HTTP_POST, .handler = scan_start_post_handler},
