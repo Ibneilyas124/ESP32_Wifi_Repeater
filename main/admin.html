@@ -80,6 +80,10 @@ small.hint{display:block;margin:4px 0}
 .wlrow .nm b{display:block}
 .wlrow .nm span{color:#7b8794;font-size:12px}
 #wlList{margin-bottom:16px}
+.dev:hover,.wlrow:hover{background:#f1f7fd}
+.dev .top button,.wlrow button{flex:none}
+.btnrow button{min-width:90px}
+#d-danger button{display:block;margin:0 0 8px}
 .tblwrap{overflow-x:auto;margin-bottom:14px}
 table{width:100%;border-collapse:collapse;background:#fff}
 th{background:#e9ecef;text-align:left;font-weight:bold;color:#444}
@@ -270,8 +274,8 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
 
     <details class="sec" id="d-danger"><summary>Danger Zone</summary><div class="body">
       <p class="desc">These actions restart the repeater or erase its settings.</p>
-    <button class="danger" style="width:100%" onclick="doReboot()">Reboot Device</button>
-    <button class="danger" style="width:100%;margin-top:8px" onclick="doFactoryReset()">Factory Reset (erase everything)</button>
+    <button class="danger" onclick="doReboot()">Reboot Device</button>
+    <button class="danger" onclick="doFactoryReset()">Factory Reset (erase everything)</button>
     <small class="hint" style="margin-top:8px">Hardware reset: hold BOOT ~8s, release when the LED blinks fast.</small>
   </div>
 </details>
