@@ -1,188 +1,320 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sarfraz Ibn E Ilyas - Admin</title>
+<meta name="viewport" content="width=1000">
+<title>IBN E ILYAS Technologies</title>
 <style>
-:root{
-  --bg:#0b0d0e; --card:#141718; --line:#242a2c; --text:#e8e8e8; --dim:#8a9794;
-  --accent:#00e0a0; --accent2:#00a3ff; --bad:#e04a4a; --warn:#e0a83c;
-}
+:root{--accent:#2f8fdc;--accent2:#1a73c4;--bad:#d9534f;--ok:#2e9e5b;--orange:#e8731a;--line:#d5dde6}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,sans-serif;
-  margin:0;padding:10px;font-size:14px;line-height:1.4;max-width:480px;margin:0 auto}
-header{display:flex;justify-content:space-between;align-items:center;padding:4px 2px 10px;border-bottom:1px solid var(--line);margin-bottom:10px}
-header .t{font-size:1.05em;font-weight:700;color:var(--accent)}
-header .t small{display:block;font-weight:400;color:var(--dim);font-size:.62em;margin-top:1px}
-header button{background:#1c2122;color:var(--dim);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font-size:12px}
-
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden}
-.card>.pad{padding:10px}
-summary{padding:10px;cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center}
-summary::-webkit-details-marker{display:none}
-summary::after{content:'';width:7px;height:7px;margin:0 3px 3px 8px;flex:0 0 auto;border-right:2px solid var(--dim);border-bottom:2px solid var(--dim);transform:rotate(45deg);transition:transform .15s}
-details[open]>summary::after{transform:rotate(225deg);margin-bottom:-3px}
-summary h2{flex:1}
-summary .badge{background:#1c2122;color:var(--dim);border-radius:10px;padding:1px 7px;font-size:11px;font-weight:400;margin-left:6px}
-details>.pad{padding:0 10px 10px}
-h2{font-size:.95em;margin:0;color:var(--text)}
-
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.stat{background:#101314;border:1px solid var(--line);border-radius:7px;padding:7px 8px}
-.stat .k{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.3px}
-.stat .v{font-size:13.5px;font-weight:600;margin-top:1px;word-break:break-word}
-.stat .v.ok{color:var(--accent)} .stat .v.bad{color:var(--bad)}
-
-input,select,textarea{width:100%;background:#101314;color:var(--text);border:1px solid #2c3234;
-  border-radius:7px;padding:8px 9px;font-size:13.5px;margin:4px 0}
-label{font-size:11.5px;color:var(--dim);display:block;margin-top:7px}
-small.hint{color:var(--dim);font-size:10.5px;display:block;margin-top:2px}
-button.act{background:var(--accent);color:#06201a;font-weight:700;border:none;border-radius:7px;
-  padding:9px;font-size:13px;cursor:pointer;width:100%;margin-top:6px}
-button.ghost{background:#1c2122;color:var(--dim);border:1px solid var(--line);border-radius:7px;
-  padding:7px 9px;font-size:12px;cursor:pointer}
-button.danger{background:var(--bad);color:#fff;border:none;border-radius:7px;padding:9px;font-size:13px;cursor:pointer}
-button.small{padding:4px 8px;font-size:11px;border-radius:6px}
-.row{display:flex;gap:6px;align-items:center}
-.row>*{flex:1}
-.row>button{flex:1 1 0;width:auto;min-width:0}
-.row>button.small{flex:0 0 auto}
-
-.tblwrap{overflow-x:auto;margin-top:6px}
-#clientsTbl{margin-top:0}
-table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap}
-th{color:var(--dim);text-align:left;font-weight:600;font-size:10.5px;text-transform:uppercase;padding:4px 7px;border-bottom:1px solid var(--line)}
-td{padding:5px 7px;border-bottom:1px solid #1a1e1f}
-.tag{display:inline-block;border-radius:5px;padding:1px 6px;font-size:10.5px}
-.tag.ok{background:#0d2b22;color:var(--accent)} .tag.bad{background:#2b1414;color:#ff9c9c}
-
-.wlrow{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #1a1e1f;font-size:12.5px}
-.dev{padding:8px 0;border-bottom:1px solid #1a1e1f}
-.dev .top{display:flex;align-items:center;gap:6px}
-.dev .top b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
-.dev .sub{color:var(--dim);font-size:10.5px;margin-top:3px;word-break:break-all}
-.wlrow .nm{flex:1;overflow:hidden;text-overflow:ellipsis}
-.wlrow .nm b{color:var(--text)} .wlrow .nm span{color:var(--dim);display:block;font-size:10.5px}
-
-.chart{display:flex;align-items:flex-end;gap:2px;height:72px;margin-top:6px}
-.chart i{flex:1;min-width:3px;border-radius:2px 2px 0 0;display:block}
-.subgroup summary{font-size:.85em;padding:8px 10px;background:#101314}
-.subgroup{border:1px solid var(--line);border-radius:8px;margin:6px 0;overflow:hidden}
-.danger-zone{border-color:#3a1f1f}
-.msg{font-size:11.5px;color:var(--dim);margin-top:5px;min-height:14px}
-footer{text-align:center;color:var(--dim);font-size:11px;padding:14px 0 6px}
+html,body{margin:0;padding:0}
+body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#333;background:#f5f8fc;min-width:1000px}
+a{color:var(--accent2)}
+.top{height:46px;background:linear-gradient(#69bdf2,#4fa9e6);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 18px}
+.top .model{font-size:17px;font-weight:bold}
+.top #fwLine{font-size:11px;margin-left:12px;opacity:.9}
+.top .right{font-size:12px}
+.top .right a{color:#fff;text-decoration:none;cursor:pointer}
+.top .right a:hover{text-decoration:underline}
+.top .right i{font-style:normal;margin:0 8px;opacity:.7}
+.wrap{display:flex;min-height:calc(100vh - 46px - 38px)}
+.nav{width:92px;background:#fff;border-right:1px solid var(--line);flex:none}
+.nav a{display:block;text-align:center;padding:14px 4px 12px;color:#555;text-decoration:none;font-size:11px;border-bottom:1px solid #eef2f6;cursor:pointer;position:relative}
+.nav a .ic{display:block;font-size:22px;line-height:26px;color:#7b8794}
+.nav a.on{background:#e6f2fc;color:var(--accent2);font-weight:bold}
+.nav a.on .ic{color:var(--accent2)}
+.nav a.on:after{content:"";position:absolute;right:0;top:50%;margin-top:-5px;border:5px solid transparent;border-right-color:#f5f8fc}
+.subnav{width:190px;background:#eceff3;border-right:1px solid var(--line);flex:none;display:none;padding-top:6px}
+.subnav.show{display:block}
+.subnav a{display:block;padding:11px 16px;color:#444;text-decoration:none;font-size:13px;cursor:pointer;border-left:3px solid transparent}
+.subnav a:hover{background:#e3e8ee}
+.subnav a.on{color:var(--accent2);font-weight:bold;border-left-color:var(--accent2);background:#f5f8fc}
+.main{flex:1;padding:18px 26px;min-width:0}
+.sec{display:none}
+.sec.show{display:block}
+.title,details.sec>summary{display:block;list-style:none;pointer-events:none;font-size:20px;color:#333;padding:0 0 8px;margin:0 0 10px;border-bottom:1px solid #c9d3de}
+details.sec>summary::-webkit-details-marker{display:none}
+.desc{color:var(--orange);margin:0 0 14px;line-height:1.5}
+.body{max-width:660px}
+button{font:inherit;background:#fff;color:#333;border:1px solid #9aa5b1;border-radius:3px;padding:5px 16px;cursor:pointer}
+button:hover{background:#eaf4fd;border-color:var(--accent)}
+button.small{padding:2px 9px;font-size:12px}
+button.danger{color:#c0392b;border-color:#c0392b}
+button.danger:hover{background:#fdecea}
+input,select,textarea{font:inherit;border:1px solid #aeb7c0;border-radius:3px;padding:4px 8px;height:28px;background:#fff;color:#333}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+textarea{height:130px;width:100%;font-family:monospace;font-size:12px}
+.frow{display:flex;align-items:center;gap:10px;margin:0 0 10px}
+.frow label{width:90px;color:#555;flex:none}
+.frow input{width:260px}
+.frow.wl input{width:150px}
+.msg,.hint{color:#6b7885;font-size:12px}
+small.hint{display:block;margin:4px 0}
+.btnrow{margin-top:12px;display:flex;align-items:center;gap:10px}
+#statGrid{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;margin-bottom:14px}
+.stat{display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid var(--line);margin-bottom:-1px;padding:9px 12px}
+.stat .k{color:#666}
+.stat .v{font-weight:bold}
+.v.ok{color:var(--ok)}
+.v.bad{color:var(--bad)}
+.netstat{color:#7b8794;font-size:13px;padding:6px 4px 8px;border-bottom:1px solid #c9d3de;margin-bottom:8px}
+.netstat b{font-size:18px;color:#333;font-weight:normal;margin-left:4px}
+#topo{display:block;width:100%;max-width:760px;margin:0 auto}
+#topo text{font-family:Arial,Helvetica,sans-serif;font-size:13px;fill:#444}
+#topo .rt{font-size:10px;fill:#111}
+#topo .clk{cursor:pointer}
+#topo.off .net{stroke:#c3cad2}
+#topo.off .netf{fill:#c3cad2}
+.homedevs{display:none;max-width:760px;margin:10px auto 0}
+.homedevs.show{display:block}
+.homedevs h3{font-size:16px;font-weight:normal;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid #c9d3de;color:#333}
+.dev{background:#fff;border:1px solid var(--line);margin-bottom:-1px;padding:9px 12px}
+.dev .top{height:auto;background:none;color:#333;padding:0;display:flex;align-items:center;gap:8px}
+.dev .top b{flex:1}
+.dev .sub{color:#7b8794;font-size:12px;margin-top:4px}
+.tag{font-size:11px;padding:1px 8px;border-radius:9px;color:#fff}
+.tag.ok{background:var(--ok)}
+.tag.bad{background:#8896a5}
+.wlrow{display:flex;align-items:center;background:#fff;border:1px solid var(--line);margin-bottom:-1px;padding:8px 12px}
+.wlrow .nm{flex:1}
+.wlrow .nm b{display:block}
+.wlrow .nm span{color:#7b8794;font-size:12px}
+#wlList{margin-bottom:16px}
+.tblwrap{overflow-x:auto;margin-bottom:14px}
+table{width:100%;border-collapse:collapse;background:#fff}
+th{background:#e9ecef;text-align:left;font-weight:bold;color:#444}
+th,td{border:1px solid var(--line);padding:7px 10px}
+#usageBody{margin-top:6px}
+.chart{display:flex;align-items:flex-end;gap:2px;height:72px;background:#fff;border:1px solid var(--line);padding:2px}
+.chart i{flex:1;display:block;min-width:3px}
+details.subgroup{border:1px solid var(--line);background:#fff;margin-bottom:8px}
+details.subgroup>summary{cursor:pointer;padding:9px 12px;background:#eef2f6;font-weight:bold;list-style:none}
+details.subgroup>summary::-webkit-details-marker{display:none}
+details.subgroup>summary:after{content:"\25B8";float:right;color:#7b8794}
+details.subgroup[open]>summary:after{content:"\25BE"}
+#advGroups label{display:block;margin:8px 0 3px;color:#555}
+#advGroups input,#advGroups select{width:100%;max-width:380px}
+footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-top:1px solid var(--line);color:#6b7885;font-size:12px}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="t">Sarfraz Ibn E Ilyas<small id="fwLine">WiFi Repeater Admin</small></div>
-  <button onclick="doLogout()">Logout</button>
-</header>
+<div class="top">
+  <div><span class="model">IBN E ILYAS Technologies</span><span id="fwLine"></span></div>
+  <div class="right"><a onclick="goTo('d-wifi')">Fast Setting</a><i>|</i>Admin<i>|</i><a onclick="doLogout()">Logout</a></div>
+</div>
 
-<!-- STATUS: always visible, compact grid -->
-<div class="card"><div class="pad">
-  <div class="grid2" id="statGrid"><div class="stat"><div class="k">Status</div><div class="v">Loading...</div></div></div>
-</div></div>
-
-<!-- CONNECTED DEVICES -->
-<details class="card" id="d-clients">
-  <summary><h2>Connected Devices</h2><span class="badge" id="clientCount">-</span></summary>
-  <div class="pad"><div class="tblwrap" id="clientsTbl">-</div></div>
-</details>
-
-<!-- WHITELIST -->
-<details class="card" id="d-wl">
-  <summary><h2>MAC Whitelist</h2><span class="badge" id="wlCount">-</span></summary>
-  <div class="pad">
-    <small class="hint">Empty list = everyone allowed. Add your own device first.</small>
-    <div id="wlList"></div>
-    <input id="newmac" placeholder="AA:BB:CC:DD:EE:FF" autocomplete="off">
-    <input id="newname" placeholder="Device name" autocomplete="off">
-    <input id="newlimit" type="number" placeholder="Upload limit Kbps (blank = unlimited)" autocomplete="off">
-    <button class="act" onclick="addMac()">Add to Whitelist</button>
-    <div class="msg" id="wlMsg"></div>
+<div class="wrap">
+  <div class="nav">
+    <a id="nv-home" onclick="goGroup('home')"><span class="ic">&#8962;</span>Home Page</a>
+    <a href="/tools"><span class="ic">&#10004;</span>One-Click Diagnosis</a>
+    <a id="nv-sys" onclick="goGroup('sys')"><span class="ic">&#9776;</span>System Info</a>
+    <a id="nv-adv" onclick="goGroup('adv')"><span class="ic">&#9881;</span>Advanced Configuration</a>
   </div>
-</details>
 
-<!-- UPSTREAM WIFI -->
-<details class="card" id="d-wifi">
-  <summary><h2>Upstream WiFi</h2></summary>
-  <div class="pad">
-    <label>Network name (SSID)</label>
-    <input id="sta_ssid" placeholder="Your main router's WiFi name" autocomplete="off">
-    <label>Password</label>
-    <div style="position:relative">
-      <input id="sta_pass" type="password" placeholder="Blank = keep current" autocomplete="off" style="padding-right:48px">
-      <button class="ghost small" style="position:absolute;right:4px;top:50%;transform:translateY(-50%)" onclick="pwToggle('sta_pass',this)">SHOW</button>
+  <div class="subnav" id="sub-sys">
+    <a data-sec="p-info" onclick="go('p-info')">Device Info</a>
+    <a data-sec="d-usage" onclick="go('d-usage')">Data Usage</a>
+    <a data-sec="d-speed" onclick="go('d-speed')">Speed History</a>
+    <a data-sec="d-stab" onclick="go('d-stab')">Upstream Stability</a>
+  </div>
+  <div class="subnav" id="sub-adv">
+    <a data-sec="d-wifi" onclick="go('d-wifi')">Upstream WiFi</a>
+    <a data-sec="d-wl" onclick="go('d-wl')">MAC Whitelist</a>
+    <a data-sec="d-adv" onclick="go('d-adv')">Advanced Settings</a>
+    <a data-sec="d-backup" onclick="go('d-backup')">Config Backup</a>
+    <a data-sec="d-danger" onclick="go('d-danger')">Danger Zone</a>
+  </div>
+
+  <div class="main">
+
+    <div class="sec" id="p-home">
+      <div class="netstat">Network connection status: <b id="netStatus">...</b></div>
+      <svg id="topo" viewBox="0 0 760 500" xmlns="http://www.w3.org/2000/svg">
+        <g>
+          <circle class="netf" cx="130" cy="50" r="32" fill="#7ac70c"/>
+          <circle cx="130" cy="50" r="25" fill="none" stroke="#fff" stroke-width="2"/>
+          <ellipse cx="130" cy="50" rx="11" ry="25" fill="none" stroke="#fff" stroke-width="2"/>
+          <path d="M105 50 H155 M109 36 H151 M109 64 H151" stroke="#fff" stroke-width="2" fill="none"/>
+          <text x="130" y="106" text-anchor="middle">Internet</text>
+        </g>
+        <path class="net" d="M162 50 H270 V250" fill="none" stroke="#a6d75b" stroke-width="2"/>
+        <circle class="netf" cx="270" cy="150" r="13" fill="#a6d75b"/>
+        <circle cx="270" cy="150" r="4" fill="#fff"/>
+
+        <g class="clk" onclick="goTo('d-wifi')">
+          <title>Wi-Fi configuration</title>
+          <rect x="430" y="70" width="140" height="95" fill="transparent"/>
+          <text x="500" y="82" text-anchor="middle">Wi-Fi configuration</text>
+          <circle cx="500" cy="125" r="9" fill="#4fb0ee"/>
+          <circle cx="500" cy="125" r="15" fill="none" stroke="#4fb0ee" stroke-width="1.5" stroke-dasharray="3 3"/>
+          <path d="M478 112 Q469 125 478 138" fill="none" stroke="#6dbdf0" stroke-width="3" stroke-linecap="round"/>
+          <path d="M466 104 Q450 125 466 146" fill="none" stroke="#a9d8f6" stroke-width="3" stroke-linecap="round"/>
+          <path d="M522 112 Q531 125 522 138" fill="none" stroke="#6dbdf0" stroke-width="3" stroke-linecap="round"/>
+          <path d="M534 104 Q550 125 534 146" fill="none" stroke="#a9d8f6" stroke-width="3" stroke-linecap="round"/>
+        </g>
+        <path d="M500 142 V250" fill="none" stroke="#4fb0ee" stroke-width="2" stroke-dasharray="5 5"/>
+
+        <rect x="190" y="250" width="400" height="62" rx="10" fill="#4fb0ee"/>
+        <rect x="190" y="250" width="400" height="5" rx="2" fill="#8ccaf5"/>
+        <circle cx="256" cy="284" r="5" fill="#8ccaf5"/>
+        <rect x="302" y="272" width="28" height="22" rx="3" fill="#8ccaf5"/>
+        <rect x="440" y="276" width="46" height="10" rx="3" fill="#fff" stroke="#111" stroke-width="3"/>
+        <text class="rt" x="463" y="304" text-anchor="middle">USB</text>
+        <circle cx="527" cy="272" r="12" fill="#f26b5b"/>
+        <path d="M527 264 V280 M519 272 H535 M521 266 L533 278 M533 266 L521 278" stroke="#fff" stroke-width="1.5"/>
+        <text class="rt" x="527" y="304" text-anchor="middle">RESET</text>
+        <rect x="222" y="312" width="28" height="7" fill="#4fb0ee"/>
+        <rect x="530" y="312" width="28" height="7" fill="#4fb0ee"/>
+
+        <path d="M300 312 V350 H120 V400" fill="none" stroke="#9fd0f3" stroke-width="2" stroke-dasharray="5 5"/>
+        <circle cx="190" cy="350" r="10" fill="#9fd0f3"/>
+        <path d="M390 312 V400" fill="none" stroke="#a6d75b" stroke-width="2"/>
+        <circle cx="390" cy="356" r="10" fill="#a6d75b"/>
+        <path d="M480 312 V350 H640 V400" fill="none" stroke="#a6d75b" stroke-width="2"/>
+        <circle cx="640" cy="366" r="10" fill="#a6d75b"/>
+
+        <g class="clk" onclick="toggleDevs()">
+          <title>Connected devices</title>
+          <circle cx="120" cy="432" r="32" fill="#4fb0ee"/>
+          <rect x="108" y="414" width="24" height="36" rx="4" fill="#fff"/>
+          <rect x="111" y="418" width="18" height="26" rx="1.5" fill="#4fb0ee"/>
+          <rect x="117" y="415.6" width="6" height="1.4" rx="0.7" fill="#4fb0ee"/>
+          <circle cx="120" cy="447" r="1.6" fill="#4fb0ee"/>
+          <path d="M113.5 426 Q120 420 126.5 426" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M116 430 Q120 426.5 124 430" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="120" cy="434" r="1.8" fill="#fff"/>
+          <text x="120" y="488" text-anchor="middle">Wi-Fi devices(<tspan id="clientCount">0</tspan>)</text>
+        </g>
+        <g>
+          <circle cx="390" cy="432" r="32" fill="#7ac70c"/>
+          <g transform="translate(3 0)">
+            <rect x="364" y="420" width="14" height="24" rx="2" fill="#fff"/>
+            <rect x="367" y="424" width="8" height="2" fill="#7ac70c"/>
+            <rect x="367" y="428" width="8" height="2" fill="#7ac70c"/>
+            <circle cx="371" cy="439" r="2" fill="#7ac70c"/>
+            <rect x="383" y="418" width="26" height="18" rx="2" fill="#fff"/>
+            <rect x="385.5" y="420.5" width="21" height="13" fill="#7ac70c"/>
+            <rect x="394" y="436" width="4" height="5" fill="#fff"/>
+            <rect x="388" y="441" width="16" height="3" rx="1.5" fill="#fff"/>
+          </g>
+          <text x="390" y="488" text-anchor="middle">Wired devices(<tspan id="wiredCount">0</tspan>)</text>
+        </g>
+        <g>
+          <circle cx="640" cy="432" r="32" fill="#7ac70c"/>
+          <rect x="624" y="415" width="32" height="34" rx="3" fill="none" stroke="#fff" stroke-width="3"/>
+          <path d="M630 424 H650 M630 431 H650 M630 438 H650" stroke="#fff" stroke-width="2.5"/>
+          <text x="640" y="488" text-anchor="middle">Phones(<tspan id="phoneCount">0</tspan>)</text>
+        </g>
+      </svg>
+
+      <div class="homedevs" id="d-clients">
+        <h3>Wi-Fi devices</h3>
+        <div id="clientsTbl"></div>
+      </div>
     </div>
-    <button class="act" onclick="saveWifi()">Save &amp; Reboot</button>
-    <div class="msg" id="wifiMsg"></div>
-  </div>
-</details>
 
-<!-- DATA USAGE -->
-<details class="card" id="d-usage">
-  <summary><h2>Data Usage</h2></summary>
-  <div class="pad">
-    <small class="hint" id="usageNote"></small>
-    <div id="overallUsage"></div>
-    <div style="margin-top:8px;color:var(--dim);font-size:11px">Per-device (upload only)</div>
-    <div id="usageBody" class="tblwrap"></div>
-    <small class="hint" style="margin-top:6px">Whole-repeater figures include downloads/streaming. Per-device rows only count uploads - see FEATURES.md.</small>
-  </div>
-</details>
-
-<!-- SPEED HISTORY -->
-<details class="card" id="d-speed">
-  <summary><h2>Speed History</h2></summary>
-  <div class="pad">
-    <small class="hint">Latency to 1.1.1.1 sampled every ~15 min. Green=ok, red=down.</small>
-    <div class="chart" id="shChart"></div>
-    <div class="msg" id="shNote"></div>
-  </div>
-</details>
-
-<!-- STABILITY LOG -->
-<details class="card" id="d-stab">
-  <summary><h2>Upstream Stability</h2></summary>
-  <div class="pad tblwrap" id="stabBody">-</div>
-</details>
-
-<!-- ADVANCED SETTINGS -->
-<details class="card" id="d-adv">
-  <summary><h2>Advanced Settings</h2></summary>
-  <div class="pad">
-    <small class="hint">Every setting has a safe default. Saving reboots the repeater.</small>
-    <div id="advGroups">Loading...</div>
-    <div class="row" style="margin-top:8px">
-      <button class="ghost" onclick="fillDefaults()">Fill all defaults</button>
-      <button class="act" onclick="saveSettings()">Save &amp; Reboot</button>
+    <div class="sec" id="p-info">
+      <div class="title">Device Info</div>
+      <p class="desc">Current status of the repeater and its upstream connection.</p>
+      <div class="body"><div id="statGrid"></div></div>
     </div>
-    <div class="msg" id="advMsg"></div>
-  </div>
-</details>
 
-<!-- BACKUP -->
-<details class="card" id="d-backup">
-  <summary><h2>Config Backup</h2></summary>
-  <div class="pad">
-    <button class="ghost" onclick="exportCfg()">Export JSON</button>
-    <textarea id="importbox" rows="4" placeholder="Paste config JSON here to import"></textarea>
-    <button class="act" onclick="importCfg()">Import &amp; Reboot</button>
-  </div>
-</details>
+    <details class="sec" id="d-usage"><summary>Data Usage</summary><div class="body">
+      <p class="desc">Traffic totals for the whole repeater and for each device.</p>
+      <small class="hint" id="usageNote"></small>
+      <div id="overallUsage"></div>
+      <div id="usageBody"></div>
+    </div></details>
 
-<!-- DANGER ZONE -->
-<details class="card danger-zone" id="d-danger">
-  <summary><h2 style="color:var(--bad)">Danger Zone</h2></summary>
-  <div class="pad">
+    <details class="sec" id="d-speed"><summary>Speed History</summary><div class="body">
+      <p class="desc">Reachability and response time of the upstream connection, newest on the right.</p>
+      <div class="chart" id="shChart"></div>
+      <small class="hint" id="shNote"></small>
+    </div></details>
+
+    <details class="sec" id="d-stab"><summary>Upstream Stability</summary><div class="body">
+      <p class="desc">Recent disconnects from the upstream router and why they happened.</p>
+      <div id="stabBody"></div>
+    </div></details>
+
+    <details class="sec" id="d-wifi"><summary>Upstream WiFi</summary><div class="body">
+      <p class="desc">The router this repeater connects to. The repeater reboots after saving.</p>
+      <div class="frow"><label>SSID</label><input id="sta_ssid" type="text" autocomplete="off"></div>
+      <div class="frow"><label>Password</label><input id="sta_pass" type="password" autocomplete="off"><button type="button" class="small" onclick="pwToggle('sta_pass',this)">SHOW</button></div>
+      <div class="btnrow"><button onclick="saveWifi()">Save</button><span class="msg" id="wifiMsg"></span></div>
+    </div></details>
+
+    <details class="sec" id="d-wl"><summary>MAC Whitelist (<span id="wlCount">0</span>)</summary><div class="body">
+      <p class="desc">Whitelisted devices get internet. Everyone else can still reach this admin page. Limit is optional (Kbps, 0 = no limit).</p>
+      <div id="wlList"></div>
+      <div class="frow wl"><input id="newmac" placeholder="AA:BB:CC:DD:EE:FF"><input id="newname" placeholder="Name"><input id="newlimit" type="number" placeholder="Limit Kbps"></div>
+      <div class="btnrow"><button onclick="addMac()">Add to Whitelist</button><span class="msg" id="wlMsg"></span></div>
+    </div></details>
+
+    <details class="sec" id="d-adv"><summary>Advanced Settings</summary><div class="body">
+      <p class="desc">Detailed repeater settings. The repeater reboots after saving.</p>
+      <div id="advGroups"></div>
+      <div class="btnrow"><button onclick="fillDefaults()">Fill all defaults</button><button onclick="saveSettings()">Save</button><span class="msg" id="advMsg"></span></div>
+    </div></details>
+
+    <details class="sec" id="d-backup"><summary>Config Backup</summary><div class="body">
+      <p class="desc">Export the settings as text, or paste an export from this repeater and import it.</p>
+      <textarea id="importbox" spellcheck="false"></textarea>
+      <div class="btnrow"><button onclick="exportCfg()">Export Config</button><button onclick="importCfg()">Import Config</button></div>
+    </div></details>
+
+    <details class="sec" id="d-danger"><summary>Danger Zone</summary><div class="body">
+      <p class="desc">These actions restart the repeater or erase its settings.</p>
     <button class="danger" style="width:100%" onclick="doReboot()">Reboot Device</button>
     <button class="danger" style="width:100%;margin-top:8px" onclick="doFactoryReset()">Factory Reset (erase everything)</button>
     <small class="hint" style="margin-top:8px">Hardware reset: hold BOOT ~8s, release when the LED blinks fast.</small>
   </div>
 </details>
+  </div>
+</div>
+
+<script>
+(function(){
+  var SECS={home:['p-home'],sys:['p-info','d-usage','d-speed','d-stab'],adv:['d-wifi','d-wl','d-adv','d-backup','d-danger']};
+  var cur=null, last={home:'p-home',sys:'p-info',adv:'d-wifi'};
+  function groupOf(id){ for(var g in SECS){ if(SECS[g].indexOf(id)>=0) return g; } return 'home'; }
+  window.go=function(id){
+    if(cur===id) return;
+    var g=groupOf(id); last[g]=id;
+    var all=document.querySelectorAll('.sec');
+    for(var i=0;i<all.length;i++){
+      var s=all[i], on=(s.id===id);
+      s.classList.toggle('show',on);
+      if(s.tagName==='DETAILS') s.open=on;
+    }
+    cur=id;
+    ['home','sys','adv'].forEach(function(k){ document.getElementById('nv-'+k).classList.toggle('on',k===g); });
+    ['sys','adv'].forEach(function(k){ document.getElementById('sub-'+k).classList.toggle('show',k===g); });
+    var links=document.querySelectorAll('.subnav a');
+    for(var j=0;j<links.length;j++) links[j].classList.toggle('on',links[j].getAttribute('data-sec')===id);
+  };
+  window.goGroup=function(g){ go(last[g]); };
+  window.goTo=function(id){ go(id); };
+  window.toggleDevs=function(){
+    var d=document.getElementById('d-clients');
+    var on=d.classList.toggle('show');
+    if(on && d.scrollIntoView) d.scrollIntoView({behavior:'smooth',block:'nearest'});
+  };
+  var ds=document.querySelectorAll('details.sec');
+  for(var k=0;k<ds.length;k++) ds[k].addEventListener('toggle',function(){ if(this.open) go(this.id); });
+  go('p-home');
+
+  /* Home: "Network connection status" - status grid ke pehle item (Upstream) se */
+  var g=document.getElementById('statGrid');
+  new MutationObserver(function(){
+    var v=g.querySelector('.v'); if(!v) return;
+    var on=(v.textContent==='Connected');
+    document.getElementById('netStatus').textContent=on?'normal':'upstream offline';
+    document.getElementById('topo').classList.toggle('off',!on);
+  }).observe(g,{childList:true});
+})();
+</script>
 
 <footer>WiFi Tools: <a href="/tools" style="color:var(--accent2)">/tools</a></footer>
 
