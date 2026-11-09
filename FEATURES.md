@@ -30,6 +30,16 @@ admin dashboard header too).
   the WiFi password and reach the admin/tools pages, but get **no
   internet** — enforced at the WiFi-driver packet level (`ap_rx_filter`),
   not just a login wall
+- **Request access**: a guest can type a name on the login page; the repeater
+  identifies the device by its DHCP lease (the guest never types a MAC) and the
+  admin approves or rejects it under MAC Whitelist. Pending requests live in
+  RAM only (8 slots)
+- **First seen / connected since** per device in Connected Devices, with a
+  "New" tag for guests seen in the last 10 minutes (RAM only)
+- **Whitelist time window**: an optional `HHMM-HHMM` per whitelisted device
+  (e.g. 2000-2300). Outside the window the device is treated as a guest (local
+  access, no internet). Uses the `tz_offset` setting (hours from UTC, default 5)
+  and is not applied until the clock has synced over the internet
 - Optional **per-device upload speed limit** (Kbps) for whitelisted
   devices, enforced with a token-bucket limiter
 - Optional **overall bandwidth cap** shared by all connected devices

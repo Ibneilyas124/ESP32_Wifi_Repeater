@@ -144,6 +144,7 @@ static const setting_t SETTINGS[] = {
     {"auto_reboot_hours","Auto-restart every N hours",   "0",                        "number",        "0 = never. Otherwise the repeater reboots itself every N hours (1-168) to stay fresh", "network"},
     {"overall_up_kbps",  "Overall upload cap (all devices)", "0",                    "number",        "0 = unlimited. Total upload speed shared by every connected device combined, in Kbps", "bandwidth"},
     {"overall_down_kbps","Overall download cap (all devices)","0",                   "number",        "0 = unlimited. Total download/streaming speed shared by every connected device combined, in Kbps", "bandwidth"},
+    {"tz_offset",  "Time zone offset (hours from UTC)", "5",                      "number",        "Used for whitelist time windows. Pakistan = 5. Range -12 to 14", "network"},
 };
 #define N_SETTINGS (sizeof(SETTINGS) / sizeof(SETTINGS[0]))
 
@@ -305,6 +306,9 @@ static bool validate_setting(const char *key, const char *v, char *err, size_t n
         if (strcmp(v, "0") != 0 && strcmp(v, "1") != 0) { snprintf(err, n, "must be 0 or 1"); return false; }
     } else if (strcmp(key, "deauth_alert") == 0) {
         if (!int_in_range(v, 1, 50)) { snprintf(err, n, "must be 1-50"); return false; }
+    } else if (strcmp(key, "tz_offset") == 0) {
+        int tzv = atoi(v);
+        if (len < 1 || len > 3 || tzv < -12 || tzv > 14) { snprintf(err, n, "must be -12 to 14"); return false; }
     } else if (strcmp(key, "admin_pass") == 0) {
         if (len < 4 || len > 32) { snprintf(err, n, "must be 4-32 characters"); return false; }
     }
@@ -442,7 +446,7 @@ static void whitelist_remove(const char *mac) {
 }
 
 /* Adds or renames an entry (limit_kbps 0 = unlimited). Returns false when the list is full. */
-static bool whitelist_add(const char *mac, const char *name, int limit_kbps) {
+static bool whitelist_add(const char *mac, const char *name, int limit_kbps, const char *sched) {
     whitelist_remove(mac);
     char clean[48];
     size_t j = 0;
@@ -456,7 +460,8 @@ static bool whitelist_add(const char *mac, const char *name, int limit_kbps) {
     char list[WL_BUF];
     whitelist_get(list, sizeof(list));
     char entry[112];
-    snprintf(entry, sizeof(entry), "%.20s|%.47s|%d", mac, clean, limit_kbps);
+    if (sched && sched[0]) snprintf(entry, sizeof(entry), "%.20s|%.47s|%d|%.9s", mac, clean, limit_kbps, sched);
+    else snprintf(entry, sizeof(entry), "%.20s|%.47s|%d", mac, clean, limit_kbps);
     if (strlen(list) + strlen(entry) + 2 >= WL_BUF) return false;
     if (strlen(list) == 0) {
         whitelist_set(entry);
@@ -466,6 +471,77 @@ static bool whitelist_add(const char *mac, const char *name, int limit_kbps) {
         whitelist_set(buf);
     }
     return true;
+}
+
+/* ---- Whitelist schedule: entry "MAC|Name|limit|HHMM-HHMM"; khali = hamesha allowed ---- */
+static bool sched_parse(const char *sc, int *a_min, int *b_min) {
+    if (strlen(sc) != 9 || sc[4] != '-') return false;
+    for (int i = 0; i < 9; i++) {
+        if (i == 4) continue;
+        if (sc[i] < '0' || sc[i] > '9') return false;
+    }
+    int ah = (sc[0] - '0') * 10 + (sc[1] - '0'), am = (sc[2] - '0') * 10 + (sc[3] - '0');
+    int bh = (sc[5] - '0') * 10 + (sc[6] - '0'), bm = (sc[7] - '0') * 10 + (sc[8] - '0');
+    if (ah > 23 || bh > 23 || am > 59 || bm > 59) return false;
+    *a_min = ah * 60 + am;
+    *b_min = bh * 60 + bm;
+    return true;
+}
+
+static bool wl_sched_get(const char *mac, char *out, size_t n) {
+    out[0] = '\0';
+    char list[WL_BUF];
+    whitelist_get(list, sizeof(list));
+    if (!list[0]) return false;
+    char *copy = strdup(list);
+    if (!copy) return false;
+    bool found = false;
+    char *save = NULL;
+    char *tok = strtok_r(copy, ",", &save);
+    while (tok) {
+        while (*tok == ' ') tok++;
+        char m[20], nm[64];
+        split_entry(tok, m, sizeof(m), nm, sizeof(nm));
+        if (mac_str_eq(m, mac)) {
+            const char *b1 = strchr(tok, '|');
+            const char *b2 = b1 ? strchr(b1 + 1, '|') : NULL;
+            const char *b3 = b2 ? strchr(b2 + 1, '|') : NULL;
+            if (b3) snprintf(out, n, "%.9s", b3 + 1);
+            found = true;
+            break;
+        }
+        tok = strtok_r(NULL, ",", &save);
+    }
+    free(copy);
+    return found;
+}
+
+/* true = abhi internet allowed. Time sync se pehle ya schedule na ho to hamesha true. 4 MAC ka 1 second ka cache */
+static bool wl_in_schedule(const char *mac) {
+    time_t now = time(NULL);
+    if (now < 1700000000) return true;
+    static int64_t c_t[4];
+    static char c_m[4][18];
+    static bool c_r[4];
+    static int c_next = 0;
+    int64_t us = esp_timer_get_time();
+    for (int i = 0; i < 4; i++) {
+        if (c_t[i] && us - c_t[i] < 1000000 && strcmp(c_m[i], mac) == 0) return c_r[i];
+    }
+    bool res = true;
+    char sc[12];
+    int a_min, b_min;
+    if (wl_sched_get(mac, sc, sizeof(sc)) && sc[0] && sched_parse(sc, &a_min, &b_min) && a_min != b_min) {
+        int off = get_setting_int("tz_offset", -12, 14, 5);
+        int64_t loc = (int64_t)now + (int64_t)off * 3600;
+        int cur = (int)(((loc % 86400) + 86400) % 86400 / 60);
+        if (a_min < b_min) res = (cur >= a_min && cur < b_min);
+        else res = (cur >= a_min || cur < b_min);
+    }
+    int sl = c_next; c_next = (c_next + 1) % 4;
+    c_t[sl] = us; c_r[sl] = res;
+    snprintf(c_m[sl], sizeof(c_m[sl]), "%s", mac);
+    return res;
 }
 
 /* ================= Session auth ================= */
@@ -1006,7 +1082,7 @@ static esp_err_t ap_rx_filter(void *buffer, uint16_t len, void *eb) {
     uint8_t *f = (uint8_t *)buffer;
     char mac[18];
     snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X", f[6], f[7], f[8], f[9], f[10], f[11]);
-    if (whitelist_contains(mac)) {
+    if (whitelist_contains(mac) && wl_in_schedule(mac)) {
         usage_entry_t *ue = usage_find_or_add(f + 6);
         if (ue) {
             ue->total_bytes += len;
@@ -1564,7 +1640,7 @@ static esp_err_t status_get_handler(httpd_req_t *req) {
             cJSON_AddStringToObject(c, "os", dos);
             cJSON_AddStringToObject(c, "brand", dbr);
             cJSON_AddNumberToObject(c, "rssi", sta_list.sta[i].rssi);
-            cJSON_AddBoolToObject(c, "authorized", whitelist_contains(mac));
+            cJSON_AddBoolToObject(c, "authorized", whitelist_contains(mac) && wl_in_schedule(mac));
             cJSON_AddItemToArray(clients, c);
         }
     }
@@ -1585,6 +1661,10 @@ static esp_err_t status_get_handler(httpd_req_t *req) {
                 cJSON_AddStringToObject(e, "mac", m);
                 cJSON_AddStringToObject(e, "name", n);
                 cJSON_AddNumberToObject(e, "limit_kbps", lim);
+                const char *sb1 = strchr(tok, '|');
+                const char *sb2 = sb1 ? strchr(sb1 + 1, '|') : NULL;
+                const char *sb3 = sb2 ? strchr(sb2 + 1, '|') : NULL;
+                cJSON_AddStringToObject(e, "sched", sb3 ? sb3 + 1 : "");
                 cJSON_AddItemToArray(wl, e);
                 tok = strtok(NULL, ",");
             }
@@ -1632,7 +1712,13 @@ static esp_err_t whitelist_post_handler(httpd_req_t *req) {
         if (strcmp(action->valuestring, "add") == 0) {
             cJSON *limit = cJSON_GetObjectItem(j, "limit_kbps");
             int lim = cJSON_IsNumber(limit) ? limit->valueint : 0;
-            if (!whitelist_add(norm, cJSON_IsString(name) ? name->valuestring : "", lim)) {
+            cJSON *sc = cJSON_GetObjectItem(j, "sched");
+            const char *scs = cJSON_IsString(sc) ? sc->valuestring : "";
+            int sa, sb;
+            if (scs[0] && !sched_parse(scs, &sa, &sb)) {
+                ok = false;
+                err = "time window must look like 2000-2300";
+            } else if (!whitelist_add(norm, cJSON_IsString(name) ? name->valuestring : "", lim, scs)) {
                 ok = false;
                 err = "whitelist is full";
             }
@@ -1893,7 +1979,7 @@ static esp_err_t requests_post_handler(httpd_req_t *req) {
         } else if (strcmp(action->valuestring, "approve") == 0) {
             char norm[18];
             snprintf(norm, sizeof(norm), "%02X:%02X:%02X:%02X:%02X:%02X", m[0], m[1], m[2], m[3], m[4], m[5]);
-            if (whitelist_add(norm, s_req[slot].name, 0)) { s_req[slot].used = false; ok = true; }
+            if (whitelist_add(norm, s_req[slot].name, 0, "")) { s_req[slot].used = false; ok = true; }
             else err = "whitelist is full";
         } else if (strcmp(action->valuestring, "reject") == 0) {
             s_req[slot].used = false;

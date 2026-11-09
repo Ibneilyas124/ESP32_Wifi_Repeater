@@ -258,7 +258,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
       <p class="desc">Whitelisted devices get internet. Everyone else can still reach this admin page. Limit is optional (Kbps, 0 = no limit).</p>
       <div id="reqList"></div>
       <div id="wlList"></div>
-      <div class="frow wl"><input id="newmac" placeholder="AA:BB:CC:DD:EE:FF"><input id="newname" placeholder="Name"><input id="newlimit" type="number" placeholder="Limit Kbps"></div>
+      <div class="frow wl"><input id="newmac" placeholder="AA:BB:CC:DD:EE:FF"><input id="newname" placeholder="Name"><input id="newlimit" type="number" placeholder="Limit Kbps"><input id="newsched" placeholder="Hours e.g. 2000-2300"></div>
       <div class="btnrow"><button onclick="addMac()">Add to Whitelist</button><span class="msg" id="wlMsg"></span></div>
     </div></details>
 
@@ -404,7 +404,7 @@ async function refreshStatus(){
         var row=el('div',{'class':'wlrow'});
         var nm=el('div',{'class':'nm'});
         nm.appendChild(el('b',null,w.name||w.mac));
-        nm.appendChild(el('span',null,w.mac+(w.limit_kbps?(' \u00b7 '+w.limit_kbps+' Kbps'):'')));
+        nm.appendChild(el('span',null,w.mac+(w.limit_kbps?(' \u00b7 '+w.limit_kbps+' Kbps'):'')+(w.sched?(' \u00b7 '+w.sched):'')));
         row.appendChild(nm);
         var rb=el('button',{'class':'ghost small'},'Remove');
         rb.onclick=(function(mac){ return function(){ removeMac(mac); }; })(w.mac);
@@ -428,10 +428,10 @@ async function addMac(){
   var m=$('newmac').value.trim(); if(!m){ $('wlMsg').textContent='Enter a MAC address first.'; return; }
   var n=$('newname').value.trim();
   var lim=parseInt($('newlimit').value)||0;
-  var j=await post('/api/whitelist',{action:'add',mac:m,name:n,limit_kbps:lim});
+  var j=await post('/api/whitelist',{action:'add',mac:m,name:n,limit_kbps:lim,sched:($('newsched').value||'').trim()});
   if(!j){ return; }
   if(j.ok===false){ $('wlMsg').textContent=j.error; return; }
-  $('newmac').value=''; $('newname').value=''; $('newlimit').value=''; $('wlMsg').textContent='Added.';
+  $('newmac').value=''; $('newname').value=''; $('newlimit').value=''; $('newsched').value=''; $('wlMsg').textContent='Added.';
   refreshStatus();
 }
 async function removeMac(m){

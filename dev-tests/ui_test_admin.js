@@ -21,7 +21,7 @@ const status = {
   sta_ssid: 'HomeNet', ap_ip: '192.168.4.1', wl_active: true, session_uptime_s: 4000, discon_total: 2,
   clients: [{ mac: 'AA:BB:CC:DD:EE:01', ip: '192.168.4.2', name: 'Ali phone', rssi: -55, authorized: true, vendor: 'Samsung', brand: 'Samsung', model: 'Galaxy A32 (SM-A325F)', os: 'Android 13' },
             { mac: 'AA:BB:CC:DD:EE:02', ip: '192.168.4.3', name: '', rssi: -70, authorized: false }],
-  whitelist: [{ mac: 'AA:BB:CC:DD:EE:01', name: 'Ali phone', limit_kbps: 500 }],
+  whitelist: [{ mac: 'AA:BB:CC:DD:EE:01', name: 'Ali phone', limit_kbps: 500, sched: '2000-2300' }],
   discon_log: [{ ago_s: 300, reason: 201 }, { ago_s: 9000, reason: 3 }]
 };
 const usage = { time_synced: true, devices: [{ mac: 'AA:BB:CC:DD:EE:01', name: 'Ali phone', total_bytes: 5e8, week_bytes: 2e7, month_bytes: 9e7 }],
@@ -91,6 +91,7 @@ const speed = { samples: [{ ago_s: 10, ms: 30, ok: true }, { ago_s: 900, ms: 80,
   const xss = await page.evaluate(() => { const d = el('div', { 'class': 'sub' }, '<b>x</b>'); return d.querySelectorAll('b').length === 0 && d.textContent === '<b>x</b>'; });
   T('el() shows model text as text, not HTML', xss);
   T('whitelist shows entry with limit', /500 Kbps/.test(await page.locator('#wlList').innerText()));
+  T('whitelist shows schedule', /2000-2300/.test(await page.locator('#wlList').innerText()));
   T('stability log shows plain-English reason', /Router not found/.test(await page.locator('#stabBody').innerText()));
   T('usage totals rendered', /MB|GB/.test(await page.locator('#overallUsage').innerText()));
   T('speed history bars drawn', (await page.locator('#shChart i').count()) === 3);
