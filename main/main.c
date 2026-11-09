@@ -700,27 +700,37 @@ static ua_info_t s_ua[DEVINFO_MAX];
 static int s_ua_next = 0;
 static char s_ua_buf[200];   /* sirf WiFi task (http_sniff) istemal karta hai */
 
-typedef struct { const char *pre; const char *name; } model_map_t;
-static const model_map_t MODEL_MAP[] = {
-    {"SM-A042", "Galaxy A04e"}, {"SM-A045", "Galaxy A04"}, {"SM-A055", "Galaxy A05"}, {"SM-A057", "Galaxy A05s"},
-    {"SM-A105", "Galaxy A10"}, {"SM-A107", "Galaxy A10s"}, {"SM-A127", "Galaxy A12"}, {"SM-A135", "Galaxy A13"},
-    {"SM-A145", "Galaxy A14"}, {"SM-A146", "Galaxy A14 5G"}, {"SM-A155", "Galaxy A15"},
-    {"SM-A205", "Galaxy A20"}, {"SM-A217", "Galaxy A21s"}, {"SM-A225", "Galaxy A22"}, {"SM-A236", "Galaxy A23 5G"},
-    {"SM-A307", "Galaxy A30s"}, {"SM-A325", "Galaxy A32"}, {"SM-A515", "Galaxy A51"}, {"SM-A525", "Galaxy A52"},
-    {"SM-A526", "Galaxy A52 5G"}, {"SM-A536", "Galaxy A53 5G"}, {"SM-A546", "Galaxy A54 5G"},
-    {"SM-A705", "Galaxy A70"}, {"SM-A715", "Galaxy A71"}, {"SM-A750", "Galaxy A7 (2018)"},
-    {"SM-M127", "Galaxy M12"}, {"SM-M215", "Galaxy M21"}, {"SM-M236", "Galaxy M23 5G"}, {"SM-M315", "Galaxy M31"},
-    {"SM-G960", "Galaxy S9"}, {"SM-G973", "Galaxy S10"}, {"SM-N975", "Galaxy Note10+"},
-    {"SM-G991", "Galaxy S21"}, {"SM-G996", "Galaxy S21+"}, {"SM-G998", "Galaxy S21 Ultra"},
-    {"SM-S901", "Galaxy S22"}, {"SM-S908", "Galaxy S22 Ultra"}, {"SM-S911", "Galaxy S23"}, {"SM-S918", "Galaxy S23 Ultra"},
-    {"SM-S921", "Galaxy S24"}, {"SM-S928", "Galaxy S24 Ultra"},
-};
+#include "model_table.h"
 
-static const char *model_friendly(const char *code) {
-    for (size_t i = 0; i < sizeof(MODEL_MAP) / sizeof(MODEL_MAP[0]); i++) {
-        if (strncmp(code, MODEL_MAP[i].pre, strlen(MODEL_MAP[i].pre)) == 0) return MODEL_MAP[i].name;
+/* code (jaise SM-A325F) ka marketing naam, Google ki list se; brand optional */
+static const char *model_lookup(const char *code, const char **brand) {
+    char k[40];
+    size_t n = strlen(code);
+    if (n == 0 || n >= sizeof(k)) return NULL;
+    for (size_t i = 0; i <= n; i++) {
+        char c = code[i];
+        k[i] = (c >= 'A' && c <= 'Z') ? (char)(c + 32) : c;
+    }
+    int lo = 0, hi = MODEL_COUNT - 1;
+    while (lo <= hi) {
+        int mid = (lo + hi) / 2;
+        const char *e = MODEL_BLOB + MODEL_OFF[mid];
+        int c = strcmp(e + 1, k);
+        if (c == 0) {
+            if (brand) *brand = MODEL_BRANDS[(uint8_t)e[0]];
+            return e + 1 + strlen(e + 1) + 1;
+        }
+        if (c < 0) lo = mid + 1; else hi = mid - 1;
     }
     return NULL;
+}
+
+static const char *model_friendly(const char *code) { return model_lookup(code, NULL); }
+
+static const char *model_brand(const char *code) {
+    const char *b = NULL;
+    model_lookup(code, &b);
+    return b ? b : "";
 }
 
 static const char *brand_from_model(const char *m) {
@@ -884,7 +894,7 @@ static void devinfo_get(const uint8_t mac[6], const uint8_t ip4[4],
         const char *fr = model_friendly(raw);
         if (fr) snprintf(model, mn, "%.30s (%.31s)", fr, raw);
         else snprintf(model, mn, "%.31s", raw);
-        snprintf(brand, bn, "%s", brand_from_model(raw));
+        { const char *tb = model_brand(raw); snprintf(brand, bn, "%s", tb[0] ? tb : brand_from_model(raw)); }
     }
 }
 
