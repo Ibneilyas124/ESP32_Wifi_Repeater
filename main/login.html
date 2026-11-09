@@ -2,63 +2,77 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=1000">
 <title>Ibn e Ilyas Technologies - WiFi Repeater</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;font-family:-apple-system,Segoe UI,Roboto,sans-serif;
-background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);display:flex;align-items:center;
-justify-content:center;padding:20px;color:#eee}
-.wrap{width:100%;max-width:420px}
-.brand{text-align:center;margin-bottom:22px}
-.badge{display:inline-block;background:linear-gradient(135deg,#00e0a0,#00a3ff);width:58px;height:58px;
-border-radius:16px;line-height:58px;font-size:28px;margin-bottom:10px}
-.brand h1{font-size:1.2em;margin:4px 0 2px;color:#fff;line-height:1.35}
-.brand p{margin:0;color:#9fd8c8;font-size:.9em}
-section{background:rgba(20,25,30,.78);border:1px solid rgba(255,255,255,.08);border-radius:14px;
-padding:22px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
-label{display:block;font-size:.8em;color:#9fb3b0;margin:12px 0 4px}
-input{width:100%;padding:12px;border-radius:8px;border:1px solid #33474a;background:#0f1a1d;color:#eee;font-size:15px}
-input[readonly]{color:#7fd9bd;background:#0c1416}
-input:focus{outline:none;border-color:#00e0a0}
-button{width:100%;margin-top:18px;padding:13px;border:none;border-radius:8px;
-background:linear-gradient(135deg,#00e0a0,#00a3ff);color:#06201a;font-weight:bold;font-size:15px;cursor:pointer}
-button:active{opacity:.85}
-#err{color:#ff8080;font-size:.85em;min-height:18px;margin-top:10px;text-align:center}
-footer{text-align:center;margin-top:18px;color:#6c8a86;font-size:.85em}
-footer a{color:#7fd9bd;text-decoration:none}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:16px;z-index:9}
+html,body{margin:0;min-height:100%}
+body{font-family:Roboto,"Segoe UI",Arial,sans-serif;background:#fff;color:#333}
+.banner{padding:0 16px 90px;color:#fff;border-bottom:4px solid #85c20d;
+background:radial-gradient(ellipse at 75% 105%,rgba(150,210,240,.9) 0,rgba(150,210,240,0) 55%),
+radial-gradient(ellipse at 20% 0,rgba(10,110,180,.9) 0,rgba(10,110,180,0) 60%),
+linear-gradient(170deg,#1384c6 0,#2b9fdc 55%,#1b78b8 100%)}
+.top{display:flex;align-items:center;gap:8px;padding:10px 6px;color:#bfe3f7;font-size:15px}
+.mark{width:26px;height:26px;border-radius:50%;border:2px solid #bfe3f7;display:inline-flex;align-items:center;justify-content:center;font-size:13px}
+.welcome{text-align:center;font-size:clamp(17px,4.2vw,30px);margin:34px auto 6px;max-width:900px;line-height:1.35;text-wrap:balance}
+.sub{text-align:center;color:#d4ecfa;font-size:14px;margin-bottom:34px}
+.form{max-width:380px;margin:0 auto}
+.row{display:flex;align-items:center;gap:6px;margin-bottom:12px}
+.row label{width:95px;text-align:right;font-size:14px}
+.row .f{flex:1;position:relative}
+.row input{width:100%;height:36px;border:1px solid rgba(255,255,255,.75);background:rgba(255,255,255,.14);
+color:#fff;padding:0 8px;border-radius:3px;font-size:15px}
+.row input::placeholder{color:#d4ecfa}
+.row input:focus{outline:none;border-color:#fff;background:rgba(255,255,255,.25)}
+.show{position:absolute;right:3px;top:3px;bottom:3px;width:46px;border:none;border-radius:2px;
+background:rgba(255,255,255,.85);color:#1384c6;font-size:11px;cursor:pointer}
+.login{display:block;margin-left:101px;width:calc(100% - 101px);height:44px;border:none;border-radius:3px;
+background:#fff;color:#333;font-size:15px;cursor:pointer}
+.login:active{background:#e8f3fa}
+#err{margin:12px 0 0 101px;min-height:18px;color:#ffe08a;font-size:13px}
+.foot{text-align:center;padding:16px 10px;font-size:12px;color:#888;border-bottom:1px solid #d6e6f2}
+.foot a{color:#1384c6;text-decoration:none}
+.foot .mk{display:inline-block;width:22px;height:22px;border-radius:50%;border:2px solid #c3d3de;margin-bottom:6px}
+.foot .links{margin:6px 0}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px;z-index:9}
 .modal.on{display:flex}
-.mbox{background:#141b1e;border:1px solid #2c4a50;border-radius:14px;max-width:420px;width:100%;max-height:92vh;overflow:auto;padding:20px;position:relative}
-.mbox h2{margin:0 0 4px;color:#00e0a0;font-size:1.15em}
-.mbox h3{margin:14px 0 6px;color:#9fd8c8;font-size:.95em}
+.mbox{background:#fff;border-top:4px solid #2b9fdc;border-radius:4px;max-width:420px;width:100%;max-height:92vh;overflow:auto;padding:20px;position:relative;color:#333}
+.mbox h2{margin:0 0 4px;color:#1384c6;font-size:1.15em}
+.mbox h3{margin:14px 0 6px;color:#1384c6;font-size:.95em}
 .mbox .nm{font-size:1.3em;font-weight:700;margin-bottom:8px}
 .mbox p{margin:5px 0;font-size:.92em;word-break:break-word}
-.mbox a{color:#7fd9bd}
+.mbox a{color:#1384c6}
 .mbox ul{margin:0;padding-left:18px;font-size:.92em;line-height:1.6}
-.mbox .q{margin-top:14px;font-style:italic;color:#c9e7df;text-align:center}
-.mclose{position:absolute;top:8px;right:12px;background:none;border:none;color:#aaa;font-size:24px;cursor:pointer;width:auto;margin:0;padding:0}
+.mbox .q{margin-top:14px;font-style:italic;color:#666;text-align:center}
+.mclose{position:absolute;top:6px;right:12px;background:none;border:none;color:#888;font-size:24px;cursor:pointer}
+.form{width:340px;max-width:none;margin:0 auto;position:relative}
+.row{display:block;position:relative;margin-bottom:12px}
+.row label{position:absolute;right:100%;margin-right:8px;width:auto;white-space:nowrap;line-height:36px}
+.row .f{display:block}
+.login{margin-left:0;width:100%}
+#err{margin:12px 0 0;text-align:center}
+.welcome{font-size:30px}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="brand">
-    <div class="badge">&#128225;</div>
-    <h1>This WiFi Repeater was built by<br>Sarfraz Qureshi</h1>
-    <p>Ibn e Ilyas Technologies &middot; Secure Admin Access</p>
-  </div>
-  <section>
-    <label>Username</label>
-    <input id="u" value="Sarfraz" readonly>
-    <label>Password</label>
-    <div style="position:relative">
-      <input id="p" type="password" placeholder="Enter admin password" autofocus style="padding-right:44px">
-      <button type="button" onclick="togglePw()" style="position:absolute;right:4px;top:4px;bottom:4px;width:38px;margin:0;padding:0;background:#23282a;color:#9fd8c8;border:1px solid #33474a;border-radius:6px;font-size:13px;cursor:pointer">SHOW</button>
-    </div>
-    <button onclick="doLogin()">Login</button>
+<div class="banner">
+  <div class="top"><span class="mark">&#128225;</span>Ibn e Ilyas WiFi Repeater</div>
+  <div class="welcome">This WiFi Repeater was built by Sarfraz Qureshi</div>
+  <div class="sub">Ibn e Ilyas Technologies &middot; Secure Admin Access</div>
+  <div class="form">
+    <div class="row"><label>User Name :</label><div class="f"><input id="u" value="Sarfraz" readonly></div></div>
+    <div class="row"><label>Password :</label><div class="f">
+      <input id="p" type="password" placeholder="Enter admin password" autofocus style="padding-right:54px">
+      <button type="button" class="show" id="sh" onclick="togglePw()">SHOW</button></div></div>
+    <button class="login" onclick="doLogin()">Log In</button>
     <div id="err"></div>
-  </section>
-  <footer><a href="#" onclick="openAbout();return false">About Developer</a> &nbsp;&middot;&nbsp; <a href="/tools">&#128295; WiFi Tools (no login)</a><br><span id="diagLine" style="opacity:.6"></span></footer>
+  </div>
+</div>
+<div class="foot">
+  <span class="mk"></span>
+  <div class="links"><a href="#" onclick="openAbout();return false">About Developer</a> &nbsp;&middot;&nbsp; <a href="/tools">&#128295; WiFi Tools (no login)</a></div>
+  <div id="diagLine" style="opacity:.8"></div>
+  <div>Copyright &copy; Ibn e Ilyas Technologies 2026. All rights reserved.</div>
 </div>
 
 <div class="modal" id="about" onclick="if(event.target===this)closeAbout()">
@@ -83,10 +97,10 @@ footer a{color:#7fd9bd;text-decoration:none}
 </div>
 <script>
 function openAbout(){document.getElementById('about').classList.add('on');}
+function closeAbout(){document.getElementById('about').classList.remove('on');}
 fetch('/api/me').then(function(r){return r.json();}).then(function(j){
   document.getElementById('diagLine').textContent='fw v'+j.fw+' \u00b7 factory resets: '+j.reset_count;
 }).catch(function(){});
-function closeAbout(){document.getElementById('about').classList.remove('on');}
 async function doLogin(){
   const e=document.getElementById('err'); e.textContent='';
   try{
@@ -97,7 +111,10 @@ async function doLogin(){
   }catch(x){ e.textContent='Could not reach the repeater'; }
 }
 document.getElementById('p').addEventListener('keydown',function(ev){ if(ev.key==='Enter') doLogin(); });
-function togglePw(){ var i=document.getElementById('p'); var b=event.target; if(i.type==='password'){i.type='text';b.textContent='HIDE';} else {i.type='password';b.textContent='SHOW';} }
+function togglePw(){
+  var i=document.getElementById('p'); var b=document.getElementById('sh');
+  if(i.type==='password'){i.type='text';b.textContent='HIDE';} else {i.type='password';b.textContent='SHOW';}
+}
 </script>
 </body>
 </html>
