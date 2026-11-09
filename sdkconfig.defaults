@@ -39,3 +39,6 @@ CONFIG_LWIP_TCP_RECVMBOX_SIZE=16
 CONFIG_LWIP_UDP_RECVMBOX_SIZE=16
 CONFIG_LWIP_TCPIP_RECVMBOX_SIZE=32
 
+
+# OTA: bootloader rolls back to the previous app if the new one never marks itself valid
+CONFIG_APP_ROLLBACK_ENABLE=y

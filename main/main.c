@@ -35,6 +35,7 @@
 #include "nvs.h"
 #include "cJSON.h"
 #include "lwip/ip4_addr.h"
+#include "esp_ota_ops.h"
 
 static const char *TAG = "repeater";
 
@@ -1864,6 +1865,55 @@ static esp_err_t speedhistory_get_handler(httpd_req_t *req) {
     return send_json(req, root);
 }
 
+static esp_err_t ota_fail(httpd_req_t *req, const char *status, const char *msg) {
+    httpd_resp_set_status(req, status);
+    httpd_resp_set_type(req, "text/plain");
+    httpd_resp_sendstr(req, msg);
+    return ESP_OK;
+}
+
+/* Web firmware update: raw .bin body (esp32-wifi-repeater.bin), login required */
+static esp_err_t ota_post_handler(httpd_req_t *req) {
+    if (require_session_api(req) != ESP_OK) return ESP_OK;
+    const esp_partition_t *part = esp_ota_get_next_update_partition(NULL);
+    if (!part) return ota_fail(req, "500 Internal Server Error", "No OTA partition (flash the new partition table first)");
+    size_t total = req->content_len;
+    if (total < 100000 || total > part->size) return ota_fail(req, "400 Bad Request", "Bad file size");
+    char *buf = malloc(2048);
+    if (!buf) return ota_fail(req, "500 Internal Server Error", "Out of memory");
+    esp_ota_handle_t h = 0;
+    esp_err_t err = esp_ota_begin(part, OTA_WITH_SEQUENTIAL_WRITES, &h);
+    if (err != ESP_OK) { free(buf); return ota_fail(req, "500 Internal Server Error", "OTA begin failed"); }
+    size_t got = 0;
+    int timeouts = 0;
+    bool first = true;
+    while (got < total) {
+        size_t want = total - got;
+        if (want > 2048) want = 2048;
+        int r = httpd_req_recv(req, buf, want);
+        if (r == HTTPD_SOCK_ERR_TIMEOUT) {
+            if (++timeouts > 10) r = -1; else continue;
+        }
+        if (r <= 0) { esp_ota_abort(h); free(buf); return ota_fail(req, "500 Internal Server Error", "Upload interrupted"); }
+        timeouts = 0;
+        if (first) {
+            if ((uint8_t)buf[0] != 0xE9) { esp_ota_abort(h); free(buf); return ota_fail(req, "400 Bad Request", "Not a firmware app image"); }
+            first = false;
+        }
+        err = esp_ota_write(h, buf, r);
+        if (err != ESP_OK) { esp_ota_abort(h); free(buf); return ota_fail(req, "500 Internal Server Error", "Flash write failed"); }
+        got += r;
+    }
+    free(buf);
+    err = esp_ota_end(h);
+    if (err != ESP_OK) return ota_fail(req, "400 Bad Request", "Image validation failed");
+    err = esp_ota_set_boot_partition(part);
+    if (err != ESP_OK) return ota_fail(req, "500 Internal Server Error", "Could not set boot partition");
+    send_result(req, true, NULL);
+    restart_soon();
+    return ESP_OK;
+}
+
 static esp_err_t reboot_post_handler(httpd_req_t *req) {
     if (require_session_api(req) != ESP_OK) return ESP_OK;
     send_result(req, true, NULL);
@@ -1901,6 +1951,7 @@ static void start_webserver(void) {
         {.uri = "/api/config/export",  .method = HTTP_GET,  .handler = config_export_get_handler},
         {.uri = "/api/config/import",  .method = HTTP_POST, .handler = config_import_post_handler},
         {.uri = "/api/reboot",         .method = HTTP_POST, .handler = reboot_post_handler},
+        {.uri = "/api/ota",            .method = HTTP_POST, .handler = ota_post_handler},
         {.uri = "/api/factory_reset",  .method = HTTP_POST, .handler = factory_reset_post_handler},
         {.uri = "/api/kick",           .method = HTTP_POST, .handler = kick_post_handler},
         {.uri = "/api/me",             .method = HTTP_GET,  .handler = me_get_handler},
@@ -1920,6 +1971,8 @@ static void start_webserver(void) {
         httpd_register_uri_handler(server, &uris[i]);
     }
     ESP_LOGI(TAG, "Web dashboard started on port 80");
+    /* Web server is up: confirm this image is good (rollback cancelled) */
+    esp_ota_mark_app_valid_cancel_rollback();
 }
 
 void app_main(void) {

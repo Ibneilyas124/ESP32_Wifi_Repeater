@@ -131,6 +131,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
     <a data-sec="d-wl" onclick="go('d-wl')">MAC Whitelist</a>
     <a data-sec="d-adv" onclick="go('d-adv')">Advanced Settings</a>
     <a data-sec="d-backup" onclick="go('d-backup')">Config Backup</a>
+    <a data-sec="d-ota" onclick="go('d-ota')">Firmware Update</a>
     <a data-sec="d-danger" onclick="go('d-danger')">Danger Zone</a>
   </div>
 
@@ -272,6 +273,12 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
       <div class="btnrow"><button onclick="exportCfg()">Export Config</button><button onclick="importCfg()">Import Config</button></div>
     </div></details>
 
+    <details class="sec" id="d-ota"><summary>Firmware Update</summary><div class="body">
+      <small class="hint">Choose esp32-wifi-repeater.bin (not the full-flash file). The device restarts after install; a bad image rolls back automatically.</small>
+      <input type="file" id="otafile" accept=".bin">
+      <div class="btnrow"><button onclick="otaUpload()">Upload and Install</button></div>
+      <small class="hint" id="otaStatus"></small>
+    </div></details>
     <details class="sec" id="d-danger"><summary>Danger Zone</summary><div class="body">
       <p class="desc">These actions restart the repeater or erase its settings.</p>
     <button class="danger" onclick="doReboot()">Reboot Device</button>
@@ -284,7 +291,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
 
 <script>
 (function(){
-  var SECS={home:['p-home'],sys:['p-info','d-usage','d-speed','d-stab'],adv:['d-wifi','d-wl','d-adv','d-backup','d-danger']};
+  var SECS={home:['p-home'],sys:['p-info','d-usage','d-speed','d-stab'],adv:['d-wifi','d-wl','d-adv','d-backup','d-ota','d-danger']};
   var cur=null, last={home:'p-home',sys:'p-info',adv:'d-wifi'};
   function groupOf(id){ for(var g in SECS){ if(SECS[g].indexOf(id)>=0) return g; } return 'home'; }
   window.go=function(id){
@@ -549,6 +556,22 @@ async function saveSettings(){
 }
 
 /* ---------------- BACKUP ---------------- */
+function otaUpload(){
+  var f=$('otafile').files[0], st=$('otaStatus');
+  if(!f){ st.textContent='Choose esp32-wifi-repeater.bin first.'; return; }
+  if(f.size<100000||f.size>1966080){ st.textContent='File size looks wrong for a firmware image.'; return; }
+  if(!confirm('Install this firmware now? The device will restart.')) return;
+  var x=new XMLHttpRequest();
+  x.open('POST','/api/ota');
+  x.setRequestHeader('Content-Type','application/octet-stream');
+  x.upload.onprogress=function(e){ if(e.lengthComputable) st.textContent='Uploading '+Math.round(e.loaded*100/e.total)+'%'; };
+  x.onload=function(){
+    if(x.status===401){ location.href='/'; return; }
+    st.textContent=(x.status===200)?'Installed. Device is restarting, reconnect in about 30 seconds.':'Update failed: '+x.responseText;
+  };
+  x.onerror=function(){ st.textContent='Connection lost (the device may be restarting).'; };
+  x.send(f);
+}
 async function exportCfg(){
   try{ var r=await fetch('/api/config/export'); if(authFail(r))return; $('importbox').value=await r.text(); }
   catch(e){ $('importbox').value=''; }
