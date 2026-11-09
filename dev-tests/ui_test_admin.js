@@ -57,19 +57,28 @@ const speed = { samples: [{ ago_s: 10, ms: 30, ok: true }, { ago_s: 900, ms: 80,
   const T = (name, ok, extra) => { result[name] = ok; console.log((ok ? 'PASS ' : 'FAIL ') + name + (extra ? '  -> ' + extra : '')); };
 
   // 1. Status grid rendered (not stuck on Loading...)
+  await page.evaluate(() => window.go('p-info'));
+  await page.waitForTimeout(150);
   const statTxt = await page.locator('#statGrid').innerText();
   T('status grid renders real data', /Connected/.test(statTxt) && /192\.168\.1\.50/.test(statTxt), statTxt.replace(/\n/g, ' | ').slice(0, 90));
   T('header shows firmware version', /v2\.1\.0/.test(await page.locator('#fwLine').innerText()));
   T('arrow icon is real symbol, not "\\25BE" text', !(await page.evaluate(() => getComputedStyle(document.querySelector('summary'), '::after').content)).includes('25BE'),
     await page.evaluate(() => getComputedStyle(document.querySelector('summary'), '::after').content));
 
-  // 2. Every collapsible section opens by tapping its title
-  for (const id of ['d-clients', 'd-wl', 'd-wifi', 'd-usage', 'd-speed', 'd-stab', 'd-adv', 'd-backup', 'd-danger']) {
-    await page.locator('#' + id + ' > summary').click();
+  // 2. Every section shows through the menu (one section at a time)
+  const goSec = id => page.evaluate(i => window.go(i), id);
+  for (const id of ['p-home', 'p-info', 'd-usage', 'd-speed', 'd-stab', 'd-wifi', 'd-wl', 'd-adv', 'd-backup', 'd-danger']) {
+    await goSec(id);
     await page.waitForTimeout(150);
-    T('section opens: ' + id, await page.locator('#' + id).evaluate(e => e.open));
+    T('section shows: ' + id, await page.locator('#' + id).evaluate(e => e.classList.contains('show')));
+    if (id.startsWith('d-')) T('details open: ' + id, await page.locator('#' + id).evaluate(e => e.open));
   }
-  await page.waitForTimeout(500);
+  T('only one section visible at a time', (await page.locator('.sec.show').count()) === 1);
+  await page.locator('#nv-home').click(); await page.waitForTimeout(150);
+  T('menu: Home Page click shows p-home', await page.locator('#p-home').evaluate(e => e.classList.contains('show')));
+  await page.locator('g[onclick="toggleDevs()"]').click(); await page.waitForTimeout(200);
+  T('topology click shows d-clients on Home', await page.locator('#d-clients').evaluate(e => e.classList.contains('show')));
+  await page.waitForTimeout(300);
 
   // 3. Client + whitelist tables populated
   T('connected devices shown as 2 cards', (await page.locator('#clientsTbl .dev').count()) === 2);
@@ -79,6 +88,7 @@ const speed = { samples: [{ ago_s: 10, ms: 30, ok: true }, { ago_s: 900, ms: 80,
   T('usage totals rendered', /MB|GB/.test(await page.locator('#overallUsage').innerText()));
   T('speed history bars drawn', (await page.locator('#shChart i').count()) === 3);
 
+  await goSec('d-wifi');
   // 4. Upstream WiFi: show-password toggle + Save & Reboot
   await page.fill('#sta_ssid', 'MyRouter');
   await page.fill('#sta_pass', 'secret1234');
@@ -92,6 +102,7 @@ const speed = { samples: [{ ago_s: 10, ms: 30, ok: true }, { ago_s: 900, ms: 80,
   T('Save & Reboot sends POST /api/wifi', !!wp && JSON.parse(wp.body).ssid === 'MyRouter' && JSON.parse(wp.body).password === 'secret1234', wp && wp.body);
   T('Save shows feedback message', /rebooting/i.test(await page.locator('#wifiMsg').innerText()));
 
+  await goSec('d-adv');
   // 5. Advanced settings: grouped, fields, show/hide, fill defaults, save
   const groups = await page.locator('#advGroups > details.subgroup > summary').allInnerTexts();
   T('advanced settings has 4 groups', groups.length === 4, groups.join(' | '));
@@ -107,6 +118,7 @@ const speed = { samples: [{ ago_s: 10, ms: 30, ok: true }, { ago_s: 900, ms: 80,
   const sp = posts.find(p => p.path === '/api/settings');
   T('Save settings sends every key', !!sp && Object.keys(JSON.parse(sp.body)).length === items.length, sp && Object.keys(JSON.parse(sp.body)).length + ' keys');
 
+  await goSec('d-wl');
   // 6. Whitelist add / remove, kick
   await page.fill('#newmac', 'AA:BB:CC:00:11:22'); await page.fill('#newname', 'Test'); await page.fill('#newlimit', '300');
   await page.locator('#d-wl button:has-text("Add to Whitelist")').click(); await page.waitForTimeout(300);
@@ -114,16 +126,19 @@ const speed = { samples: [{ ago_s: 10, ms: 30, ok: true }, { ago_s: 900, ms: 80,
   T('whitelist add POST has mac/name/limit', !!wl && JSON.parse(wl.body).limit_kbps === 300);
   await page.locator('#wlList button:has-text("Remove")').first().click(); await page.waitForTimeout(300);
   T('whitelist remove POST sent', posts.some(p => p.path === '/api/whitelist' && JSON.parse(p.body).action === 'remove'));
+  await goSec('p-home'); await page.evaluate(() => { const d = document.getElementById('d-clients'); if (!d.classList.contains('show')) toggleDevs(); });
   await page.locator('#clientsTbl button:has-text("Kick")').first().click(); await page.waitForTimeout(300);
   T('kick POST sent', posts.some(p => p.path === '/api/kick'));
   await page.locator('#clientsTbl button:has-text("+WL")').nth(1).click();
   T('+WL prefills MAC field', (await page.inputValue('#newmac')) === 'AA:BB:CC:DD:EE:02');
 
+  await goSec('d-backup');
   // 7. Backup + danger zone + logout
   await page.locator('#d-backup button:has-text("Export")').click(); await page.waitForTimeout(300);
   T('export fills the box', /Sarfraz/.test(await page.inputValue('#importbox')));
   await page.locator('#d-backup button:has-text("Import")').click(); await page.waitForTimeout(300);
   T('import POST sent', posts.some(p => p.path === '/api/config/import'));
+  await goSec('d-danger');
   await page.locator('#d-danger button:has-text("Reboot")').click(); await page.waitForTimeout(200);
   T('reboot POST sent', posts.some(p => p.path === '/api/reboot'));
   await page.locator('#d-danger button:has-text("Factory Reset")').click(); await page.waitForTimeout(200);
@@ -131,16 +146,14 @@ const speed = { samples: [{ ago_s: 10, ms: 30, ok: true }, { ago_s: 900, ms: 80,
 
   T('no JS errors on the page', errors.length === 0, errors.join(' || '));
 
-  // Screenshots for visual check
-  await page.evaluate(() => { document.querySelectorAll('details').forEach(d => d.open = false); window.scrollTo(0, 0); });
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: '/tmp/closed.png', fullPage: true });
-  await page.evaluate(() => { ['d-clients','d-wl','d-adv'].forEach(i => document.getElementById(i).open = true); document.querySelectorAll('#advGroups details').forEach(d=>d.open=true); });
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: '/tmp/open.png', fullPage: true });
-  await page.evaluate(() => { document.querySelectorAll('details').forEach(d => d.open = false); ['d-usage','d-speed','d-stab','d-wifi','d-backup','d-danger'].forEach(i => document.getElementById(i).open = true); window.scrollTo(0,0); });
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: '/tmp/open2.png', fullPage: true });
+  // Screenshots for visual check: one per menu section
+  for (const id of ['p-home', 'p-info', 'd-usage', 'd-speed', 'd-stab', 'd-wifi', 'd-wl', 'd-adv', 'd-backup', 'd-danger']) {
+    await goSec(id);
+    if (id === 'p-home') await page.evaluate(() => { const d = document.getElementById('d-clients'); if (!d.classList.contains('show')) toggleDevs(); });
+    if (id === 'd-adv') await page.evaluate(() => document.querySelectorAll('#advGroups details').forEach(d => d.open = true));
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: '/tmp/admin_' + id + '.png', fullPage: true });
+  }
   // layout guard: nothing may be wider than the 380px screen
   const overflow = await page.evaluate(() => { const w = document.documentElement.clientWidth; const bad = []; document.querySelectorAll('button,input,select,textarea,.card,.stat').forEach(e => { const r = e.getBoundingClientRect(); if (r.width > 0 && (r.right > w + 1 || r.left < -1)) bad.push((e.id || e.className || e.tagName) + ':' + Math.round(r.right)); }); return {w, bad}; });
   T('no element overflows the screen width', overflow.bad.length === 0, 'screen ' + overflow.w + 'px ' + overflow.bad.slice(0,6).join(', '));
