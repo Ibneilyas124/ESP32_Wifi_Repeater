@@ -39,7 +39,7 @@
 6. One-Click Diagnosis menu item admin mein (Diagnose abhi tools.html mein hai); FEATURES.md update DONE (vendor, hostname, OTA, design, flash note; OTA asal test baqi)
 7. Naye features ki soch: jo Sarfraz kahe (poochna)
 8. Phone model/OS ka asal device test: kaun se phones par brand/model/OS aaya; phir MODEL_MAP un brands (Xiaomi, Infinix, Tecno...) ke hisaab se bharna. Sarfraz ke phones ka brand/browser abhi nahi pata (poochna)
-9. Abhi chal raha kaam: One-Click Diagnosis menu item admin.html mein PEHLE SE hai (line ~114, href=/tools, ids/SECS na chhedo). Baqi kaam: link /tools#dg ho aur tools.html start-up par location.hash 'dg' ho to showTab('dg') chale (script logic na chhedo, sirf aik chhoti line); ui_test_tools.js mein hash test. Abhi koi edit nahi hui
+9. Abhi chal raha kaam: (EDIT LAG CHUKI, Actions build GREEN ka intezar; baqi ui_test_tools.js mein /tools#dg hash test) One-Click Diagnosis menu item admin.html mein PEHLE SE hai, ab href=/tools#dg aur tools.html hash se Diagnose tab kholta + runDiag() chalata hai. Purani note: One-Click Diagnosis menu item admin.html mein PEHLE SE hai (line ~114, href=/tools, ids/SECS na chhedo). Baqi kaam: link /tools#dg ho aur tools.html start-up par location.hash 'dg' ho to showTab('dg') chale (script logic na chhedo, sirf aik chhoti line); ui_test_tools.js mein hash test. Abhi koi edit nahi hui
 
 ## Huawei design (screenshots ka khulasa)
 - Upar halki neeli bar (~#5bb4ef): left model naam, right links; Left: patli icon column, active item neela + chhota teer; sub-menu grey column; Content: halka neela-safed background (#f5f8fc), bara title + patli line, orange description text, safed tables grey header, safed buttons border ke saath

@@ -214,6 +214,8 @@ function showTab(id){
   if(id==='de'){ loadDeauth(); deTimer=setInterval(loadDeauth,3000); }
   if(id==='sp'){ loadSpeedHistory(); }
 }
+/* /tools#dg: admin ka One-Click Diagnosis link seedha Diagnose tab kholta aur check chalata hai */
+(function(){ var h=(location.hash||'').replace('#',''); if(['an','de','sp','dg'].indexOf(h)>=0){ showTab(h); if(h==='dg') runDiag(); } })();
 
 /* ---------- Vendor lookup (offline list of common router/AP makers) ---------- */
 var OUI={};
