@@ -616,7 +616,84 @@ static void update_subnet_cache(void) {
     s_subnet_base = esp_ip4addr_aton(ip) & s_subnet_mask;
 }
 
+/* ---- DHCP hostname (option 12) sniffing: phone ka naam Connected Devices ke liye.
+ * Sirf padhta hai, packet kabhi nahi badalta; ap_rx_filter ki pehli line se chalta hai
+ * (guest_filter on ho ya off). Table sirf RAM mein, boot par khali. ---- */
+#define DHCP_HOST_MAX 16
+typedef struct { uint8_t mac[6]; char name[32]; bool used; } dhcp_host_t;
+static dhcp_host_t s_dhcp_host[DHCP_HOST_MAX];
+static int s_dhcp_host_next = 0;
+
+/* name hamesha 32 bytes ka, NUL-terminated array hona chahiye */
+static void dhcp_host_store(const uint8_t mac[6], const char name[32]) {
+    int slot = -1;
+    for (int i = 0; i < DHCP_HOST_MAX; i++) {
+        if (s_dhcp_host[i].used && memcmp(s_dhcp_host[i].mac, mac, 6) == 0) { slot = i; break; }
+    }
+    if (slot < 0) {
+        for (int i = 0; i < DHCP_HOST_MAX; i++) {
+            if (!s_dhcp_host[i].used) { slot = i; break; }
+        }
+    }
+    if (slot < 0) {
+        slot = s_dhcp_host_next;
+        s_dhcp_host_next = (s_dhcp_host_next + 1) % DHCP_HOST_MAX;
+    }
+    s_dhcp_host[slot].used = false;
+    memcpy(s_dhcp_host[slot].mac, mac, 6);
+    memcpy(s_dhcp_host[slot].name, name, 32);
+    s_dhcp_host[slot].used = true;
+}
+
+static bool dhcp_host_lookup(const uint8_t mac[6], char *out, size_t n) {
+    for (int i = 0; i < DHCP_HOST_MAX; i++) {
+        if (s_dhcp_host[i].used && memcmp(s_dhcp_host[i].mac, mac, 6) == 0) {
+            snprintf(out, n, "%s", s_dhcp_host[i].name);
+            return true;
+        }
+    }
+    return false;
+}
+
+static void dhcp_sniff(const uint8_t *f, uint16_t len) {
+    if (len < 14 + 20 + 8 + 240) return;
+    if (f[12] != 0x08 || f[13] != 0x00) return;          /* IPv4 */
+    if ((f[14] >> 4) != 4) return;
+    int ihl = (f[14] & 0x0F) * 4;
+    if (ihl < 20 || f[23] != 17) return;                 /* UDP */
+    int u = 14 + ihl;
+    if (len < u + 8 + 240) return;
+    if (f[u + 2] != 0 || f[u + 3] != 67) return;         /* dest port 67 (DHCP server) */
+    const uint8_t *d = f + u + 8;
+    int n = len - (u + 8);
+    if (d[0] != 1) return;                               /* BOOTREQUEST */
+    if (d[236] != 0x63 || d[237] != 0x82 || d[238] != 0x53 || d[239] != 0x63) return;
+    int i = 240;
+    while (i < n) {
+        uint8_t code = d[i];
+        if (code == 255) break;
+        if (code == 0) { i++; continue; }
+        if (i + 1 >= n) break;
+        int l = d[i + 1];
+        if (i + 2 + l > n) break;
+        if (code == 12 && l > 0) {
+            char nm[32];
+            int k = 0;
+            for (int j = 0; j < l && k < 31; j++) {
+                uint8_t ch = d[i + 2 + j];
+                if (ch >= 0x20 && ch <= 0x7E) nm[k++] = (char)ch;
+            }
+            nm[k] = 0;
+            for (int z = k + 1; z < 32; z++) nm[z] = 0;
+            if (k > 0) dhcp_host_store(f + 6, nm);
+            break;
+        }
+        i += 2 + l;
+    }
+}
+
 static esp_err_t ap_rx_filter(void *buffer, uint16_t len, void *eb) {
+    dhcp_sniff((const uint8_t *)buffer, len);
     if (!s_guest_filter_on || len < 14) {
         esp_netif_receive(s_ap_netif, buffer, len, eb);
         return ESP_OK;
@@ -1159,6 +1236,7 @@ static esp_err_t status_get_handler(httpd_req_t *req) {
             snprintf(ipstr, sizeof(ipstr), IPSTR, IP2STR(&pairs[i].ip));
             char name[64] = "";
             whitelist_get_name(mac, name, sizeof(name));
+            if (!name[0]) dhcp_host_lookup(sta_list.sta[i].mac, name, sizeof(name));
 
             cJSON *c = cJSON_CreateObject();
             cJSON_AddStringToObject(c, "mac", mac);
