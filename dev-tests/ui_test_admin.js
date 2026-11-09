@@ -67,7 +67,7 @@ const speed = { samples: [{ ago_s: 10, ms: 30, ok: true }, { ago_s: 900, ms: 80,
 
   // 2. Every section shows through the menu (one section at a time)
   const goSec = id => page.evaluate(i => window.go(i), id);
-  for (const id of ['p-home', 'p-info', 'd-usage', 'd-speed', 'd-stab', 'd-wifi', 'd-wl', 'd-adv', 'd-backup', 'd-danger']) {
+  for (const id of ['p-home', 'p-info', 'd-usage', 'd-speed', 'd-stab', 'd-wifi', 'd-wl', 'd-adv', 'd-backup', 'd-ota', 'd-danger']) {
     await goSec(id);
     await page.waitForTimeout(150);
     T('section shows: ' + id, await page.locator('#' + id).evaluate(e => e.classList.contains('show')));
@@ -144,10 +144,19 @@ const speed = { samples: [{ ago_s: 10, ms: 30, ok: true }, { ago_s: 900, ms: 80,
   await page.locator('#d-danger button:has-text("Factory Reset")').click(); await page.waitForTimeout(200);
   T('factory reset POST sent', posts.some(p => p.path === '/api/factory_reset'));
 
+  // 8. Firmware Update section (no real upload is ever sent)
+  await goSec('d-ota');
+  T('ota: file input and upload button exist', (await page.locator('#otafile').count()) === 1 && (await page.locator('#d-ota button:has-text("Upload")').count()) === 1);
+  await page.locator('#d-ota button:has-text("Upload")').click(); await page.waitForTimeout(200);
+  T('ota: no file chosen -> message, no request', /choose/i.test(await page.locator('#otaStatus').innerText()) && !posts.some(p => p.path === '/api/ota'), await page.locator('#otaStatus').innerText());
+  await page.setInputFiles('#otafile', { name: 'tiny.bin', mimeType: 'application/octet-stream', buffer: Buffer.alloc(10) });
+  await page.locator('#d-ota button:has-text("Upload")').click(); await page.waitForTimeout(200);
+  T('ota: tiny file rejected in browser, no request', /size/i.test(await page.locator('#otaStatus').innerText()) && !posts.some(p => p.path === '/api/ota'), await page.locator('#otaStatus').innerText());
+
   T('no JS errors on the page', errors.length === 0, errors.join(' || '));
 
   // Screenshots for visual check: one per menu section
-  for (const id of ['p-home', 'p-info', 'd-usage', 'd-speed', 'd-stab', 'd-wifi', 'd-wl', 'd-adv', 'd-backup', 'd-danger']) {
+  for (const id of ['p-home', 'p-info', 'd-usage', 'd-speed', 'd-stab', 'd-wifi', 'd-wl', 'd-adv', 'd-backup', 'd-ota', 'd-danger']) {
     await goSec(id);
     if (id === 'p-home') await page.evaluate(() => { const d = document.getElementById('d-clients'); if (!d.classList.contains('show')) toggleDevs(); });
     if (id === 'd-adv') await page.evaluate(() => document.querySelectorAll('#advGroups details').forEach(d => d.open = true));
