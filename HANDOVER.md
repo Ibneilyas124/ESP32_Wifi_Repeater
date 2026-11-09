@@ -7,6 +7,7 @@
 - GitHub Actions build GREEN hone tak agla phase shuru nahi karna (Sarfraz "Greened successfully" likhta hai)
 - Sabaq: push se pehle `git pull --rebase`; push ka exit code check karna (git push | tail se ghalat result aata hai); force push kabhi nahi; fetch ke baghair "sync hai" mat kehna
 - Sabaq: file ka jo hissa dekha nahi us par edit na likhna, pehle read-only dump mangna. Edit scripts mein har anchor ka aik hi baar milna check karo, warna ABORT (kuch na likho). Pehle se hua ho to bhi ABORT
+- Checkpoint hamesha ready: Sarfraz ki limit kisi bhi waqt khatam ho sakti hai. Har step ke command mein HANDOVER.md update + commit + push shamil ho, aur 'Abhi chal raha kaam' line (neeche PENDING 9) hamesha current rakho
 - Time kam se kam: jo kuch parhna ho woh aik hi bare command mein mango (alag alag commands nahi); checkpoint/handover mein bhi yehi rule
 - Sabaq: apni ghalti turant maan lo (misal: maine ghalat kaha tha ke partitions.csv mein 2 OTA slots hain, asal mein sirf factory tha, ab theek kiya)
 
@@ -38,6 +39,7 @@
 6. One-Click Diagnosis menu item admin mein (Diagnose abhi tools.html mein hai); FEATURES.md update DONE (vendor, hostname, OTA, design, flash note; OTA asal test baqi)
 7. Naye features ki soch: jo Sarfraz kahe (poochna)
 8. Phone model/OS ka asal device test: kaun se phones par brand/model/OS aaya; phir MODEL_MAP un brands (Xiaomi, Infinix, Tecno...) ke hisaab se bharna. Sarfraz ke phones ka brand/browser abhi nahi pata (poochna)
+9. Abhi chal raha kaam: One-Click Diagnosis menu item admin.html mein (Diagnose tools.html mein hai, /api/diag aur /api/diag/start). Pehle admin.html menu/go()/SECS, tools.html diag script aur ui_test_admin.js menu checks parhe ja rahe hain; abhi koi edit nahi hui
 
 ## Huawei design (screenshots ka khulasa)
 - Upar halki neeli bar (~#5bb4ef): left model naam, right links; Left: patli icon column, active item neela + chhota teer; sub-menu grey column; Content: halka neela-safed background (#f5f8fc), bara title + patli line, orange description text, safed tables grey header, safed buttons border ke saath
