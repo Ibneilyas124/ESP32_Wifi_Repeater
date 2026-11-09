@@ -1,0 +1,1 @@
+- Vendor (OUI) DONE: main/oui_table.h (IEEE MA-L se 8925 entries, 26 companies, ~44KB flash), main.c oui_vendor_lookup + clients JSON 'vendor', admin.html MAC ke saath company; random MAC par 'Private MAC'. Actions build ka intezar, size check baqi
