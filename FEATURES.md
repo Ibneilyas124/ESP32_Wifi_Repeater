@@ -72,8 +72,10 @@ admin dashboard header too).
   HTTP requests on port 80 (Android's connectivity check is enough, the
   phone need not open the admin page), the User-Agent of requests to the
   repeater's own pages, and DHCP option 60 (Android version / Windows).
-  Friendly names exist only for common Samsung codes so far; other models
-  show the raw code. Limits: recent Chrome hides the model in its
+  Friendly names come from a table generated from Google's supported-devices
+  list (Samsung, Xiaomi/Redmi/POCO, OPPO, realme, vivo, Infinix, Tecno, itel,
+  Motorola, OnePlus, Huawei, Honor, Google, Nokia); a model missing from it
+  shows the raw code. Limits: recent Chrome hides the model in its
   User-Agent, iPhones never reveal their model over WiFi (only
   "Apple · iPhone · iOS"), and nothing shows until the device has made at
   least one HTTP request. Held in RAM only (16 devices), cleared on reboot
