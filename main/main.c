@@ -655,6 +655,21 @@ static bool dhcp_host_lookup(const uint8_t mac[6], char *out, size_t n) {
     return false;
 }
 
+#include "oui_table.h"
+
+/* MAC ke pehle 3 bytes se company; locally-administered (private/random) MAC ki company nahi hoti */
+static const char *oui_vendor_lookup(const uint8_t mac[6]) {
+    if (mac[0] & 0x02) return "Private MAC";
+    uint32_t key = ((uint32_t)mac[0] << 16) | ((uint32_t)mac[1] << 8) | mac[2];
+    int lo = 0, hi = OUI_COUNT - 1;
+    while (lo <= hi) {
+        int mid = (lo + hi) / 2;
+        if (OUI_KEYS[mid] == key) return OUI_NAMES[OUI_VEN[mid]];
+        if (OUI_KEYS[mid] < key) lo = mid + 1; else hi = mid - 1;
+    }
+    return "";
+}
+
 static void dhcp_sniff(const uint8_t *f, uint16_t len) {
     if (len < 14 + 20 + 8 + 240) return;
     if (f[12] != 0x08 || f[13] != 0x00) return;          /* IPv4 */
@@ -1242,6 +1257,7 @@ static esp_err_t status_get_handler(httpd_req_t *req) {
             cJSON_AddStringToObject(c, "mac", mac);
             cJSON_AddStringToObject(c, "ip", ipstr);
             cJSON_AddStringToObject(c, "name", name);
+            cJSON_AddStringToObject(c, "vendor", oui_vendor_lookup(sta_list.sta[i].mac));
             cJSON_AddNumberToObject(c, "rssi", sta_list.sta[i].rssi);
             cJSON_AddBoolToObject(c, "authorized", whitelist_contains(mac));
             cJSON_AddItemToArray(clients, c);

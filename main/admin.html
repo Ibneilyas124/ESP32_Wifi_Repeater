@@ -378,7 +378,7 @@ async function refreshStatus(){
         kb.onclick=(function(mac){ return function(){ kickDevice(mac); }; })(c.mac);
         top.appendChild(wb); top.appendChild(kb);
         dev.appendChild(top);
-        dev.appendChild(el('div',{'class':'sub'},c.mac+' \u00b7 '+c.ip+' \u00b7 '+c.rssi+' dBm'));
+        dev.appendChild(el('div',{'class':'sub'},c.mac+(c.vendor?' ('+c.vendor+')':'')+' \u00b7 '+c.ip+' \u00b7 '+c.rssi+' dBm'));
         ct.appendChild(dev);
       });
     }
