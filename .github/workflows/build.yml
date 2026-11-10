@@ -15,6 +15,9 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Stamp build number
+        run: echo "#define FW_BUILD ${{ github.run_number }}" > main/build_num.h
+
       - name: Build with ESP-IDF
         uses: espressif/esp-idf-ci-action@v1
         with:

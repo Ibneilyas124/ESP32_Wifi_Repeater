@@ -2687,10 +2687,155 @@ static esp_err_t factory_reset_post_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+/* ================= Online update (GitHub releases): admin "Check for update" / "Update now" ================= */
+#include <time.h>
+#include <strings.h>
+#include "esp_http_client.h"
+#include "esp_https_ota.h"
+#include "esp_crt_bundle.h"
+#include "esp_heap_caps.h"
+#include "build_num.h"
+
+#define UPD_BASE_URL "https://github.com/Ibneilyas124/esp32-wifi-repeater/releases/"
+/* state: 0 idle, 1 checking, 2 update available, 3 up to date, 4 installing, 5 done (restarting), 6 error */
+static volatile int s_upd_state = 0;
+static volatile int s_upd_action = 0;   /* 0 check, 1 install */
+static volatile int s_upd_latest = 0;
+static volatile int s_upd_pct = 0;
+static char s_upd_msg[96];
+static char s_upd_loc[300];
+static char s_upd_url[160];
+
+static esp_err_t upd_http_evt(esp_http_client_event_t *e) {
+    if (e->event_id == HTTP_EVENT_ON_HEADER && e->header_key && e->header_value &&
+        strcasecmp(e->header_key, "Location") == 0) {
+        snprintf(s_upd_loc, sizeof(s_upd_loc), "%s", e->header_value);
+    }
+    return ESP_OK;
+}
+
+static void upd_check(void) {
+    s_upd_loc[0] = 0;
+    esp_http_client_config_t c = {0};
+    c.url = UPD_BASE_URL "latest";
+    c.event_handler = upd_http_evt;
+    c.crt_bundle_attach = esp_crt_bundle_attach;
+    c.disable_auto_redirect = true;
+    c.timeout_ms = 15000;
+    c.buffer_size = 1024;
+    esp_http_client_handle_t cl = esp_http_client_init(&c);
+    if (!cl) { snprintf(s_upd_msg, sizeof(s_upd_msg), "http init failed"); s_upd_state = 6; return; }
+    esp_err_t e = esp_http_client_perform(cl);
+    int code = esp_http_client_get_status_code(cl);
+    esp_http_client_cleanup(cl);
+    if (e != ESP_OK) {
+        snprintf(s_upd_msg, sizeof(s_upd_msg), "could not reach GitHub (%s)", esp_err_to_name(e));
+        s_upd_state = 6; return;
+    }
+    const char *p = strstr(s_upd_loc, "/tag/build-");
+    int n = p ? atoi(p + 11) : 0;
+    if (n <= 0) {
+        snprintf(s_upd_msg, sizeof(s_upd_msg), "unexpected reply from GitHub (HTTP %d)", code);
+        s_upd_state = 6; return;
+    }
+    s_upd_latest = n;
+    s_upd_state = (n > FW_BUILD) ? 2 : 3;
+}
+
+static void upd_install(void) {
+    snprintf(s_upd_url, sizeof(s_upd_url), UPD_BASE_URL "download/build-%d/esp32-wifi-repeater.bin", s_upd_latest);
+    esp_http_client_config_t hc = {0};
+    hc.url = s_upd_url;
+    hc.crt_bundle_attach = esp_crt_bundle_attach;
+    hc.timeout_ms = 20000;
+    hc.buffer_size = 2048;
+    hc.buffer_size_tx = 1024;
+    hc.keep_alive_enable = true;
+    esp_https_ota_config_t oc = {0};
+    oc.http_config = &hc;
+    esp_https_ota_handle_t h = NULL;
+    esp_err_t err = esp_https_ota_begin(&oc, &h);
+    if (err != ESP_OK) {
+        snprintf(s_upd_msg, sizeof(s_upd_msg), "download could not start (%s)", esp_err_to_name(err));
+        s_upd_state = 6; return;
+    }
+    int total = esp_https_ota_get_image_size(h);
+    while ((err = esp_https_ota_perform(h)) == ESP_ERR_HTTPS_OTA_IN_PROGRESS) {
+        if (total > 0) s_upd_pct = (int)((int64_t)esp_https_ota_get_image_len_read(h) * 100 / total);
+    }
+    if (err == ESP_OK && esp_https_ota_is_complete_data_received(h)) {
+        err = esp_https_ota_finish(h);
+        if (err == ESP_OK) { s_upd_pct = 100; s_upd_state = 5; restart_soon(); return; }
+        snprintf(s_upd_msg, sizeof(s_upd_msg), "image check failed (%s)", esp_err_to_name(err));
+    } else {
+        esp_https_ota_abort(h);
+        snprintf(s_upd_msg, sizeof(s_upd_msg), "download failed (%s)", esp_err_to_name(err));
+    }
+    s_upd_state = 6;
+}
+
+static void upd_task(void *arg) {
+    if (time(NULL) < 1700000000) {
+        snprintf(s_upd_msg, sizeof(s_upd_msg), "clock not synced yet - wait a minute and try again");
+        s_upd_state = 6;
+    } else if (s_upd_action == 0) {
+        upd_check();
+    } else {
+        upd_install();
+    }
+    vTaskDelete(NULL);
+}
+
+static esp_err_t update_get_handler(httpd_req_t *req) {
+    if (require_session_api(req) != ESP_OK) return ESP_OK;
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "state", s_upd_state);
+    cJSON_AddNumberToObject(root, "cur", FW_BUILD);
+    cJSON_AddNumberToObject(root, "latest", s_upd_latest);
+    cJSON_AddNumberToObject(root, "pct", s_upd_pct);
+    cJSON_AddStringToObject(root, "msg", s_upd_msg);
+    return send_json(req, root);
+}
+
+static esp_err_t update_start_post_handler(httpd_req_t *req) {
+    if (require_session_api(req) != ESP_OK) return ESP_OK;
+    char buf[64] = {0};
+    read_body(req, buf, sizeof(buf));
+    cJSON *j = cJSON_Parse(buf);
+    if (!j) return send_result(req, false, "invalid data");
+    cJSON *a = cJSON_GetObjectItem(j, "action");
+    int act = -1;
+    if (cJSON_IsString(a)) {
+        if (strcmp(a->valuestring, "check") == 0) act = 0;
+        else if (strcmp(a->valuestring, "install") == 0) act = 1;
+    }
+    cJSON_Delete(j);
+    if (act < 0) return send_result(req, false, "invalid data");
+    if (s_upd_state == 1 || s_upd_state == 4) return send_result(req, false, "already running");
+    if (!s_sta_connected) return send_result(req, false, "repeater is not connected to the upstream WiFi");
+    if (act == 1 && s_upd_state != 2) return send_result(req, false, "check for an update first");
+    size_t fr = esp_get_free_heap_size();
+    size_t big = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+    if (fr < 60000 || big < 24000) {
+        char em[96];
+        snprintf(em, sizeof(em), "not enough free memory (free %u, largest block %u)", (unsigned)fr, (unsigned)big);
+        return send_result(req, false, em);
+    }
+    s_upd_action = act;
+    s_upd_pct = 0;
+    s_upd_msg[0] = 0;
+    s_upd_state = act ? 4 : 1;
+    if (xTaskCreate(upd_task, "upd", 10240, NULL, 4, NULL) != pdPASS) {
+        s_upd_state = 0;
+        return send_result(req, false, "could not start update task (low memory)");
+    }
+    return send_result(req, true, NULL);
+}
+
 static void start_webserver(void) {
     blocklist_load();
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 34;
+    config.max_uri_handlers = 36;
     config.stack_size = 8192;
     config.lru_purge_enable = true;   /* sockets bhar jayen to sab se purana idle socket band: admin page hang fix */
     httpd_handle_t server = NULL;
@@ -2731,6 +2876,8 @@ static void start_webserver(void) {
         {.uri = "/api/diag",           .method = HTTP_GET,  .handler = diag_get_handler},
         {.uri = "/api/usage",          .method = HTTP_GET,  .handler = usage_get_handler},
         {.uri = "/api/speedhistory",   .method = HTTP_GET,  .handler = speedhistory_get_handler},
+        {.uri = "/api/update/start",   .method = HTTP_POST, .handler = update_start_post_handler},
+        {.uri = "/api/update",         .method = HTTP_GET,  .handler = update_get_handler},
     };
     for (size_t i = 0; i < sizeof(uris) / sizeof(uris[0]); i++) {
         httpd_register_uri_handler(server, &uris[i]);

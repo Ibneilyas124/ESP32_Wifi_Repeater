@@ -343,6 +343,10 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
     </div></details>
 
     <details class="sec" id="d-ota"><summary>Firmware Update</summary><div class="body">
+      <p class="desc">Online update: the repeater checks GitHub for a newer build and installs it directly (needs upstream internet).</p>
+      <div class="btnrow"><button onclick="updCheck()">Check for update</button><button id="updInstallBtn" onclick="updInstall()" style="display:none">Update now</button></div>
+      <small class="hint" id="updStatus"></small>
+      <p class="desc" style="margin-top:12px">Or install a downloaded file:</p>
       <small class="hint">Choose esp32-wifi-repeater.bin (not the full-flash file). The device restarts after install; a bad image rolls back automatically.</small>
       <input type="file" id="otafile" accept=".bin">
       <div class="btnrow"><button onclick="otaUpload()">Upload and Install</button></div>
@@ -664,6 +668,41 @@ async function saveSettings(){
 }
 
 /* ---------------- BACKUP ---------------- */
+var updTimer=null;
+async function updPost(a){
+  try{
+    var r=await fetch('/api/update/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:a})});
+    if(authFail(r)) return null;
+    return await r.json();
+  }catch(e){ return null; }
+}
+function updPoll(){
+  clearTimeout(updTimer);
+  fetch('/api/update',{cache:'no-store'}).then(function(r){ if(authFail(r)) return null; return r.json(); }).then(function(j){
+    if(!j) return;
+    var st=$('updStatus'), b=$('updInstallBtn'); b.style.display='none';
+    if(j.state===1){ st.textContent='Checking GitHub...'; }
+    else if(j.state===2){ st.textContent='New build #'+j.latest+' available (installed: #'+j.cur+').'; b.style.display=''; return; }
+    else if(j.state===3){ st.textContent='Up to date (build #'+j.cur+').'; return; }
+    else if(j.state===4){ st.textContent='Downloading and installing... '+j.pct+'%'; }
+    else if(j.state===5){ st.textContent='Installed. Device is restarting, reconnect in about 30 seconds.'; return; }
+    else if(j.state===6){ st.textContent='Failed: '+j.msg; return; }
+    else { return; }
+    updTimer=setTimeout(updPoll,1500);
+  }).catch(function(){ $('updStatus').textContent='Connection lost (the device may be restarting).'; });
+}
+async function updCheck(){
+  $('updStatus').textContent='Starting...';
+  var j=await updPost('check');
+  if(!j||!j.ok){ $('updStatus').textContent=(j&&j.error)||'Could not start.'; return; }
+  updPoll();
+}
+async function updInstall(){
+  if(!confirm('Download and install the new firmware now? The device will restart.')) return;
+  var j=await updPost('install');
+  if(!j||!j.ok){ $('updStatus').textContent=(j&&j.error)||'Could not start.'; return; }
+  updPoll();
+}
 function otaUpload(){
   var f=$('otafile').files[0], st=$('otaStatus');
   if(!f){ st.textContent='Choose esp32-wifi-repeater.bin first.'; return; }
