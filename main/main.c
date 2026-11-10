@@ -1728,6 +1728,7 @@ static esp_err_t login_post_handler(httpd_req_t *req) {
 }
 
 static esp_err_t logout_post_handler(httpd_req_t *req) {
+    if (require_session_api(req) != ESP_OK) return ESP_OK;
     s_session_token[0] = '\0';
     httpd_resp_set_hdr(req, "Set-Cookie", "session=; Path=/; Max-Age=0");
     return send_result(req, true, NULL);
