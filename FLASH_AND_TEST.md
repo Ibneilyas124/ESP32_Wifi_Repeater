@@ -28,7 +28,7 @@ Dekhna: boot ke baad "AP up" log aaye, phone ko WiFi `Sarfraz` / `Sarfraz1` mile
 - Upstream WiFi mein router ka SSID/password save karo, reboot ke baad Home par Upstream IP dikhe aur internet chale
 - Connected Devices mein device ka naam / MAC / company dikhe (random MAC par "Private MAC")
 - Teeno pages (login, admin, /tools) phone par aik jaisi shakal mein khulen, koi JS error na ho
-- Admin menu ka "One-Click Diagnosis" seedha /tools mein Diagnose tab kholay aur chalaye
+- Admin menu ka "One-Click Diagnosis" admin ke andar hi khule aur diagnosis khud chalaye (steps: upstream, gateway, internet, DNS); /tools#dg bhi pehle ki tarah chalna chahiye
 
 ## 3. OTA (web se update)
 1. Agla green build ki `esp32-wifi-repeater.bin` lo (full-flash NAHI)

@@ -131,7 +131,7 @@ admin dashboard header too).
 - **Deauth monitor** (same detector as the admin dashboard, public read)
 - **Speed test**: repeater↔phone WiFi link speed, and real internet
   speed test (download/upload/latency/jitter)
-- **Diagnose**: step-by-step check of upstream WiFi → gateway → internet
+- **Diagnose**: step-by-step check of upstream WiFi → gateway → internet (also available inside the admin page: System Info > One-Click Diagnosis)
   → DNS, with plain-English fixes for whichever step fails
 - "About Developer" popup (contact + skills) on the login page
 

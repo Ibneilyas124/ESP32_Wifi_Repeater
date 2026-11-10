@@ -69,7 +69,7 @@ const speed = { samples: [{ ago_s: 10, ms: 30, ok: true }, { ago_s: 900, ms: 80,
 
   // 2. Every section shows through the menu (one section at a time)
   const goSec = id => page.evaluate(i => window.go(i), id);
-  for (const id of ['p-home', 'p-info', 'd-usage', 'd-speed', 'd-stab', 'd-wifi', 'd-wl', 'd-adv', 'd-backup', 'd-ota', 'd-danger']) {
+  for (const id of ['p-home', 'p-info', 'd-usage', 'd-speed', 'd-stab', 'd-diag', 'd-wifi', 'd-wl', 'd-block', 'd-adv', 'd-backup', 'd-ota', 'd-danger']) {
     await goSec(id);
     await page.waitForTimeout(150);
     T('section shows: ' + id, await page.locator('#' + id).evaluate(e => e.classList.contains('show')));
@@ -166,7 +166,7 @@ const speed = { samples: [{ ago_s: 10, ms: 30, ok: true }, { ago_s: 900, ms: 80,
   T('no JS errors on the page', errors.length === 0, errors.join(' || '));
 
   // Screenshots for visual check: one per menu section
-  for (const id of ['p-home', 'p-info', 'd-usage', 'd-speed', 'd-stab', 'd-wifi', 'd-wl', 'd-adv', 'd-backup', 'd-ota', 'd-danger']) {
+  for (const id of ['p-home', 'p-info', 'd-usage', 'd-speed', 'd-stab', 'd-diag', 'd-wifi', 'd-wl', 'd-block', 'd-adv', 'd-backup', 'd-ota', 'd-danger']) {
     await goSec(id);
     if (id === 'p-home') await page.evaluate(() => { const d = document.getElementById('d-clients'); if (!d.classList.contains('show')) toggleDevs(); });
     if (id === 'd-adv') await page.evaluate(() => document.querySelectorAll('#advGroups details').forEach(d => d.open = true));

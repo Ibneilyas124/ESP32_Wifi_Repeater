@@ -88,6 +88,14 @@ Sirf text badalna ho to `admin.html` mein `Firmware Update` ke aas paas ka matn 
 
 ---
 
+## 8b. One-Click Diagnosis (admin ke andar)
+
+**Dhoondo:** `One-Click Diagnosis`, `d-diag`, ya `runDiagAdmin` - file `main/admin.html`
+- Left menu ka link aur System Info ke andar ka link: `go('d-diag')` wali do lines
+- Section ka title, description aur "Run diagnosis" button: `<details class="sec" id="d-diag">`
+- Natije ke messages (Upstream, Gateway, Internet, DNS): isi section ke script mein `show(j)` function
+- `/tools` page ka Diagnose tab alag hai (`main/tools.html`, `showDiag`): aik jagah ka text badlo to doosri jagah bhi badlo
+
 ## Zaroori ehtiyaat
 - Sirf **do quotes ke beech** wala matn badalna — quotes, commas, semicolons
   (`;`), curly brackets (`{ }`) waisa hi rehne dena.
