@@ -141,6 +141,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
 
     <div class="sec" id="p-home">
       <div class="netstat">Network connection status: <b id="netStatus">...</b></div>
+      <div id="reqList" style="margin:8px 0"></div>
       <svg id="topo" viewBox="0 0 760 500" xmlns="http://www.w3.org/2000/svg">
         <g>
           <circle class="netf" cx="130" cy="50" r="32" fill="#7ac70c"/>
@@ -318,7 +319,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
 
     <details class="sec" id="d-wl"><summary>MAC Whitelist (<span id="wlCount">0</span>)</summary><div class="body">
       <p class="desc">Whitelisted devices get internet. Everyone else can still reach this admin page. Limit is optional (Kbps, 0 = no limit).</p>
-      <div id="reqList"></div>
+      
       <div id="wlList"></div>
       <div class="frow wl"><input id="newmac" placeholder="AA:BB:CC:DD:EE:FF"><input id="newname" placeholder="Name"><input id="newlimit" type="number" placeholder="Limit Kbps"><input id="newsched" placeholder="Hours e.g. 2000-2300"></div>
       <div class="btnrow"><button onclick="addMac()">Add to Whitelist</button><span class="msg" id="wlMsg"></span></div>
@@ -529,7 +530,7 @@ async function loadRequests(){
       nm.appendChild(el('b',null,q.name||q.mac)); nm.appendChild(el('span',null,q.mac));
       row.appendChild(nm);
       var ap=el('button',{'class':'ghost small'},'Approve');
-      ap.onclick=(function(mac){ return async function(){ var x=await post('/api/requests',{action:'approve',mac:mac}); if(x&&x.ok===false){ $('wlMsg').textContent=x.error; } loadRequests(); refreshStatus(); }; })(q.mac);
+      ap.onclick=(function(mac){ return async function(){ var x=await post('/api/requests',{action:'approve',mac:mac}); if(x&&x.ok===false){ alert(x.error); } loadRequests(); refreshStatus(); }; })(q.mac);
       var rj=el('button',{'class':'ghost small'},'Reject');
       rj.onclick=(function(mac){ return async function(){ await post('/api/requests',{action:'reject',mac:mac}); loadRequests(); }; })(q.mac);
       row.appendChild(ap); row.appendChild(rj);

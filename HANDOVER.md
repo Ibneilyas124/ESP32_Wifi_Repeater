@@ -92,3 +92,5 @@
 - Sarfraz ne Google Drive backup (OAuth wala bara kaam) bhi chhor diya; jab tak woh khud na kahe dobara mat sujhao. Purani lines 'Google Drive backup' / 'ideas: ...' is note se override hain. Backup ka tareeqa wahi rahega: admin se Export Config / Import Config
 - Ab koi naya feature pending nahi (PENDING 7: naye features ki soch, jo Sarfraz kahe wahi). Baqi sirf device/laptop kaam: FLASH_AND_TEST.md (ESP32 free hone par), laptop par ui_test_admin.js / ui_test_tools.js
 - Docs safai (2026-11-10): HANDOVER ki purani 'ideas' lines (NAYE CHAT section aur PENDING 9), README v7 aur FEATURES 'Known limitations' se Google Drive/Telegram ka zikr saaf; ab docs mein Drive backup 'not planned' likha hai (backup = Export Config / Import Config)
+
+- 2026-11-10: guest access requests ab admin Home (p-home) par dikhti hain (reqList d-wl se nikal kar); approve error alert se. Device par test baqi.
