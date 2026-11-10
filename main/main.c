@@ -1194,6 +1194,7 @@ static esp_err_t ap_rx_filter(void *buffer, uint16_t len, void *eb) {
                 if (dt > 0) {
                     uint64_t refill = (uint64_t)dt * (uint32_t)limit_kbps * 1000ULL / 8ULL / 1000000ULL;
                     uint32_t cap = (uint32_t)limit_kbps * 1000 / 8;  /* ~1 second burst */
+                    if (cap < 1600) cap = 1600;   /* kam az kam aik poora packet */
                     uint64_t nt = (uint64_t)ue->bucket_tokens + refill;
                     ue->bucket_tokens = nt > cap ? cap : (uint32_t)nt;
                     ue->bucket_last_us = now;
@@ -1213,6 +1214,7 @@ static esp_err_t ap_rx_filter(void *buffer, uint16_t len, void *eb) {
                 if (dt2 > 0) {
                     uint64_t refill2 = (uint64_t)dt2 * (uint32_t)overall_up * 1000ULL / 8ULL / 1000000ULL;
                     uint32_t cap2 = (uint32_t)overall_up * 1000 / 8;
+                    if (cap2 < 1600) cap2 = 1600;  /* kam az kam aik poora packet */
                     uint64_t nt2 = (uint64_t)s_up_bucket_tokens + refill2;
                     s_up_bucket_tokens = nt2 > cap2 ? cap2 : (uint32_t)nt2;
                     s_up_bucket_last_us = now2;
