@@ -110,3 +110,5 @@
 - 2026-11-10: build 2ca2e95 fail (format-truncation: clock error message 76-115 bytes, s_upd_msg[96]). Fix: s_upd_msg[160]. Sirf compile; device test baqi.
 
 - 2026-11-10: Sarfraz ne kaha: ESP32 busy hai, online update (Check/Update now) ka test baad mein lekin zaroor. Naya kaam: Connected Devices mein company (OUI) sahi aa rahi hai lekin model nahi (Motorola); model detection par kaam karna hai. Sarfraz ko yeh pasand aaya ke branded routers sirf MAC dikhate hain jabke repeater company tak pahunchta hai.
+
+- 2026-11-10: phone model detection: UA se model khali (Chrome "K") to DHCP hostname se model (host_model_guess: moto/galaxy/redmi/pixel/infinix/tecno... prefix, - ko space), clients JSON mein; brand_from_model mein moto->Motorola, Galaxy->Samsung. Sirf compile; device test baqi (ESP32 busy). Dekhna: Motorola phone ka hostname asal mein model hai ya android-xxxx.

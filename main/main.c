@@ -815,6 +815,8 @@ static const char *brand_from_model(const char *m) {
     if (strncasecmp(m, "vivo", 4) == 0) return "vivo";
     if (strncasecmp(m, "Pixel", 5) == 0) return "Google";
     if (strncmp(m, "iPhone", 6) == 0) return "Apple";
+    if (strncasecmp(m, "moto", 4) == 0) return "Motorola";
+    if (strncasecmp(m, "Galaxy", 6) == 0) return "Samsung";
     return "";
 }
 
@@ -931,6 +933,28 @@ static void ua_capture(httpd_req_t *req) {
     uint8_t key[6] = {0};
     memcpy(key, &((struct sockaddr_in *)&ss)->sin_addr.s_addr, 4);
     ua_remember(2, key, ua);
+}
+
+/* UA se model na mile to DHCP hostname (jaise moto-g-5G-2023) se model: sirf jaane-pehchane brand ke naam se shuru hone par */
+static bool host_model_guess(const char *hn, char *out, size_t n) {
+    static const char *pf[] = {"moto", "galaxy", "samsung", "redmi", "poco", "xiaomi", "pixel", "infinix",
+                               "tecno", "itel", "realme", "oppo", "vivo", "oneplus", "nokia", "huawei", "honor", "iphone"};
+    bool ok = false;
+    for (size_t i = 0; i < sizeof(pf) / sizeof(pf[0]); i++) {
+        if (strncasecmp(hn, pf[i], strlen(pf[i])) == 0) { ok = true; break; }
+    }
+    if (!ok || n < 4) return false;
+    size_t q = 0;
+    for (const char *p = hn; *p && q + 1 < n; p++) {
+        uint8_t ch = (uint8_t)*p;
+        if (ch == '-' || ch == '_') ch = ' ';
+        if (ch < 0x20 || ch > 0x7E) continue;
+        if (ch == ' ' && (q == 0 || out[q - 1] == ' ')) continue;
+        out[q++] = (char)ch;
+    }
+    while (q > 0 && out[q - 1] == ' ') q--;
+    out[q] = 0;
+    return q >= 3;
 }
 
 /* MAC (pehle) aur IP (baad mein) se jo mila, model/os/brand mein bhar do; kuch na mile to khali */
@@ -1785,6 +1809,12 @@ static esp_err_t status_get_handler(httpd_req_t *req) {
             memcpy(ip4, &pairs[i].ip.addr, 4);
             char dm[80], dos[24], dbr[16];
             devinfo_get(sta_list.sta[i].mac, ip4, dm, sizeof(dm), dos, sizeof(dos), dbr, sizeof(dbr));
+            if (!dm[0]) {
+                char hn[64] = "";
+                if (dhcp_host_lookup(sta_list.sta[i].mac, hn, sizeof(hn)) && host_model_guess(hn, dm, sizeof(dm))) {
+                    if (!dbr[0]) snprintf(dbr, sizeof(dbr), "%s", brand_from_model(dm));
+                }
+            }
             cJSON_AddStringToObject(c, "model", dm);
             int sfa, scn;
             seen_get(sta_list.sta[i].mac, &sfa, &scn);
