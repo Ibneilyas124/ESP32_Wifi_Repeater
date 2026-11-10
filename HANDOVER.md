@@ -104,3 +104,5 @@
 - 2026-11-10: online update banaya: main.c upd_task/upd_check/upd_install, /api/update (GET) + /api/update/start (POST), max_uri_handlers 36, admin d-ota mein Check/Update now, FW_BUILD main/build_num.h (default 0, workflow run_number se overwrite), sdkconfig TLS bundle, CMake REQUIRES esp_http_client esp_https_ota esp-tls mbedtls heap. Heap hadd 60000/24000 andaza hai, device par tune. Sirf compile; device test baqi.
 
 - 2026-11-10: online update par "clock not synced yet" aaya (SNTP boot par sirf aik baar start hota hai). Fix: upd_sync_clock() (SNTP restart, pool.ntp.org phir time.google.com, 12 sec har aik). Sirf compile; device test baqi.
+
+- 2026-11-10: NTP (UDP) dono servers par fail hua (upstream par band). Fix: upd_http_time() HTTP Date header (connectivitycheck.gstatic.com, phir google.com) se settimeofday, NTP fallback. Error mein wajah (s_time_err). Sirf compile; device test baqi.

@@ -2774,6 +2774,59 @@ static void upd_install(void) {
     s_upd_state = 6;
 }
 
+/* Clock HTTP "Date" header se (UDP/NTP band ho tab bhi chalta hai) */
+#include <sys/time.h>
+static char s_time_err[40];
+static char s_date_hdr[48];
+static esp_err_t upd_date_evt(esp_http_client_event_t *e) {
+    if (e->event_id == HTTP_EVENT_ON_HEADER && e->header_key && e->header_value &&
+        strcasecmp(e->header_key, "Date") == 0) {
+        snprintf(s_date_hdr, sizeof(s_date_hdr), "%s", e->header_value);
+    }
+    return ESP_OK;
+}
+static bool upd_parse_date(const char *v, time_t *out) {
+    static const char *mons[12] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
+    int d, y, hh, mm, ss;
+    char mon[4] = {0};
+    if (sscanf(v, "%*3s, %d %3s %d %d:%d:%d", &d, mon, &y, &hh, &mm, &ss) != 6) return false;
+    int m = 0;
+    for (int i = 0; i < 12; i++) if (strcmp(mon, mons[i]) == 0) m = i + 1;
+    if (m == 0 || y < 2024 || d < 1 || d > 31) return false;
+    int yy = y - (m <= 2);
+    int era = yy / 400;
+    int yoe = yy - era * 400;
+    int doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+    int doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    long days = (long)era * 146097 + doe - 719468;
+    *out = (time_t)(days * 86400L + hh * 3600L + mm * 60L + ss);
+    return true;
+}
+static void upd_http_time(void) {
+    const char *urls[2] = {"http://connectivitycheck.gstatic.com/generate_204", "http://www.google.com/"};
+    s_time_err[0] = 0;
+    for (int k = 0; k < 2; k++) {
+        s_date_hdr[0] = 0;
+        esp_http_client_config_t c = {0};
+        c.url = urls[k];
+        c.event_handler = upd_date_evt;
+        c.disable_auto_redirect = true;
+        c.timeout_ms = 8000;
+        esp_http_client_handle_t cl = esp_http_client_init(&c);
+        if (!cl) continue;
+        esp_err_t e = esp_http_client_perform(cl);
+        esp_http_client_cleanup(cl);
+        if (e != ESP_OK) { snprintf(s_time_err, sizeof(s_time_err), "%s", esp_err_to_name(e)); continue; }
+        time_t t;
+        if (s_date_hdr[0] && upd_parse_date(s_date_hdr, &t)) {
+            struct timeval tv = { .tv_sec = t, .tv_usec = 0 };
+            settimeofday(&tv, NULL);
+            return;
+        }
+        snprintf(s_time_err, sizeof(s_time_err), "no Date header");
+    }
+}
+
 /* clock sync na ho to SNTP dobara shuru karo (pool.ntp.org, phir time.google.com), har koshish 12 sec */
 static void upd_sync_clock(void) {
     const char *srv[2] = {"pool.ntp.org", "time.google.com"};
@@ -2791,9 +2844,10 @@ static void upd_sync_clock(void) {
 }
 
 static void upd_task(void *arg) {
+    if (time(NULL) < 1700000000) upd_http_time();
     upd_sync_clock();
     if (time(NULL) < 1700000000) {
-        snprintf(s_upd_msg, sizeof(s_upd_msg), "clock not synced yet - wait a minute and try again");
+        snprintf(s_upd_msg, sizeof(s_upd_msg), "clock not synced (NTP and HTTP time failed: %s) - check upstream internet/DNS", s_time_err[0] ? s_time_err : "unknown");
         s_upd_state = 6;
     } else if (s_upd_action == 0) {
         upd_check();
