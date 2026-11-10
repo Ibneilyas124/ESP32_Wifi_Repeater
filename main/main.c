@@ -2702,7 +2702,7 @@ static volatile int s_upd_state = 0;
 static volatile int s_upd_action = 0;   /* 0 check, 1 install */
 static volatile int s_upd_latest = 0;
 static volatile int s_upd_pct = 0;
-static char s_upd_msg[96];
+static char s_upd_msg[160];
 static char s_upd_loc[300];
 static char s_upd_url[160];
 

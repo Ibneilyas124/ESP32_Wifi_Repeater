@@ -106,3 +106,5 @@
 - 2026-11-10: online update par "clock not synced yet" aaya (SNTP boot par sirf aik baar start hota hai). Fix: upd_sync_clock() (SNTP restart, pool.ntp.org phir time.google.com, 12 sec har aik). Sirf compile; device test baqi.
 
 - 2026-11-10: NTP (UDP) dono servers par fail hua (upstream par band). Fix: upd_http_time() HTTP Date header (connectivitycheck.gstatic.com, phir google.com) se settimeofday, NTP fallback. Error mein wajah (s_time_err). Sirf compile; device test baqi.
+
+- 2026-11-10: build 2ca2e95 fail (format-truncation: clock error message 76-115 bytes, s_upd_msg[96]). Fix: s_upd_msg[160]. Sirf compile; device test baqi.
