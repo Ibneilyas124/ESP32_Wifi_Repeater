@@ -102,3 +102,5 @@
 - 2026-11-10: device test PASS: guest access request (Home par dikhti, approve se whitelist) aur admin hang fix. peer_mac IPv6-mapped handling rakhi; guest error message saaf, debug code ESP_LOGW mein. Agla: FLASH_AND_TEST.md ke baqi tests (OTA, schedule, blocklist, failover, config export/import).
 
 - 2026-11-10: online update banaya: main.c upd_task/upd_check/upd_install, /api/update (GET) + /api/update/start (POST), max_uri_handlers 36, admin d-ota mein Check/Update now, FW_BUILD main/build_num.h (default 0, workflow run_number se overwrite), sdkconfig TLS bundle, CMake REQUIRES esp_http_client esp_https_ota esp-tls mbedtls heap. Heap hadd 60000/24000 andaza hai, device par tune. Sirf compile; device test baqi.
+
+- 2026-11-10: online update par "clock not synced yet" aaya (SNTP boot par sirf aik baar start hota hai). Fix: upd_sync_clock() (SNTP restart, pool.ntp.org phir time.google.com, 12 sec har aik). Sirf compile; device test baqi.

@@ -2774,7 +2774,24 @@ static void upd_install(void) {
     s_upd_state = 6;
 }
 
+/* clock sync na ho to SNTP dobara shuru karo (pool.ntp.org, phir time.google.com), har koshish 12 sec */
+static void upd_sync_clock(void) {
+    const char *srv[2] = {"pool.ntp.org", "time.google.com"};
+    for (int k = 0; k < 2; k++) {
+        if (time(NULL) >= 1700000000) return;
+        esp_sntp_stop();
+        esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+        esp_sntp_setservername(0, srv[k]);
+        esp_sntp_init();
+        for (int i = 0; i < 12; i++) {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            if (time(NULL) >= 1700000000) return;
+        }
+    }
+}
+
 static void upd_task(void *arg) {
+    upd_sync_clock();
     if (time(NULL) < 1700000000) {
         snprintf(s_upd_msg, sizeof(s_upd_msg), "clock not synced yet - wait a minute and try again");
         s_upd_state = 6;
