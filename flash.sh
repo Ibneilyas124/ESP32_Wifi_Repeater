@@ -19,7 +19,7 @@ python3 -m esptool --chip esp32 --port "$PORT" --baud 460800 \
   --flash_mode dio --flash_freq 40m --flash_size 4MB \
   0x1000  bootloader.bin \
   0x8000  partition-table.bin \
-  0x10000 esp32-wifi-repeater.bin
+  0x20000 esp32-wifi-repeater.bin
 
 echo "Done. Device rebooting. Connect to WiFi SSID 'Sarfraz' (password 'Sarfraz')"
 echo "and open http://192.168.4.1 in a browser to reach the admin dashboard."
