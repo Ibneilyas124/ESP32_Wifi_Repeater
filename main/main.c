@@ -2278,7 +2278,7 @@ static void scan_task(void *arg) {
 static esp_err_t scan_start_post_handler(httpd_req_t *req) {
     if (s_scan_state != 1) {
         s_scan_state = 1;
-        xTaskCreate(scan_task, "scan", 4096, NULL, 4, NULL);
+        if (xTaskCreate(scan_task, "scan", 4096, NULL, 4, NULL) != pdPASS) s_scan_state = 2;   /* task na bane to state atke nahi, GET error dikhata hai */
     }
     return send_result(req, true, NULL);
 }
@@ -2525,7 +2525,7 @@ static void diag_task(void *arg) {
 static esp_err_t diag_start_post_handler(httpd_req_t *req) {
     if (s_diag_state != 1) {
         s_diag_state = 1;
-        xTaskCreate(diag_task, "diag", 6144, NULL, 4, NULL);
+        if (xTaskCreate(diag_task, "diag", 6144, NULL, 4, NULL) != pdPASS) s_diag_state = 0;   /* task na bane to state atke nahi, dobara try ho sake */
     }
     return send_result(req, true, NULL);
 }
