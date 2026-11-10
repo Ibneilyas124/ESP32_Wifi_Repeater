@@ -34,7 +34,7 @@
 - Nayi features SAB DONE, Actions GREEN: (1) Connected Devices mein first seen/connected since + New tag, (2) guest Request access (login.html form, /api/request bina login, admin Approve/Reject, MAC server peer IP se nikalta hai), (3) whitelist schedule (entry MAC|Name|limit|HHMM-HHMM, setting tz_offset default 5, SNTP sync se pehle lagu nahi), (5) Website Block List (ap_rx_filter mein UDP 53 query drop, NVS 'blocklist', max 20 domains, /api/blocklist, admin d-block). Feature (4) per-device download count NAHI banega (hook sirf upload dekhta hai)
 - Phone brand/model/OS: main/model_table.h (Google supported_devices.csv se, 7850 entries, tools/gen_model_table.py), HTTP User-Agent sniff + DHCP option 60. Firmware size ~1.18MB (slot 1.96MB mein 60%)
 - URI handlers ~32, max_uri_handlers 34: naya endpoint jodte waqt limit barhana
-- Config Export/Import mein blocklist ab shamil (JSON field "blocklist", comma separated, import par blocklist_parse se validate, buffer 4096; Actions GREEN ka intezar); whitelist ka 4th field (schedule) whitelist string ke saath export hota hai
+- Config Export/Import mein blocklist ab shamil (JSON field "blocklist", comma separated, import par blocklist_parse se validate, buffer 4096; Actions GREEN); whitelist ka 4th field (schedule) whitelist string ke saath export hota hai
 - Sab features sirf compile hue hain; ESP32 abhi free nahi, device par KUCH test nahi hua
 - Naye chat ka pehla qadam: git fetch + status + log -5, phir poocho Sarfraz kya karna chahta hai. Ideas baqi: failover (2 upstream routers), Telegram alert, backup button, Google Drive backup
 - Rule yaad: jo parhna ho aik bare command mein mango; har step mein HANDOVER update+commit+push; edit script mein anchors aik hi baar milen warna ABORT; limit kabhi bhi khatam ho sakti hai
@@ -48,7 +48,7 @@
 6. One-Click Diagnosis menu item admin mein (Diagnose abhi tools.html mein hai); FEATURES.md update DONE (vendor, hostname, OTA, design, flash note; OTA asal test baqi)
 7. Naye features ki soch: jo Sarfraz kahe (poochna)
 8. Phone model/OS ka asal device test: kaun se phones par brand/model/OS aaya; phir MODEL_MAP un brands (Xiaomi, Infinix, Tecno...) ke hisaab se bharna. Sarfraz ke phones ka brand/browser abhi nahi pata (poochna)
-9. Abhi chal raha kaam: Config export/import mein blocklist: edit push ho gayi, Actions GREEN ka intezar (GREEN ke baad is line ko 'koi edit nahi' karo). Features 1,2,3,5 DONE, Actions GREEN (build-96 tak). Feature 4 (per-device download count) NAHI banega. /tools#dg hash link DONE. Baqi sirf device/laptop wale kaam (PENDING 1-5, 8). Naye chat mein: git fetch + status + log -5, phir Sarfraz se poocho kya karna hai (ideas: failover 2 upstream routers, Telegram alert, Google Drive backup).
+9. Abhi chal raha kaam: KOI EDIT CHAL NAHI RAHI. Config export/import mein blocklist DONE, Actions GREEN. Features 1,2,3,5 DONE, Actions GREEN (build-96 tak). Feature 4 (per-device download count) NAHI banega. /tools#dg hash link DONE. Baqi sirf device/laptop wale kaam (PENDING 1-5, 8). Naye chat mein: git fetch + status + log -5, phir Sarfraz se poocho kya karna hai (ideas: failover 2 upstream routers, Telegram alert, Google Drive backup).
 
 ## Huawei design (screenshots ka khulasa)
 - Upar halki neeli bar (~#5bb4ef): left model naam, right links; Left: patli icon column, active item neela + chhota teer; sub-menu grey column; Content: halka neela-safed background (#f5f8fc), bara title + patli line, orange description text, safed tables grey header, safed buttons border ke saath
