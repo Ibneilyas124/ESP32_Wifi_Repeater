@@ -115,7 +115,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
 <div class="wrap">
   <div class="nav">
     <a id="nv-home" onclick="goGroup('home')"><span class="ic">&#8962;</span>Home Page</a>
-    <a href="/tools#dg"><span class="ic">&#10004;</span>One-Click Diagnosis</a>
+    <a href="#" onclick="go('d-diag');runDiagAdmin();return false;"><span class="ic">&#10004;</span>One-Click Diagnosis</a>
     <a id="nv-sys" onclick="goGroup('sys')"><span class="ic">&#9776;</span>System Info</a>
     <a id="nv-adv" onclick="goGroup('adv')"><span class="ic">&#9881;</span>Advanced Configuration</a>
   </div>
@@ -125,6 +125,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
     <a data-sec="d-usage" onclick="go('d-usage')">Data Usage</a>
     <a data-sec="d-speed" onclick="go('d-speed')">Speed History</a>
     <a data-sec="d-stab" onclick="go('d-stab')">Upstream Stability</a>
+    <a data-sec="d-diag" onclick="go('d-diag');runDiagAdmin()">One-Click Diagnosis</a>
   </div>
   <div class="subnav" id="sub-adv">
     <a data-sec="d-wifi" onclick="go('d-wifi')">Upstream WiFi</a>
@@ -248,6 +249,63 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
       <div id="stabBody"></div>
     </div></details>
 
+    <style>
+#dgAOut .dgstep{padding:7px 0;border-bottom:1px solid #eef2f6;font-size:13px}
+#dgAOut .dgstep b{display:inline-block;width:22px}
+#dgAOut .dgstep small{display:block;margin-left:22px;color:#6b7a8c}
+</style>
+    <details class="sec" id="d-diag"><summary>One-Click Diagnosis</summary><div class="body">
+      <p class="desc">Checks the upstream WiFi, gateway, internet and DNS from the repeater itself (takes up to ~15 seconds).</p>
+      <button type="button" id="dgABtn" onclick="runDiagAdmin()">Run diagnosis</button>
+      <div id="dgAOut" style="margin-top:8px"></div>
+    </div></details>
+<script>
+(function(){
+  function g(i){ return document.getElementById(i); }
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
+  function step(box,ok,txt,fix){
+    var d=document.createElement('div'); d.className='dgstep';
+    var b=document.createElement('b');
+    b.textContent=(ok===true)?'\u2705':(ok==='warn'?'\u26A0\uFE0F':'\u274C');
+    d.appendChild(b); d.appendChild(document.createTextNode(txt));
+    if(fix){ var s=document.createElement('small'); s.textContent=fix; d.appendChild(s); }
+    box.appendChild(d);
+  }
+  function show(j){
+    var o=g('dgAOut'); o.textContent='';
+    if(!j.connected){ step(o,false,'Repeater is NOT connected to an upstream WiFi.','Open Upstream WiFi and enter the router name and password (2.4 GHz only).'); return; }
+    step(o,true,'Upstream: '+j.ssid+' (ch '+j.channel+', '+j.rssi+' dBm), IP '+j.ip);
+    if(j.rssi<-80) step(o,'warn','Upstream signal is weak ('+j.rssi+' dBm).','Move the repeater closer to the main router.');
+    if(j.gw==='ok'||j.gw==='refused') step(o,true,'Gateway '+j.gw_ip+' reachable ('+j.gw_ms+' ms)');
+    else step(o,'warn','Gateway '+j.gw_ip+' did not answer on port 80 (many routers hide it, not always a problem).');
+    var inet=(j.inet||[]).filter(function(x){ return x.ok; });
+    if(inet.length) step(o,true,'Internet reachable: '+inet.map(function(x){ return x.host+' '+x.ms+' ms'; }).join(', '));
+    else step(o,false,'No internet reachable from the repeater (TCP to 1.1.1.1 / 8.8.8.8 failed).','Check that the main router itself has working internet, or that it does not block this device (MAC filter / parental control).');
+    if(j.dns_ok) step(o,true,'DNS works: google.com \u2192 '+j.dns_ip+' ('+j.dns_ms+' ms)');
+    else step(o,false,'DNS lookup failed.',inet.length?'Internet works but names do not resolve: set another DNS in Advanced Settings (8.8.8.8 / 1.1.1.1 / your ISP DNS).':'Fix the internet first, then recheck DNS.');
+    step(o,true,'Clients receive DNS '+j.client_dns+' from this repeater.',null);
+  }
+  var busy=false;
+  window.runDiagAdmin=async function(){
+    if(busy) return;
+    busy=true;
+    var b=g('dgABtn'), out=g('dgAOut');
+    b.disabled=true; out.textContent='Running (up to ~15 s)...';
+    try{
+      await fetch('/api/diag/start',{method:'POST'});
+      for(var i=0;i<25;i++){
+        await sleep(1000);
+        var r=await fetch('/api/diag',{cache:'no-store'}); var j=await r.json();
+        if(j.state==='done'){ show(j); busy=false; b.disabled=false; return; }
+        if(j.state==='idle'){ out.textContent='Diagnosis could not start (low memory?). Try again.'; busy=false; b.disabled=false; return; }
+      }
+      out.textContent='Timed out.';
+    }catch(e){ out.textContent='Could not run: '+e; }
+    busy=false; b.disabled=false;
+  };
+})();
+</script>
+
     <details class="sec" id="d-wifi"><summary>Upstream WiFi</summary><div class="body">
       <p class="desc">The router this repeater connects to. The repeater reboots after saving.</p>
       <div class="frow"><label>SSID</label><input id="sta_ssid" type="text" autocomplete="off"></div>
@@ -301,7 +359,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
 
 <script>
 (function(){
-  var SECS={home:['p-home'],sys:['p-info','d-usage','d-speed','d-stab'],adv:['d-wifi','d-wl','d-block','d-adv','d-backup','d-ota','d-danger']};
+  var SECS={home:['p-home'],sys:['p-info','d-usage','d-speed','d-stab','d-diag'],adv:['d-wifi','d-wl','d-block','d-adv','d-backup','d-ota','d-danger']};
   var cur=null, last={home:'p-home',sys:'p-info',adv:'d-wifi'};
   function groupOf(id){ for(var g in SECS){ if(SECS[g].indexOf(id)>=0) return g; } return 'home'; }
   window.go=function(id){
