@@ -1323,6 +1323,24 @@ static void deauth_monitor_apply(bool on) {
 }
 
 
+/* ---- upstream failover: primary (sta_ssid/sta_pass) <-> backup (sta_ssid2/sta_pass2) ---- */
+#define STA_FAILOVER_FAILS 5
+static int s_sta_fail = 0;
+static bool s_on_backup = false;
+
+/* Sirf event task se chalta hai, is liye static buffers (event task ka stack chhota hai). */
+static bool sta_apply_network(bool backup) {
+    static char ssid[33], pass[65];
+    static wifi_config_t c;
+    nvs_get_string(backup ? "sta_ssid2" : "sta_ssid", ssid, sizeof(ssid), "");
+    nvs_get_string(backup ? "sta_pass2" : "sta_pass", pass, sizeof(pass), "");
+    if (ssid[0] == 0) return false;
+    memset(&c, 0, sizeof(c));
+    strncpy((char *)c.sta.ssid, ssid, sizeof(c.sta.ssid));
+    strncpy((char *)c.sta.password, pass, sizeof(c.sta.password));
+    return esp_wifi_set_config(WIFI_IF_STA, &c) == ESP_OK;
+}
+
 static void wifi_event_handler(void *arg, esp_event_base_t base, int32_t id, void *data) {
     if (base == WIFI_EVENT) {
         switch (id) {
@@ -1348,6 +1366,13 @@ static void wifi_event_handler(void *arg, esp_event_base_t base, int32_t id, voi
             if (s_discon_count < DISCON_RING) s_discon_count++;
             s_discon_total++;
             ESP_LOGW(TAG, "Upstream WiFi disconnected (reason %d), retrying...", dc ? dc->reason : 0);
+            if (++s_sta_fail >= STA_FAILOVER_FAILS) {
+                s_sta_fail = 0;
+                if (sta_apply_network(!s_on_backup)) {
+                    s_on_backup = !s_on_backup;
+                    ESP_LOGW(TAG, "Upstream failover: switching to %s network", s_on_backup ? "BACKUP" : "PRIMARY");
+                }
+            }
             vTaskDelay(pdMS_TO_TICKS(1000));
             esp_wifi_connect();
             break;
@@ -1378,6 +1403,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t base, int32_t id, voi
         snprintf(s_sta_ip, sizeof(s_sta_ip), IPSTR, IP2STR(&ev->ip_info.ip));
         s_sta_connected = true;
         s_sta_since_us = esp_timer_get_time();
+        s_sta_fail = 0;
         ESP_LOGI(TAG, "Upstream IP %s - enabling NAT", s_sta_ip);
         esp_netif_napt_enable(s_ap_netif);
 
@@ -1692,6 +1718,9 @@ static esp_err_t status_get_handler(httpd_req_t *req) {
     char v[40];
     nvs_get_string("sta_ssid", v, sizeof(v), "");
     cJSON_AddStringToObject(root, "sta_ssid", v);
+    cJSON_AddBoolToObject(root, "on_backup", s_on_backup);
+    nvs_get_string("sta_ssid2", v, sizeof(v), "");
+    cJSON_AddStringToObject(root, "sta_ssid2", v);
     get_setting("ap_ip", v, sizeof(v));
     cJSON_AddStringToObject(root, "ap_ip", v);
 
@@ -1829,7 +1858,7 @@ static esp_err_t whitelist_post_handler(httpd_req_t *req) {
 
 static esp_err_t wifi_post_handler(httpd_req_t *req) {
     if (require_session_api(req) != ESP_OK) return ESP_OK;
-    char buf[300];
+    static char buf[600];
     read_body(req, buf, sizeof(buf));
     cJSON *j = cJSON_Parse(buf);
     if (!j) return send_result(req, false, "invalid data");
@@ -1843,7 +1872,16 @@ static esp_err_t wifi_post_handler(httpd_req_t *req) {
         size_t pl = strlen(pass->valuestring);
         if (pl != 0 && (pl < 8 || pl > 63)) { ok = false; err = "password must be 8-63 characters (blank = open network)"; }
     }
+    cJSON *ssid2 = cJSON_GetObjectItem(j, "ssid2");
+    cJSON *pass2 = cJSON_GetObjectItem(j, "password2");
+    if (ok && cJSON_IsString(ssid2) && strlen(ssid2->valuestring) > 32) { ok = false; err = "Backup WiFi name is too long (max 32)"; }
+    if (ok && cJSON_IsString(pass2)) {
+        size_t pl2 = strlen(pass2->valuestring);
+        if (pl2 != 0 && (pl2 < 8 || pl2 > 63)) { ok = false; err = "backup password must be 8-63 characters (blank = open network)"; }
+    }
     if (ok) {
+        if (cJSON_IsString(ssid2)) nvs_set_string("sta_ssid2", ssid2->valuestring);
+        if (cJSON_IsString(pass2)) nvs_set_string("sta_pass2", pass2->valuestring);
         if (cJSON_IsString(ssid)) nvs_set_string("sta_ssid", ssid->valuestring);
         if (cJSON_IsString(pass)) nvs_set_string("sta_pass", pass->valuestring);
     }
@@ -1922,6 +1960,10 @@ static esp_err_t config_export_get_handler(httpd_req_t *req) {
     cJSON_AddStringToObject(root, "sta_ssid", v);
     nvs_get_string("sta_pass", v, sizeof(v), "");
     cJSON_AddStringToObject(root, "sta_pass", v);
+    nvs_get_string("sta_ssid2", v, sizeof(v), "");
+    cJSON_AddStringToObject(root, "sta_ssid2", v);
+    nvs_get_string("sta_pass2", v, sizeof(v), "");
+    cJSON_AddStringToObject(root, "sta_pass2", v);
     whitelist_get(v, sizeof(v));
     cJSON_AddStringToObject(root, "whitelist", v);
     static char bl_exp[BL_MAX * (BL_LEN + 1) + 2];
@@ -1975,6 +2017,11 @@ static esp_err_t config_import_post_handler(httpd_req_t *req) {
         for (int i = 0; i < 3; i++) {
             cJSON *it = cJSON_GetObjectItem(j, extra[i]);
             if (cJSON_IsString(it) && strlen(it->valuestring) < 200 + (i == 2 ? WL_BUF : 0)) nvs_set_string(extra[i], it->valuestring);
+        }
+        const char *extra2[] = {"sta_ssid2", "sta_pass2"};
+        for (int i = 0; i < 2; i++) {
+            cJSON *it = cJSON_GetObjectItem(j, extra2[i]);
+            if (cJSON_IsString(it) && strlen(it->valuestring) < 64) nvs_set_string(extra2[i], it->valuestring);
         }
         if (bl_n >= 0) {
             static char bl_csv[BL_MAX * (BL_LEN + 1) + 2];

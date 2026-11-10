@@ -252,6 +252,9 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
       <p class="desc">The router this repeater connects to. The repeater reboots after saving.</p>
       <div class="frow"><label>SSID</label><input id="sta_ssid" type="text" autocomplete="off"></div>
       <div class="frow"><label>Password</label><input id="sta_pass" type="password" autocomplete="off"><button type="button" class="small" onclick="pwToggle('sta_pass',this)">SHOW</button></div>
+      <p class="desc">Backup network (optional). If the main upstream fails 5 times in a row, the repeater switches to this one automatically. Leave SSID blank for none. Password blank = keep the saved one.</p>
+      <div class="frow"><label>Backup SSID</label><input id="sta_ssid2" type="text" autocomplete="off"></div>
+      <div class="frow"><label>Backup password</label><input id="sta_pass2" type="password" autocomplete="off"><button type="button" class="small" onclick="pwToggle('sta_pass2',this)">SHOW</button></div>
       <div class="btnrow"><button onclick="saveWifi()">Save</button><span class="msg" id="wifiMsg"></span></div>
     </div></details>
 
@@ -370,12 +373,13 @@ async function refreshStatus(){
     function stat(k,v,cls){ var d=el('div',{'class':'stat'}); d.appendChild(el('div',{'class':'k'},k)); d.appendChild(el('div',{'class':'v '+(cls||'')},v)); g.appendChild(d); }
     stat('Upstream', (j.sta_connected?'Connected':'Offline'), j.sta_connected?'ok':'bad');
     stat('Upstream IP', j.sta_connected?j.sta_ip:'-');
+    if(j.sta_ssid2) stat('Upstream network', j.on_backup?'Backup':'Primary');
     stat('Session uptime', j.sta_connected?fmtTime(j.session_uptime_s):'-');
     stat('Repeater IP', j.ap_ip);
     stat('Total uptime', fmtTime(j.uptime_s));
     stat('Free memory', Math.round(j.free_heap/1024)+' KB');
 
-    if(!loadedWifiField){ $('sta_ssid').value=j.sta_ssid||''; loadedWifiField=true; }
+    if(!loadedWifiField){ $('sta_ssid').value=j.sta_ssid||''; loadedSsid2=j.sta_ssid2||''; $('sta_ssid2').value=loadedSsid2; loadedWifiField=true; }
 
     $('clientCount').textContent=j.clients.length;
     var ct=$('clientsTbl'); ct.innerHTML='';
@@ -483,8 +487,10 @@ async function kickDevice(m){
 }
 
 /* ---------------- UPSTREAM WIFI ---------------- */
+var loadedSsid2='';
 async function saveWifi(){
-  var o={ssid:$('sta_ssid').value, password:$('sta_pass').value};
+  var o={ssid:$('sta_ssid').value, password:$('sta_pass').value, ssid2:$('sta_ssid2').value};
+  if($('sta_pass2').value || $('sta_ssid2').value!==loadedSsid2) o.password2=$('sta_pass2').value;
   var j=await post('/api/wifi',o);
   if(!j) return;
   $('wifiMsg').textContent = j.ok===false ? ('Error: '+j.error) : 'Saved - rebooting...';

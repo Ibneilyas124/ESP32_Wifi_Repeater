@@ -102,6 +102,10 @@ admin dashboard header too).
   last ~12 hours, red bar = internet was down at that check
 - **Share this WiFi**: one-tap copy/share of the repeater's own SSID +
   password (native share sheet where supported)
+- **Backup upstream network (failover)**: set a second router under Upstream WiFi.
+  After 5 failed connection attempts in a row the repeater switches to the other
+  network (and back again if that one fails too). The status page shows which
+  one is active. Included in config export/import.
 - Config backup: export/import all settings as JSON (includes the website block list)
 - **Firmware update (OTA)**: upload a new `esp32-wifi-repeater.bin` from
   Advanced Configuration > Firmware Update (login required). The firmware
