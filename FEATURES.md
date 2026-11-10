@@ -104,7 +104,8 @@ admin dashboard header too).
   password (native share sheet where supported)
 - **Backup upstream network (failover)**: set a second router under Upstream WiFi.
   After 5 failed connection attempts in a row the repeater switches to the other
-  network (and back again if that one fails too). The status page shows which
+  network. While on the backup it checks every ~5 minutes whether the main
+  router is visible again and switches back. The status page shows which
   one is active. Included in config export/import.
 - Config backup: export/import all settings as JSON (includes the website block list)
 - **Firmware update (OTA)**: upload a new `esp32-wifi-repeater.bin` from

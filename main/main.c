@@ -1540,6 +1540,31 @@ static void wifi_init(void) {
 
 static int tcp_probe(const char *ip, int port, int timeout_ms); /* defined later, used here for speed-history sampling */
 
+/* ---- backup par chalte hue har ~5 min baad primary wapas try, sirf agar primary scan mein dikhe ---- */
+static volatile bool s_pr_busy = false;
+static void primary_return_task(void *arg) {
+    static char ssid[33];
+    nvs_get_string("sta_ssid", ssid, sizeof(ssid), "");
+    if (ssid[0] && s_on_backup && s_sta_connected && s_scan_state != 1) {
+        s_scan_state = 1;                       /* admin ke scan se takrao se bachao */
+        wifi_scan_config_t sc = { 0 };
+        sc.ssid = (uint8_t *)ssid;
+        esp_err_t e = esp_wifi_scan_start(&sc, true);
+        uint16_t num = 0;
+        if (e == ESP_OK) esp_wifi_scan_get_ap_num(&num);
+        esp_wifi_clear_ap_list();
+        s_scan_state = 0;
+        if (e == ESP_OK && num > 0 && s_on_backup && s_sta_connected && sta_apply_network(false)) {
+            s_on_backup = false;
+            s_sta_fail = 0;
+            ESP_LOGW(TAG, "Primary upstream visible again - switching back from BACKUP");
+            esp_wifi_disconnect();              /* DISCONNECTED handler dobara connect karta hai */
+        }
+    }
+    s_pr_busy = false;
+    vTaskDelete(NULL);
+}
+
 static void button_task(void *arg) {
     gpio_config_t btn = {
         .pin_bit_mask = 1ULL << RESET_BTN_GPIO,
@@ -1573,6 +1598,10 @@ static void button_task(void *arg) {
         }
         if (tick % 3000 == 0) {         /* every ~5 min */
             usage_persist_all();
+        }
+        if (tick % 3000 == 0 && s_on_backup && s_sta_connected && !s_pr_busy) {   /* every ~5 min, only while on backup */
+            s_pr_busy = true;
+            if (xTaskCreate(primary_return_task, "primret", 4096, NULL, 4, NULL) != pdPASS) s_pr_busy = false;
         }
         if (tick % 9000 == 0 && s_sta_connected) {   /* every ~15 min */
             int ms = tcp_probe("1.1.1.1", 443, 2000);
