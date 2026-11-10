@@ -364,9 +364,7 @@ static bool whitelist_contains(const char *mac) {
     char list[WL_BUF];
     whitelist_get(list, sizeof(list));
     if (strlen(list) == 0) return true;
-    char *copy = strdup(list);
-    if (!copy) return true;
-    char *tok = strtok(copy, ",");
+    char *tok = strtok(list, ",");
     bool found = false;
     while (tok) {
         while (*tok == ' ') tok++;
@@ -375,7 +373,6 @@ static bool whitelist_contains(const char *mac) {
         if (mac_str_eq(m, mac)) { found = true; break; }
         tok = strtok(NULL, ",");
     }
-    free(copy);
     return found;
 }
 
@@ -407,9 +404,7 @@ static int whitelist_get_limit(const char *mac) {
     char list[WL_BUF];
     whitelist_get(list, sizeof(list));
     if (strlen(list) == 0) return 0;
-    char *copy = strdup(list);
-    if (!copy) return 0;
-    char *tok = strtok(copy, ",");
+    char *tok = strtok(list, ",");
     int limit = 0;
     while (tok) {
         while (*tok == ' ') tok++;
@@ -418,7 +413,6 @@ static int whitelist_get_limit(const char *mac) {
         if (mac_str_eq(m, mac)) { limit = lim; break; }
         tok = strtok(NULL, ",");
     }
-    free(copy);
     return limit;
 }
 
@@ -1267,6 +1261,7 @@ static esp_err_t sta_rx_counter(void *buffer, uint16_t len, void *eb) {
         if (dt > 0) {
             uint64_t refill = (uint64_t)dt * (uint32_t)overall_down * 1000ULL / 8ULL / 1000000ULL;
             uint32_t cap = (uint32_t)overall_down * 1000 / 8;
+            if (cap < 1600) cap = 1600;   /* kam az kam aik poora packet */
             uint64_t nt = (uint64_t)s_down_bucket_tokens + refill;
             s_down_bucket_tokens = nt > cap ? cap : (uint32_t)nt;
             s_down_bucket_last_us = now;
