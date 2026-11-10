@@ -193,9 +193,8 @@ hardware addition, not a firmware-only change).
   both upload and download
 - **v7** — Added a factory-reset counter so a reset can always be
   verified, rewrote this README and FEATURES.md fully in English.
-  Google Drive backup sync: Cloud Console setup documented, the on-device
-  OAuth implementation is intentionally phased as a dedicated follow-up
-  (see FEATURES.md "Known limitations"). (This version briefly included
+  Google Drive backup sync is not planned (settings backup is the
+  Export/Import Config feature in the admin page). (This version briefly included
   an opt-in AI chat page — removed again in v9, see below.)
 - **v8** — Completely rebuilt the admin dashboard: compact, mobile-first
   layout using native collapsible sections (immune to the "page frozen,

@@ -165,8 +165,5 @@ admin dashboard header too).
   chip (e.g. LAN8720) wired to specific pins — this is a hardware
   addition, not just a firmware change. See chat for details; can be
   scoped as a dedicated follow-up once the PHY module is in hand.
-- **Google Drive backup sync: Google Cloud Console setup done, device-side
-  OAuth not built yet.** This needs a careful, dedicated implementation
-  pass (device-code OAuth flow, token storage/refresh, Drive API calls) -
-  deliberately phased separately rather than rushed into an already large
-  change set. See chat for the setup steps already completed.
+- **Google Drive backup sync: not planned.** Settings are backed up with
+  Export Config / Import Config in the admin page.
