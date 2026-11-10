@@ -1512,7 +1512,7 @@ static void wifi_init(void) {
         ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
     }
     if (strlen(sta_ssid) > 0) {
-        ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
+        if (esp_wifi_set_config(WIFI_IF_STA, &sta_config) != ESP_OK) ESP_LOGW(TAG, "Upstream WiFi config rejected - fix it in Upstream WiFi");
     }
     ESP_ERROR_CHECK(esp_wifi_start());
 
@@ -2043,12 +2043,12 @@ static esp_err_t config_import_post_handler(httpd_req_t *req) {
         const char *extra[] = {"sta_ssid", "sta_pass", "whitelist"};
         for (int i = 0; i < 3; i++) {
             cJSON *it = cJSON_GetObjectItem(j, extra[i]);
-            if (cJSON_IsString(it) && strlen(it->valuestring) < (size_t)(i == 0 ? 33 : i == 1 ? 65 : WL_BUF)) nvs_set_string(extra[i], it->valuestring);
+            if (cJSON_IsString(it) && strlen(it->valuestring) < (size_t)(i == 0 ? 33 : i == 1 ? 64 : WL_BUF) && !(i == 1 && it->valuestring[0] && strlen(it->valuestring) < 8)) nvs_set_string(extra[i], it->valuestring);
         }
         const char *extra2[] = {"sta_ssid2", "sta_pass2"};
         for (int i = 0; i < 2; i++) {
             cJSON *it = cJSON_GetObjectItem(j, extra2[i]);
-            if (cJSON_IsString(it) && strlen(it->valuestring) < (size_t)(i == 0 ? 33 : 65)) nvs_set_string(extra2[i], it->valuestring);
+            if (cJSON_IsString(it) && strlen(it->valuestring) < (size_t)(i == 0 ? 33 : 64) && !(i == 1 && it->valuestring[0] && strlen(it->valuestring) < 8)) nvs_set_string(extra2[i], it->valuestring);
         }
         if (bl_n >= 0) {
             static char bl_csv[BL_MAX * (BL_LEN + 1) + 2];
