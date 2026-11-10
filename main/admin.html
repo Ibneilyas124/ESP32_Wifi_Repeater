@@ -129,6 +129,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
   <div class="subnav" id="sub-adv">
     <a data-sec="d-wifi" onclick="go('d-wifi')">Upstream WiFi</a>
     <a data-sec="d-wl" onclick="go('d-wl')">MAC Whitelist</a>
+    <a data-sec="d-block" onclick="go('d-block')">Website Block List</a>
     <a data-sec="d-adv" onclick="go('d-adv')">Advanced Settings</a>
     <a data-sec="d-backup" onclick="go('d-backup')">Config Backup</a>
     <a data-sec="d-ota" onclick="go('d-ota')">Firmware Update</a>
@@ -262,6 +263,11 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
       <div class="btnrow"><button onclick="addMac()">Add to Whitelist</button><span class="msg" id="wlMsg"></span></div>
     </div></details>
 
+    <details class="sec" id="d-block"><summary>Website Block List</summary><div class="body">
+      <p class="desc">One domain per line (e.g. example.com). Blocks the site and its subdomains for every device by dropping their DNS lookups. Max 20 domains. Phones using Private DNS / secure DNS in the browser can bypass this.</p>
+      <textarea id="blockText" rows="8" style="width:100%;max-width:420px" placeholder="example.com"></textarea>
+      <div class="btnrow"><button onclick="saveBlock()">Save Block List</button><span class="msg" id="blockMsg"></span></div>
+    </div></details>
     <details class="sec" id="d-adv"><summary>Advanced Settings</summary><div class="body">
       <p class="desc">Detailed repeater settings. The repeater reboots after saving.</p>
       <div id="advGroups"></div>
@@ -292,7 +298,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
 
 <script>
 (function(){
-  var SECS={home:['p-home'],sys:['p-info','d-usage','d-speed','d-stab'],adv:['d-wifi','d-wl','d-adv','d-backup','d-ota','d-danger']};
+  var SECS={home:['p-home'],sys:['p-info','d-usage','d-speed','d-stab'],adv:['d-wifi','d-wl','d-block','d-adv','d-backup','d-ota','d-danger']};
   var cur=null, last={home:'p-home',sys:'p-info',adv:'d-wifi'};
   function groupOf(id){ for(var g in SECS){ if(SECS[g].indexOf(id)>=0) return g; } return 'home'; }
   window.go=function(id){
@@ -437,6 +443,17 @@ async function addMac(){
 async function removeMac(m){
   var j=await post('/api/whitelist',{action:'remove',mac:m});
   if(j) refreshStatus();
+}
+async function loadBlock(){
+  try{
+    var r=await fetch('/api/blocklist',{cache:'no-store'}); if(authFail(r)) return; var j=await r.json();
+    $('blockText').value=j.list||'';
+  }catch(e){}
+}
+async function saveBlock(){
+  var j=await post('/api/blocklist',{list:$('blockText').value}); if(!j) return;
+  $('blockMsg').textContent=j.ok?'Saved.':('Not saved: '+j.error);
+  if(j.ok) loadBlock();
 }
 async function loadRequests(){
   try{
@@ -619,6 +636,7 @@ async function doLogout(){ await post('/api/logout'); location.href='/'; }
 refreshStatus();
 setInterval(refreshStatus, 5000);
 setInterval(loadRequests, 5000); loadRequests();
+loadBlock();
 </script>
 </body>
 </html>

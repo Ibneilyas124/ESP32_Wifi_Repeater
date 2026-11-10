@@ -46,6 +46,7 @@ const speed = { samples: [{ ago_s: 10, ms: 30, ok: true }, { ago_s: 900, ms: 80,
     if (p === '/api/settings') return json({ items });
     if (p === '/api/usage') return json(usage);
     if (p === '/api/requests') return json({ requests: [] });
+    if (p === '/api/blocklist') return json({ list: 'ads.example.com\nbad.test' });
     if (p === '/api/speedhistory') return json(speed);
     if (p === '/api/config/export') return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ap_ssid":"Sarfraz"}' });
     return route.fulfill({ status: 404, body: 'nf' });
@@ -92,6 +93,7 @@ const speed = { samples: [{ ago_s: 10, ms: 30, ok: true }, { ago_s: 900, ms: 80,
   T('el() shows model text as text, not HTML', xss);
   T('whitelist shows entry with limit', /500 Kbps/.test(await page.locator('#wlList').innerText()));
   T('whitelist shows schedule', /2000-2300/.test(await page.locator('#wlList').innerText()));
+  T('block list loaded into textarea', (await page.locator('#blockText').inputValue()).includes('ads.example.com'));
   T('stability log shows plain-English reason', /Router not found/.test(await page.locator('#stabBody').innerText()));
   T('usage totals rendered', /MB|GB/.test(await page.locator('#overallUsage').innerText()));
   T('speed history bars drawn', (await page.locator('#shChart i').count()) === 3);

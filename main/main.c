@@ -1072,9 +1072,106 @@ static void dhcp_sniff(const uint8_t *f, uint16_t len) {
     }
 }
 
+/* ---- Website block list: UDP port 53 ki DNS query ka domain (ends-with match) list mein ho to packet drop.
+ * List NVS "blocklist" (comma separated) mein, RAM cache se filter chalta hai. DoT/DoH aur TCP DNS is se nahi rukte. ---- */
+#define BL_MAX 20
+#define BL_LEN 40
+static char s_bl[BL_MAX][BL_LEN + 1];
+static volatile int s_bl_n = 0;
+
+/* txt (comma/newline/space) se domains nikalta hai; count lautata hai, ghalti par -1 aur *err set */
+static int blocklist_parse(const char *txt, char out[][BL_LEN + 1], const char **err) {
+    int n = 0;
+    char tok[BL_LEN + 2];
+    int tl = 0;
+    bool toolong = false;
+    for (const char *p = txt; ; p++) {
+        char c = *p;
+        bool sep = (c == 0 || c == ',' || c == '\n' || c == '\r' || c == ' ' || c == '\t' || c == ';');
+        if (sep) {
+            if (toolong) { *err = "domain too long (max 40 characters)"; return -1; }
+            if (tl > 0) {
+                if (n >= BL_MAX) { *err = "too many domains (max 20)"; return -1; }
+                tok[tl] = 0;
+                memcpy(out[n], tok, (size_t)tl + 1);
+                n++;
+            }
+            tl = 0;
+            if (c == 0) break;
+            continue;
+        }
+        if (c >= 'A' && c <= 'Z') c = (char)(c + 32);
+        bool ok = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '.';
+        if (!ok) { *err = "only letters, digits, dot and hyphen are allowed in domains"; return -1; }
+        if (c == '.' && tl == 0) continue;
+        if (tl < BL_LEN) tok[tl++] = c; else toolong = true;
+    }
+    return n;
+}
+
+static void blocklist_apply(char in[][BL_LEN + 1], int n) {
+    s_bl_n = 0;
+    for (int i = 0; i < n; i++) memcpy(s_bl[i], in[i], BL_LEN + 1);
+    s_bl_n = n;
+}
+
+static void blocklist_load(void) {
+    static char v[BL_MAX * (BL_LEN + 1) + 2];
+    static char tmp[BL_MAX][BL_LEN + 1];
+    nvs_get_string("blocklist", v, sizeof(v), "");
+    const char *err = NULL;
+    int n = blocklist_parse(v, tmp, &err);
+    if (n > 0) blocklist_apply(tmp, n);
+}
+
+static bool dns_blocked(const uint8_t *f, uint16_t len) {
+    int bn = s_bl_n;
+    if (bn <= 0 || len < 14 + 20 + 8 + 12 + 5) return false;
+    if (f[12] != 0x08 || f[13] != 0x00) return false;     /* IPv4 */
+    if ((f[14] >> 4) != 4) return false;
+    int ihl = (f[14] & 0x0F) * 4;
+    if (ihl < 20 || f[23] != 17) return false;            /* UDP */
+    int u = 14 + ihl;
+    if (len < u + 8 + 12 + 5) return false;
+    if (f[u + 2] != 0 || f[u + 3] != 53) return false;    /* dest port 53 */
+    const uint8_t *d = f + u + 8;
+    int n = len - (u + 8);
+    if (d[2] & 0x80) return false;                        /* sirf query, response nahi */
+    if (d[4] == 0 && d[5] == 0) return false;            /* QDCOUNT 0 */
+    char name[100];
+    int nl = 0;
+    int i = 12;
+    while (i < n) {
+        int l = d[i];
+        if (l == 0) break;
+        if (l > 63 || i + 1 + l > n) return false;
+        if (nl + l + 2 >= (int)sizeof(name)) return false;
+        if (nl > 0) name[nl++] = '.';
+        for (int k = 0; k < l; k++) {
+            char c = (char)d[i + 1 + k];
+            if (c >= 'A' && c <= 'Z') c = (char)(c + 32);
+            name[nl++] = c;
+        }
+        i += 1 + l;
+    }
+    name[nl] = 0;
+    if (nl == 0) return false;
+    for (int b = 0; b < bn; b++) {
+        int bl = (int)strlen(s_bl[b]);
+        if (bl <= 0 || bl > nl) continue;
+        if (strcmp(name + nl - bl, s_bl[b]) != 0) continue;
+        if (nl == bl || name[nl - bl - 1] == '.') return true;
+    }
+    return false;
+}
+
 static esp_err_t ap_rx_filter(void *buffer, uint16_t len, void *eb) {
     dhcp_sniff((const uint8_t *)buffer, len);
     http_sniff((const uint8_t *)buffer, len);
+    if (dns_blocked((const uint8_t *)buffer, len)) {
+        esp_wifi_internal_free_rx_buffer(eb);   /* blocked website ki DNS query - jawab nahi milega */
+        return ESP_OK;
+    }
     if (!s_guest_filter_on || len < 14) {
         esp_netif_receive(s_ap_netif, buffer, len, eb);
         return ESP_OK;
@@ -1990,6 +2087,48 @@ static esp_err_t requests_post_handler(httpd_req_t *req) {
     return send_result(req, ok, ok ? NULL : err);
 }
 
+/* ================= Website block list API ================= */
+
+static esp_err_t blocklist_get_handler(httpd_req_t *req) {
+    if (require_session_api(req) != ESP_OK) return ESP_OK;
+    char out[BL_MAX * (BL_LEN + 1) + 2];
+    out[0] = 0;
+    int n = s_bl_n;
+    for (int i = 0; i < n; i++) {
+        if (i) strncat(out, "\n", sizeof(out) - strlen(out) - 1);
+        strncat(out, s_bl[i], sizeof(out) - strlen(out) - 1);
+    }
+    cJSON *r = cJSON_CreateObject();
+    cJSON_AddStringToObject(r, "list", out);
+    return send_json(req, r);
+}
+
+static esp_err_t blocklist_post_handler(httpd_req_t *req) {
+    if (require_session_api(req) != ESP_OK) return ESP_OK;
+    char *buf = malloc(1200);
+    if (!buf) return send_result(req, false, "out of memory");
+    read_body(req, buf, 1200);
+    cJSON *j = cJSON_Parse(buf);
+    free(buf);
+    if (!j) return send_result(req, false, "invalid data");
+    cJSON *l = cJSON_GetObjectItem(j, "list");
+    if (!cJSON_IsString(l)) { cJSON_Delete(j); return send_result(req, false, "invalid data"); }
+    char tmp[BL_MAX][BL_LEN + 1];
+    const char *err = NULL;
+    int n = blocklist_parse(l->valuestring, tmp, &err);
+    cJSON_Delete(j);
+    if (n < 0) return send_result(req, false, err ? err : "invalid list");
+    char csv[BL_MAX * (BL_LEN + 1) + 2];
+    csv[0] = 0;
+    for (int i = 0; i < n; i++) {
+        if (i) strncat(csv, ",", sizeof(csv) - strlen(csv) - 1);
+        strncat(csv, tmp[i], sizeof(csv) - strlen(csv) - 1);
+    }
+    nvs_set_string("blocklist", csv);
+    blocklist_apply(tmp, n);
+    return send_result(req, true, NULL);
+}
+
 /* ================= Kick / identity ================= */
 
 static esp_err_t kick_post_handler(httpd_req_t *req) {
@@ -2436,6 +2575,7 @@ static esp_err_t factory_reset_post_handler(httpd_req_t *req) {
 }
 
 static void start_webserver(void) {
+    blocklist_load();
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 34;
     config.stack_size = 8192;
@@ -2463,6 +2603,8 @@ static void start_webserver(void) {
         {.uri = "/api/request",        .method = HTTP_POST, .handler = request_post_handler},
         {.uri = "/api/requests",       .method = HTTP_GET,  .handler = requests_get_handler},
         {.uri = "/api/requests",       .method = HTTP_POST, .handler = requests_post_handler},
+        {.uri = "/api/blocklist",      .method = HTTP_GET,  .handler = blocklist_get_handler},
+        {.uri = "/api/blocklist",      .method = HTTP_POST, .handler = blocklist_post_handler},
         {.uri = "/api/me",             .method = HTTP_GET,  .handler = me_get_handler},
         {.uri = "/tools",              .method = HTTP_GET,  .handler = tools_get_handler},
         {.uri = "/api/scan/start",     .method = HTTP_POST, .handler = scan_start_post_handler},

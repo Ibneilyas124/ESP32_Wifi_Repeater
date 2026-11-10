@@ -30,6 +30,11 @@ admin dashboard header too).
   the WiFi password and reach the admin/tools pages, but get **no
   internet** — enforced at the WiFi-driver packet level (`ap_rx_filter`),
   not just a login wall
+- **Website block list**: up to 20 domains (Advanced Configuration > Website
+  Block List). The repeater drops the DNS lookups (UDP port 53) of those
+  domains and their subdomains for every device. Limits: Private DNS / DoH
+  bypass it, and a site whose IP is already cached on the phone may still open
+  until the cache expires. The list is not part of Config Backup yet
 - **Request access**: a guest can type a name on the login page; the repeater
   identifies the device by its DHCP lease (the guest never types a MAC) and the
   admin approves or rejects it under MAC Whitelist. Pending requests live in
