@@ -2126,9 +2126,8 @@ static esp_err_t request_post_handler(httpd_req_t *req) {
     if (k == 0) return send_result(req, false, "please enter your name");
     uint8_t m[6];
     if (!peer_mac(req, m)) {
-        char em[200];
-        snprintf(em, sizeof(em), "could not identify your device (code %d, family %d, stations %d) - connect to the repeater's WiFi and try again", s_peer_dbg, s_peer_fam, s_peer_n);
-        return send_result(req, false, em);
+        ESP_LOGW(TAG, "request: peer_mac failed (code %d, family %d, stations %d)", s_peer_dbg, s_peer_fam, s_peer_n);
+        return send_result(req, false, "could not identify your device - connect to the repeater's WiFi and try again");
     }
     char norm[18];
     snprintf(norm, sizeof(norm), "%02X:%02X:%02X:%02X:%02X:%02X", m[0], m[1], m[2], m[3], m[4], m[5]);
