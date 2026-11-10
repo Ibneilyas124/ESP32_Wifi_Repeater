@@ -1924,6 +1924,9 @@ static esp_err_t config_export_get_handler(httpd_req_t *req) {
     cJSON_AddStringToObject(root, "sta_pass", v);
     whitelist_get(v, sizeof(v));
     cJSON_AddStringToObject(root, "whitelist", v);
+    static char bl_exp[BL_MAX * (BL_LEN + 1) + 2];
+    nvs_get_string("blocklist", bl_exp, sizeof(bl_exp), "");
+    cJSON_AddStringToObject(root, "blocklist", bl_exp);
 
     char *out = cJSON_Print(root);
     httpd_resp_set_type(req, "application/json");
@@ -1935,9 +1938,9 @@ static esp_err_t config_export_get_handler(httpd_req_t *req) {
 
 static esp_err_t config_import_post_handler(httpd_req_t *req) {
     if (require_session_api(req) != ESP_OK) return ESP_OK;
-    char *buf = malloc(3072);
+    char *buf = malloc(4096);
     if (!buf) { httpd_resp_send_500(req); return ESP_OK; }
-    read_body(req, buf, 3072);
+    read_body(req, buf, 4096);
     cJSON *j = cJSON_Parse(buf);
     free(buf);
     if (!j) return send_result(req, false, "not valid JSON");
@@ -1955,6 +1958,14 @@ static esp_err_t config_import_post_handler(httpd_req_t *req) {
     }
     cJSON *wl = cJSON_GetObjectItem(j, "whitelist");
     if (ok && cJSON_IsString(wl) && strlen(wl->valuestring) >= WL_BUF) { ok = false; snprintf(err, sizeof(err), "whitelist too long"); }
+    static char bl_tmp[BL_MAX][BL_LEN + 1];
+    int bl_n = -1;
+    cJSON *blj = cJSON_GetObjectItem(j, "blocklist");
+    if (ok && cJSON_IsString(blj)) {
+        const char *berr = NULL;
+        bl_n = blocklist_parse(blj->valuestring, bl_tmp, &berr);
+        if (bl_n < 0) { ok = false; snprintf(err, sizeof(err), "blocklist: %.100s", berr ? berr : "invalid list"); }
+    }
     if (ok) {
         for (size_t i = 0; i < N_SETTINGS; i++) {
             cJSON *it = cJSON_GetObjectItem(j, SETTINGS[i].key);
@@ -1964,6 +1975,15 @@ static esp_err_t config_import_post_handler(httpd_req_t *req) {
         for (int i = 0; i < 3; i++) {
             cJSON *it = cJSON_GetObjectItem(j, extra[i]);
             if (cJSON_IsString(it) && strlen(it->valuestring) < 200 + (i == 2 ? WL_BUF : 0)) nvs_set_string(extra[i], it->valuestring);
+        }
+        if (bl_n >= 0) {
+            static char bl_csv[BL_MAX * (BL_LEN + 1) + 2];
+            bl_csv[0] = 0;
+            for (int i = 0; i < bl_n; i++) {
+                if (i) strncat(bl_csv, ",", sizeof(bl_csv) - strlen(bl_csv) - 1);
+                strncat(bl_csv, bl_tmp[i], sizeof(bl_csv) - strlen(bl_csv) - 1);
+            }
+            nvs_set_string("blocklist", bl_csv);   /* import ke baad reboot, blocklist_load() boot par uthata hai */
         }
     }
     cJSON_Delete(j);

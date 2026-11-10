@@ -102,7 +102,7 @@ admin dashboard header too).
   last ~12 hours, red bar = internet was down at that check
 - **Share this WiFi**: one-tap copy/share of the repeater's own SSID +
   password (native share sheet where supported)
-- Config backup: export/import all settings as JSON
+- Config backup: export/import all settings as JSON (includes the website block list)
 - **Firmware update (OTA)**: upload a new `esp32-wifi-repeater.bin` from
   Advanced Configuration > Firmware Update (login required). The firmware
   checks the file size and the first byte (0xE9), validates the image,
