@@ -96,3 +96,10 @@ Sirf text badalna ho to `admin.html` mein `Firmware Update` ke aas paas ka matn 
   chhedni hain, baaki `main.c` na chhedna.
 - Koi bhi edit karne ke baad **Actions tab** mein build zaroor dekhna — agar
   laal ❌ aaye to us error ka pehla `error:` wala hissa Claude ko bhej dena.
+
+## 9. Naye features: kahan kya hai
+- **Website Block List**: admin.html mein section `d-block` (`#blockText`, `loadBlock`, `saveBlock`). Firmware mein `blocklist_parse` / `dns_blocked` (main.c), NVS key `blocklist`, max 20 domains
+- **Request access** (guest): login.html ka form; admin.html mein `reqList` / `loadRequests` (Approve/Reject); main.c mein `request_post_handler`
+- **Whitelist schedule** (HHMM-HHMM): admin.html mein `#newsched`; main.c mein `wl_in_schedule`; time zone setting `tz_offset` (Advanced Settings, default 5)
+- **Backup upstream network**: admin.html Upstream WiFi ke andar `#sta_ssid2` / `#sta_pass2`; main.c mein `STA_FAILOVER_FAILS` (kitni baar fail ho to switch, abhi 5) aur `primary_return_task` (primary par wapsi ka check, `tick % 3000` yani ~5 min)
+- Naya setting add karna ho to main.c ki `SETTINGS[]` table mein aik line jodo; naya URL add karo to `max_uri_handlers` (abhi 34) check karo

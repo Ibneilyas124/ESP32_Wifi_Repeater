@@ -34,7 +34,7 @@ admin dashboard header too).
   Block List). The repeater drops the DNS lookups (UDP port 53) of those
   domains and their subdomains for every device. Limits: Private DNS / DoH
   bypass it, and a site whose IP is already cached on the phone may still open
-  until the cache expires. The list is not part of Config Backup yet
+  until the cache expires. The list is included in Config Backup
 - **Request access**: a guest can type a name on the login page; the repeater
   identifies the device by its DHCP lease (the guest never types a MAC) and the
   admin approves or rejects it under MAC Whitelist. Pending requests live in

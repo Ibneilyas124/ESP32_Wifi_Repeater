@@ -24,12 +24,18 @@ see on the device's screens without touching the surrounding code.
 | `main/login.html` | Public branded login page + "About Developer" popup |
 | `main/admin.html` | Admin dashboard (after login) |
 | `main/tools.html` | Public WiFi Tools page (analyzer, deauth monitor, speed test, diagnose) |
+| `main/oui_table.h` | Generated MAC-vendor (IEEE OUI) table used for the company name next to a MAC |
+| `main/model_table.h` | Generated phone model table (from Google's supported-devices list), made by `tools/gen_model_table.py` |
 | `sdkconfig.defaults` | Enables real NAT (`LWIP_IPV4_NAPT`) and tuned network buffers |
-| `partitions.csv` | 4MB flash partition layout |
+| `partitions.csv` | 4MB flash partition layout (nvs, otadata, two OTA app slots) |
 | `.github/workflows/build.yml` | Builds the firmware on GitHub's servers on every push |
 | `flash.sh` | Optional one-command Termux flashing script |
 | `FEATURES.md` | Full A-to-Z feature list — update this whenever a feature is added |
 | `LEARN_TO_EDIT.md` | Where to find and safely edit any on-screen text |
+| `FLASH_AND_TEST.md` | Flash steps and a feature-by-feature test checklist for a real ESP32 |
+| `dev-tests/` | Real-browser UI tests (`ui_test_admin.js`, `ui_test_tools.js`), run on a laptop |
+| `tools/` | Helper scripts (`gen_model_table.py`) |
+| `HANDOVER.md` | Working notes for continuing the project in a new chat |
 
 ## Step 0 — Start Termux clean (do this first)
 
@@ -200,8 +206,16 @@ hardware addition, not a firmware-only change).
   too small for long values), removed the AI chat feature entirely per
   request (was spending the admin's API budget on a feature not wanted
   right now; can be re-added later if desired)
-- **v10** (current) — Fixed a JavaScript syntax error in the new admin page that
+- **v10** — Fixed a JavaScript syntax error in the new admin page that
   stopped every button (Save, Show password, Logout...) from working and left the
   status stuck on "Loading...". Made the page phone-friendly (device list as cards,
   no side-scrolling, buttons no longer overflow), and added `dev-tests/ui_test_admin.js`,
   a real-browser test that now guards the admin page against this kind of breakage
+- **v11** (current) — Huawei HG8546M-style design for the login, admin and tools
+  pages; web firmware update (OTA) with rollback and a two-slot partition table;
+  device names, company and phone model/OS in Connected Devices; first seen /
+  "New" tag; guest "Request access" with admin approval; whitelist time windows;
+  website block list; backup upstream network (failover) with automatic return
+  to the main router; the block list and backup network are part of config
+  export/import. Added `FLASH_AND_TEST.md`. Most of these are compiled and built
+  but not yet tested on a real ESP32
