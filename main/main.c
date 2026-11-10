@@ -2673,6 +2673,7 @@ static void start_webserver(void) {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 34;
     config.stack_size = 8192;
+    config.lru_purge_enable = true;   /* sockets bhar jayen to sab se purana idle socket band: admin page hang fix */
     httpd_handle_t server = NULL;
     if (httpd_start(&server, &config) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start web server");
