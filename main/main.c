@@ -2072,15 +2072,30 @@ typedef struct { uint8_t mac[6]; char name[32]; bool used; } access_req_t;
 static access_req_t s_req[REQ_MAX];   /* sirf RAM, boot par khali */
 
 /* request bhejne wale ka MAC: peer IP se DHCP lease table mein dhoondh kar (guest se MAC nahi manga jata) */
+static int s_peer_dbg, s_peer_fam, s_peer_n;
 static bool peer_mac(httpd_req_t *req, uint8_t mac_out[6]) {
     int fd = httpd_req_to_sockfd(req);
     if (fd < 0) return false;
     struct sockaddr_storage ss;
     socklen_t sln = sizeof(ss);
-    if (getpeername(fd, (struct sockaddr *)&ss, &sln) != 0 || ss.ss_family != AF_INET) return false;
-    uint32_t ip = ((struct sockaddr_in *)&ss)->sin_addr.s_addr;
+    if (getpeername(fd, (struct sockaddr *)&ss, &sln) != 0) { s_peer_dbg = 1; return false; }
+    s_peer_fam = ss.ss_family;
+    uint32_t ip = 0;
+    if (ss.ss_family == AF_INET) {
+        ip = ((struct sockaddr_in *)&ss)->sin_addr.s_addr;
+#if LWIP_IPV6
+    } else if (ss.ss_family == AF_INET6) {
+        const uint8_t *a6 = ((struct sockaddr_in6 *)&ss)->sin6_addr.s6_addr;
+        bool mapped = (a6[10] == 0xff && a6[11] == 0xff);
+        for (int q = 0; q < 10; q++) if (a6[q] != 0) mapped = false;
+        if (mapped) memcpy(&ip, a6 + 12, 4);
+#endif
+    }
+    if (ip == 0) { s_peer_dbg = 2; return false; }
+    
     wifi_sta_list_t stl;
-    if (esp_wifi_ap_get_sta_list(&stl) != ESP_OK) return false;
+    if (esp_wifi_ap_get_sta_list(&stl) != ESP_OK) { s_peer_dbg = 3; return false; }
+    s_peer_n = stl.num;
     esp_netif_pair_mac_ip_t pairs[10] = { 0 };
     int count = stl.num > 10 ? 10 : stl.num;
     for (int i = 0; i < count; i++) memcpy(pairs[i].mac, stl.sta[i].mac, 6);
@@ -2088,6 +2103,7 @@ static bool peer_mac(httpd_req_t *req, uint8_t mac_out[6]) {
     for (int i = 0; i < count; i++) {
         if (pairs[i].ip.addr != 0 && pairs[i].ip.addr == ip) { memcpy(mac_out, stl.sta[i].mac, 6); return true; }
     }
+    s_peer_dbg = 4;
     return false;
 }
 
@@ -2109,7 +2125,11 @@ static esp_err_t request_post_handler(httpd_req_t *req) {
     cJSON_Delete(j);
     if (k == 0) return send_result(req, false, "please enter your name");
     uint8_t m[6];
-    if (!peer_mac(req, m)) return send_result(req, false, "could not identify your device - connect to the repeater's WiFi and try again");
+    if (!peer_mac(req, m)) {
+        char em[200];
+        snprintf(em, sizeof(em), "could not identify your device (code %d, family %d, stations %d) - connect to the repeater's WiFi and try again", s_peer_dbg, s_peer_fam, s_peer_n);
+        return send_result(req, false, em);
+    }
     char norm[18];
     snprintf(norm, sizeof(norm), "%02X:%02X:%02X:%02X:%02X:%02X", m[0], m[1], m[2], m[3], m[4], m[5]);
     if (whitelist_contains(norm)) return send_result(req, false, "this device already has internet access");
