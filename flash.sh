@@ -8,6 +8,10 @@
 #   3. Run:  bash flash.sh /dev/ttyUSB0
 #      (run "ls /dev/tty*" first if unsure of the port; termux-usb may be needed)
 
+# NOTE: first flash after the new partition table (settings kept): also run
+#   python3 -m esptool --chip esp32 --port <PORT> erase_region 0x10000 0x2000
+# See FLASH_AND_TEST.md. Do NOT erase it on later flashes (it holds the OTA slot choice).
+
 set -e
 
 PORT="${1:-/dev/ttyUSB0}"
@@ -21,6 +25,6 @@ python3 -m esptool --chip esp32 --port "$PORT" --baud 460800 \
   0x8000  partition-table.bin \
   0x20000 esp32-wifi-repeater.bin
 
-echo "Done. Device rebooting. Connect to WiFi SSID 'Sarfraz' (password 'Sarfraz')"
+echo "Done. Device rebooting. Connect to WiFi SSID 'Sarfraz' (password 'Sarfraz1')"
 echo "and open http://192.168.4.1 in a browser to reach the admin dashboard."
-echo "Admin login -> user: admin   password: Sarfraz  (change it from the dashboard)."
+echo "Admin login -> user: Sarfraz   password: admin  (change it from the dashboard)."
