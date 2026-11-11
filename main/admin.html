@@ -340,6 +340,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
       <p class="desc">Export the settings as text, or paste an export from this repeater and import it.</p>
       <textarea id="importbox" spellcheck="false"></textarea>
       <div class="btnrow"><button onclick="exportCfg()">Export Config</button><button onclick="importCfg()">Import Config</button></div>
+      <p class="desc">Or import from a saved backup file: <input type="file" accept=".txt,.json,text/plain" onchange="pickCfgFile(this)"></p>
     </div></details>
 
     <details class="sec" id="d-ota"><summary>Firmware Update</summary><div class="body">
@@ -728,8 +729,15 @@ function otaUpload(){
   x.send(f);
 }
 async function exportCfg(){
-  try{ var r=await fetch('/api/config/export'); if(authFail(r))return; $('importbox').value=await r.text(); }
+  try{ var r=await fetch('/api/config/export'); if(authFail(r))return; var t=await r.text(); $('importbox').value=t; var bb=new Blob([t],{type:'text/plain'}); var uu=URL.createObjectURL(bb); var aa=document.createElement('a'); aa.href=uu; aa.download='repeater-backup-'+new Date().toISOString().slice(0,10)+'.txt'; document.body.appendChild(aa); aa.click(); aa.remove(); setTimeout(function(){URL.revokeObjectURL(uu);},2000); }
   catch(e){ $('importbox').value=''; }
+}
+function pickCfgFile(inp){
+  var f=inp.files&&inp.files[0]; if(!f) return;
+  var rd=new FileReader();
+  rd.onload=function(){ $('importbox').value=String(rd.result||''); inp.value=''; if(confirm('Import settings from '+f.name+'? The repeater will reboot.')) importCfg(); };
+  rd.onerror=function(){ alert('Could not read the file'); };
+  rd.readAsText(f);
 }
 async function importCfg(){
   var parsed;

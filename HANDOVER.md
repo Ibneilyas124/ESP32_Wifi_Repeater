@@ -123,3 +123,4 @@
 - Model detection: Motorola phone (Android 11) par DHCP hostname (name) khali, reconnect par randomized MAC (Private MAC). Hostname se model mumkin nahi lagta. "Android 10" asal mein Chrome UA ka frozen value hai (andaza): ab Android ke liye DHCP option 60 UA se pehle. Device test baqi.
 - build-135 (7a09e14) Actions API se GREEN verified; device par os "Android 11" dikha (option 60 fix kaam kiya).
 - Device label: Home > Connected Devices mein "Name" button. NVS key "labels" (MAC=naam|), whitelist se alag, access par asar nahi. /api/whitelist POST action "label". Naam priority: whitelist naam, label, DHCP hostname. Config export/import mein labels shamil NAHI. Device test baqi.
+- Factory reset: esp_wifi_restore() jora (driver ki upstream WiFi copy, andaza). Backup: Export ab .txt download karta hai, Import file picker se. Device test baqi. Hardware button reset ka raasta check baqi.

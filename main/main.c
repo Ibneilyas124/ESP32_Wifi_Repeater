@@ -2797,6 +2797,7 @@ static esp_err_t factory_reset_post_handler(httpd_req_t *req) {
     if (require_session_api(req) != ESP_OK) return ESP_OK;
     wipe_settings();
     send_result(req, true, NULL);
+    esp_wifi_restore();   /* driver ki apni upstream WiFi copy bhi saaf */
     restart_soon();
     return ESP_OK;
 }
