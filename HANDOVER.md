@@ -112,3 +112,7 @@
 - 2026-11-10: Sarfraz ne kaha: ESP32 busy hai, online update (Check/Update now) ka test baad mein lekin zaroor. Naya kaam: Connected Devices mein company (OUI) sahi aa rahi hai lekin model nahi (Motorola); model detection par kaam karna hai. Sarfraz ko yeh pasand aaya ke branded routers sirf MAC dikhate hain jabke repeater company tak pahunchta hai.
 
 - 2026-11-10: phone model detection: UA se model khali (Chrome "K") to DHCP hostname se model (host_model_guess: moto/galaxy/redmi/pixel/infinix/tecno... prefix, - ko space), clients JSON mein; brand_from_model mein moto->Motorola, Galaxy->Samsung. Sirf compile; device test baqi (ESP32 busy). Dekhna: Motorola phone ka hostname asal mein model hai ya android-xxxx.
+
+## Update 2026-11-11
+- build-129 (0b1a9dd) Actions API se GREEN verified.
+- Online update: HTTP clock fail ESP_ERR_HTTP_CONNECT; error ab DNS/connect alag batata hai + STA fallback DNS 8.8.8.8. Device test baqi.

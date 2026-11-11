@@ -2806,7 +2806,7 @@ static void upd_install(void) {
 
 /* Clock HTTP "Date" header se (UDP/NTP band ho tab bhi chalta hai) */
 #include <sys/time.h>
-static char s_time_err[40];
+static char s_time_err[64];
 static char s_date_hdr[48];
 static esp_err_t upd_date_evt(esp_http_client_event_t *e) {
     if (e->event_id == HTTP_EVENT_ON_HEADER && e->header_key && e->header_value &&
@@ -2837,6 +2837,13 @@ static void upd_http_time(void) {
     s_time_err[0] = 0;
     for (int k = 0; k < 2; k++) {
         s_date_hdr[0] = 0;
+        {
+            struct hostent *hh = gethostbyname(k == 0 ? "connectivitycheck.gstatic.com" : "www.google.com");
+            if (!hh || !hh->h_addr_list || !hh->h_addr_list[0]) {
+                snprintf(s_time_err, sizeof(s_time_err), "DNS fail (host %d)", k + 1);
+                continue;
+            }
+        }
         esp_http_client_config_t c = {0};
         c.url = urls[k];
         c.event_handler = upd_date_evt;
@@ -2846,7 +2853,7 @@ static void upd_http_time(void) {
         if (!cl) continue;
         esp_err_t e = esp_http_client_perform(cl);
         esp_http_client_cleanup(cl);
-        if (e != ESP_OK) { snprintf(s_time_err, sizeof(s_time_err), "%s", esp_err_to_name(e)); continue; }
+        if (e != ESP_OK) { snprintf(s_time_err, sizeof(s_time_err), "DNS ok, connect: %s", esp_err_to_name(e)); continue; }
         time_t t;
         if (s_date_hdr[0] && upd_parse_date(s_date_hdr, &t)) {
             struct timeval tv = { .tv_sec = t, .tv_usec = 0 };
@@ -2874,6 +2881,12 @@ static void upd_sync_clock(void) {
 }
 
 static void upd_task(void *arg) {
+    {
+        esp_netif_dns_info_t fb = { 0 };
+        fb.ip.u_addr.ip4.addr = esp_ip4addr_aton("8.8.8.8");
+        fb.ip.type = ESP_IPADDR_TYPE_V4;
+        esp_netif_set_dns_info(s_sta_netif, ESP_NETIF_DNS_FALLBACK, &fb);
+    }
     if (time(NULL) < 1700000000) upd_http_time();
     upd_sync_clock();
     if (time(NULL) < 1700000000) {
