@@ -118,3 +118,4 @@
 - Online update: HTTP clock fail ESP_ERR_HTTP_CONNECT; error ab DNS/connect alag batata hai + STA fallback DNS 8.8.8.8. Device test baqi.
 - Online update: HTTP 301 (repo rename) fix: UPD_BASE_URL ab ESP32_Wifi_Repeater. Clock sync ab theek (TLS GitHub tak pahuncha). Diagnosis "Timed out" abhi open.
 - Online update CHECK device par PASS: "Up to date (build #131)". Update now + rollback test baqi. Diagnosis "Timed out" open (dump ke baad fix).
+- Diagnosis "Timed out": tcp_probe ab non-blocking connect + poll (asli timeout). Wajah andaza: lwIP connect SO_SNDTIMEO nahi manta. Device test baqi.

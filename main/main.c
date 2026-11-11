@@ -2499,6 +2499,9 @@ static esp_err_t upspeed_post_handler(httpd_req_t *req) {
 
 /* ================= Diagnose ================= */
 
+#include <fcntl.h>
+#include <poll.h>
+#include <errno.h>
 static int tcp_probe(const char *ip, int port, int timeout_ms) {
     int64_t t0 = esp_timer_get_time();
     int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -2510,7 +2513,17 @@ static int tcp_probe(const char *ip, int port, int timeout_ms) {
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = inet_addr(ip);
+    int fl = fcntl(sock, F_GETFL, 0);
+    fcntl(sock, F_SETFL, fl | O_NONBLOCK);
     int r = connect(sock, (struct sockaddr *)&addr, sizeof(addr));
+    if (r != 0 && errno == EINPROGRESS) {
+        struct pollfd pfd = { .fd = sock, .events = POLLOUT, .revents = 0 };
+        int pr = poll(&pfd, 1, timeout_ms);
+        int soerr = 1;
+        socklen_t sl = sizeof(soerr);
+        if (pr > 0) getsockopt(sock, SOL_SOCKET, SO_ERROR, &soerr, &sl);
+        r = (pr > 0 && soerr == 0) ? 0 : -1;
+    }
     close(sock);
     if (r != 0) return -1;
     return (int)((esp_timer_get_time() - t0) / 1000);
