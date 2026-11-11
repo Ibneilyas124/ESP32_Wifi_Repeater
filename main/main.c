@@ -2500,7 +2500,7 @@ static esp_err_t upspeed_post_handler(httpd_req_t *req) {
 /* ================= Diagnose ================= */
 
 #include <fcntl.h>
-#include <poll.h>
+#include <sys/poll.h>
 #include <errno.h>
 static int tcp_probe(const char *ip, int port, int timeout_ms) {
     int64_t t0 = esp_timer_get_time();

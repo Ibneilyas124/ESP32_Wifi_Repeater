@@ -119,3 +119,4 @@
 - Online update: HTTP 301 (repo rename) fix: UPD_BASE_URL ab ESP32_Wifi_Repeater. Clock sync ab theek (TLS GitHub tak pahuncha). Diagnosis "Timed out" abhi open.
 - Online update CHECK device par PASS: "Up to date (build #131)". Update now + rollback test baqi. Diagnosis "Timed out" open (dump ke baad fix).
 - Diagnosis "Timed out": tcp_probe ab non-blocking connect + poll (asli timeout). Wajah andaza: lwIP connect SO_SNDTIMEO nahi manta. Device test baqi.
+- Build fail fix: poll.h -> sys/poll.h (ESP-IDF mein yehi path hai). Online update: Sarfraz ne device par practically confirm kiya (maine screenshot mein nahi dekha).
