@@ -399,7 +399,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
   new MutationObserver(function(){
     var v=g.querySelector('.v'); if(!v) return;
     var on=(v.textContent==='Connected');
-    document.getElementById('netStatus').textContent=on?'normal':'upstream offline';
+    var nsEl=document.getElementById('netStatus'); nsEl.textContent=on?'normal':'upstream offline'; nsEl.style.color=on?'':'#d32f2f';
     document.getElementById('topo').classList.toggle('off',!on);
   }).observe(g,{childList:true});
 })();
