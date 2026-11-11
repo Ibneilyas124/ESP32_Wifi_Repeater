@@ -116,3 +116,4 @@
 ## Update 2026-11-11
 - build-129 (0b1a9dd) Actions API se GREEN verified.
 - Online update: HTTP clock fail ESP_ERR_HTTP_CONNECT; error ab DNS/connect alag batata hai + STA fallback DNS 8.8.8.8. Device test baqi.
+- Online update: HTTP 301 (repo rename) fix: UPD_BASE_URL ab ESP32_Wifi_Repeater. Clock sync ab theek (TLS GitHub tak pahuncha). Diagnosis "Timed out" abhi open.

@@ -2726,7 +2726,7 @@ static esp_err_t factory_reset_post_handler(httpd_req_t *req) {
 #include "esp_heap_caps.h"
 #include "build_num.h"
 
-#define UPD_BASE_URL "https://github.com/Ibneilyas124/esp32-wifi-repeater/releases/"
+#define UPD_BASE_URL "https://github.com/Ibneilyas124/ESP32_Wifi_Repeater/releases/"
 /* state: 0 idle, 1 checking, 2 update available, 3 up to date, 4 installing, 5 done (restarting), 6 error */
 static volatile int s_upd_state = 0;
 static volatile int s_upd_action = 0;   /* 0 check, 1 install */
