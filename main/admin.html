@@ -178,6 +178,14 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
         <text class="rt" x="527" y="304" text-anchor="middle">RESET</text>
         <rect x="222" y="312" width="28" height="7" fill="#4fb0ee"/>
         <rect x="530" y="312" width="28" height="7" fill="#4fb0ee"/>
+        <g class="clk" onclick="toggleRtPanel()">
+          <title>Repeater management</title>
+          <rect x="190" y="250" width="400" height="69" fill="transparent"/>
+        </g>
+        <g class="clk" onclick="doReboot()">
+          <title>Reboot</title>
+          <circle cx="256" cy="284" r="14" fill="transparent"/>
+        </g>
 
         <path d="M300 312 V350 H120 V400" fill="none" stroke="#9fd0f3" stroke-width="2" stroke-dasharray="5 5"/>
         <circle cx="190" cy="350" r="10" fill="#9fd0f3"/>
@@ -220,6 +228,18 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
         </g>
       </svg>
 
+      <div id="rtPanel" style="display:none;max-width:760px;margin:10px auto 0;background:#eef1f4;border:1px solid #c9d3de;padding:14px">
+        <h3 style="font-size:16px;font-weight:normal;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid #c9d3de;color:#333">Repeater Management</h3>
+        <b style="font-size:14px">Change Admin Password</b>
+        <div style="margin:8px 0"><label>New Password: <input type="password" id="rtNewPw" maxlength="32" autocomplete="new-password"></label></div>
+        <div style="margin:8px 0"><label>Confirm Password: <input type="password" id="rtNewPw2" maxlength="32" autocomplete="new-password"></label></div>
+        <small class="hint">4-32 characters. The repeater reboots after saving, then log in with the new password.</small>
+        <div style="margin:8px 0"><button onclick="saveRtPass()">Save</button> <button onclick="toggleRtPanel(false)">Cancel</button></div>
+        <div id="rtMsg" style="margin-bottom:8px"></div>
+        <b style="font-size:14px">Reset and Restore Configuration</b>
+        <div style="margin:8px 0"><button onclick="doReboot()">Restart</button> Click it to restart the device.</div>
+        <div style="margin:8px 0"><button class="danger" onclick="doFactoryReset()">Restore Defaults</button> Click it to restore the repeater to its default configuration.</div>
+      </div>
       <div class="homedevs" id="d-clients">
         <h3>Wi-Fi devices</h3>
         <div id="clientsTbl"></div>
@@ -749,6 +769,22 @@ async function importCfg(){
 }
 
 /* ---------------- DANGER ZONE ---------------- */
+function toggleRtPanel(force){
+  var p=document.getElementById('rtPanel');
+  var show=(typeof force==='boolean')?force:(p.style.display==='none');
+  p.style.display=show?'block':'none';
+  if(!show){ document.getElementById('rtNewPw').value=''; document.getElementById('rtNewPw2').value=''; document.getElementById('rtMsg').textContent=''; }
+  else p.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+async function saveRtPass(){
+  var v=document.getElementById('rtNewPw').value, v2=document.getElementById('rtNewPw2').value, m=document.getElementById('rtMsg');
+  if(v.length<4||v.length>32){ m.textContent='Password must be 4-32 characters.'; return; }
+  if(v!==v2){ m.textContent='The two passwords do not match.'; return; }
+  if(!confirm('Change the admin password? The repeater will reboot.')) return;
+  var j=await post('/api/config/import',{admin_pass:v});
+  if(!j) return;
+  m.textContent=j.ok?'Saved - rebooting. Log in again with the new password.':('Not saved: '+j.error);
+}
 async function doReboot(){ if(confirm('Reboot the repeater now?')) await post('/api/reboot'); }
 async function doFactoryReset(){ if(confirm('Erase ALL settings and return to factory defaults?')){ await post('/api/factory_reset'); alert('Reset started - repeater is rebooting with default settings.'); } }
 async function doLogout(){ await post('/api/logout'); location.href='/'; }

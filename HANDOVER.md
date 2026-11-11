@@ -125,3 +125,4 @@
 - Device label: Home > Connected Devices mein "Name" button. NVS key "labels" (MAC=naam|), whitelist se alag, access par asar nahi. /api/whitelist POST action "label". Naam priority: whitelist naam, label, DHCP hostname. Config export/import mein labels shamil NAHI. Device test baqi.
 - Factory reset: esp_wifi_restore() jora (driver ki upstream WiFi copy, andaza). Backup: Export ab .txt download karta hai, Import file picker se. Device test baqi. Hardware button reset ka raasta check baqi.
 - Reset (esp_wifi_restore) aur backup file export/import: Sarfraz ne device par confirm kiya. Home "Network connection status": upstream offline ab red (#d32f2f).
+- Home: router ke neele jism par click se "Repeater Management" panel (Change Admin Password via /api/config/import {admin_pass}, Restart, Restore Defaults). Grey dot (left) par click = reboot confirm. Device test baqi.
