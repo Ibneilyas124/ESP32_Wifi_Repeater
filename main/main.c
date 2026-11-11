@@ -979,9 +979,9 @@ static void devinfo_get(const uint8_t mac[6], const uint8_t ip4[4],
         }
     }
     char vc[32];
-    if (!ros[0] && dhcp_vc_lookup(mac, vc, sizeof(vc))) {
+    if (dhcp_vc_lookup(mac, vc, sizeof(vc))) {
         if (strncmp(vc, "android-dhcp-", 13) == 0) snprintf(ros, sizeof(ros), "Android %.8s", vc + 13);
-        else if (strncmp(vc, "MSFT", 4) == 0) snprintf(ros, sizeof(ros), "Windows");
+        else if (!ros[0] && strncmp(vc, "MSFT", 4) == 0) snprintf(ros, sizeof(ros), "Windows");
     }
     snprintf(os, on, "%.19s", ros);
     if (raw[0]) {

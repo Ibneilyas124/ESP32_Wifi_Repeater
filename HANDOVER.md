@@ -120,3 +120,4 @@
 - Online update CHECK device par PASS: "Up to date (build #131)". Update now + rollback test baqi. Diagnosis "Timed out" open (dump ke baad fix).
 - Diagnosis "Timed out": tcp_probe ab non-blocking connect + poll (asli timeout). Wajah andaza: lwIP connect SO_SNDTIMEO nahi manta. Device test baqi.
 - Build fail fix: poll.h -> sys/poll.h (ESP-IDF mein yehi path hai). Online update: Sarfraz ne device par practically confirm kiya (maine screenshot mein nahi dekha).
+- Model detection: Motorola phone (Android 11) par DHCP hostname (name) khali, reconnect par randomized MAC (Private MAC). Hostname se model mumkin nahi lagta. "Android 10" asal mein Chrome UA ka frozen value hai (andaza): ab Android ke liye DHCP option 60 UA se pehle. Device test baqi.
