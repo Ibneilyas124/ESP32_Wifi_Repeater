@@ -458,7 +458,15 @@ async function refreshStatus(){
         wb.onclick=(function(mac){ return function(){ $('newmac').value=mac; $('d-wl').open=true; $('newname').focus(); }; })(c.mac);
         var kb=el('button',{'class':'ghost small'},'Kick');
         kb.onclick=(function(mac){ return function(){ kickDevice(mac); }; })(c.mac);
-        top.appendChild(wb); top.appendChild(kb);
+        var nb=el('button',{'class':'ghost small'},'Name');
+        nb.onclick=(function(mac,cur){ return function(){
+          var v=prompt('Name for this device (leave blank to remove):',cur||''); if(v===null) return;
+          fetch('/api/whitelist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'label',mac:mac,name:v.trim()})})
+            .then(function(r){ return r.json(); })
+            .then(function(r){ if(r && (r.ok===false||r.success===false)) alert(r.error||r.err||r.msg||'Could not save name'); else location.reload(); })
+            .catch(function(e){ alert('Could not save name: '+e); });
+        }; })(c.mac,c.name||'');
+        top.appendChild(nb); top.appendChild(wb); top.appendChild(kb);
         dev.appendChild(top);
         dev.appendChild(el('div',{'class':'sub'},c.mac+(c.vendor?' ('+c.vendor+')':'')+' \u00b7 '+c.ip+' \u00b7 '+c.rssi+' dBm'));
         var inf=[]; if(c.brand) inf.push(c.brand); if(c.model) inf.push(c.model); if(c.os) inf.push(c.os);

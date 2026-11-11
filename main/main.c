@@ -376,6 +376,62 @@ static bool whitelist_contains(const char *mac) {
     return found;
 }
 
+/* ---- Device labels: admin ka diya naam, MAC se NVS "labels" mein ("MAC=naam|MAC=naam|"). Whitelist se alag, access par asar nahi. ---- */
+#define LBL_BUF 1024
+static bool label_get(const char *mac, char *out, size_t n) {
+    static char list[LBL_BUF];
+    nvs_get_string("labels", list, sizeof(list), "");
+    size_t ml = strlen(mac);
+    const char *p = list;
+    while (*p) {
+        const char *e = strchr(p, '|');
+        size_t len = e ? (size_t)(e - p) : strlen(p);
+        if (len > ml + 1 && p[ml] == '=' && strncasecmp(p, mac, ml) == 0) {
+            size_t vl = len - ml - 1;
+            if (vl >= n) vl = n - 1;
+            memcpy(out, p + ml + 1, vl);
+            out[vl] = 0;
+            return true;
+        }
+        if (!e) break;
+        p = e + 1;
+    }
+    return false;
+}
+
+static bool label_set(const char *mac, const char *name) {
+    static char list[LBL_BUF];
+    static char out[LBL_BUF + 64];
+    nvs_get_string("labels", list, sizeof(list), "");
+    size_t ml = strlen(mac), ol = 0;
+    out[0] = 0;
+    const char *p = list;
+    while (*p) {
+        const char *e = strchr(p, '|');
+        size_t len = e ? (size_t)(e - p) : strlen(p);
+        bool same = (len > ml && p[ml] == '=' && strncasecmp(p, mac, ml) == 0);
+        if (!same && len > 0 && ol + len + 1 < sizeof(out)) {
+            memcpy(out + ol, p, len);
+            ol += len;
+            out[ol++] = '|';
+            out[ol] = 0;
+        }
+        if (!e) break;
+        p = e + 1;
+    }
+    if (name[0]) {
+        size_t nl = strlen(name);
+        if (ol + ml + 1 + nl + 1 >= LBL_BUF) return false;
+        memcpy(out + ol, mac, ml); ol += ml;
+        out[ol++] = '=';
+        memcpy(out + ol, name, nl); ol += nl;
+        out[ol++] = '|';
+        out[ol] = 0;
+    }
+    nvs_set_string("labels", out);
+    return true;
+}
+
 static bool whitelist_get_name(const char *mac, char *name_out, size_t name_len) {
     char list[WL_BUF];
     whitelist_get(list, sizeof(list));
@@ -1798,6 +1854,7 @@ static esp_err_t status_get_handler(httpd_req_t *req) {
             snprintf(ipstr, sizeof(ipstr), IPSTR, IP2STR(&pairs[i].ip));
             char name[64] = "";
             whitelist_get_name(mac, name, sizeof(name));
+            if (!name[0]) label_get(mac, name, sizeof(name));
             if (!name[0]) dhcp_host_lookup(sta_list.sta[i].mac, name, sizeof(name));
 
             cJSON *c = cJSON_CreateObject();
@@ -1907,6 +1964,20 @@ static esp_err_t whitelist_post_handler(httpd_req_t *req) {
             }
         } else if (strcmp(action->valuestring, "remove") == 0) {
             whitelist_remove(norm);
+        } else if (strcmp(action->valuestring, "label") == 0) {
+            char cl[32];
+            size_t cq = 0;
+            const char *raw = cJSON_IsString(name) ? name->valuestring : "";
+            for (const char *q = raw; *q && cq < 31; q++) {
+                uint8_t ch = (uint8_t)*q;
+                if (ch < 0x20 || ch > 0x7E) continue;
+                if (ch == '|' || ch == '=' || ch == ',') ch = ' ';
+                if (ch == ' ' && (cq == 0 || cl[cq - 1] == ' ')) continue;
+                cl[cq++] = (char)ch;
+            }
+            while (cq > 0 && cl[cq - 1] == ' ') cq--;
+            cl[cq] = 0;
+            if (!label_set(norm, cl)) { ok = false; err = "name list is full"; }
         }
     }
     cJSON_Delete(j);
