@@ -1,128 +1,220 @@
-# HANDOVER - ESP32 WiFi Repeater (Sarfraz Qureshi) - naye chat ke liye
-## Claude ke liye rules (Sarfraz ki pasand)
-- Jawab Roman Urdu mein. Termux commands ek ek block mein, code block with language tag (bash/html), explanation code block ke bahar
-- Sarfraz ke paas LAPTOP NAHI hai, sirf phone (Termux). ESP32 bhi abhi free nahi (jab free ho tab flash). Laptop/device wale kaam pending list mein hain
-- Har read-only command ka output auto-copy: `{ ... ; } 2>&1 | tee ~/work-tmp/last_out.txt` phir `termux-clipboard-set < ~/work-tmp/last_out.txt && echo "COPIED OK" || echo "COPY FAILED"`; checkpoint (echo "CHECKPOINT: ...") usi block mein; secrets ho to copy na karo
-- Har step ke baad HANDOVER.md update karna (command ke andar hi merge)
-- GitHub Actions build GREEN hone tak agla phase shuru nahi karna (Sarfraz "Greened successfully" likhta hai)
-- Sabaq: push se pehle `git pull --rebase`; push ka exit code check karna (git push | tail se ghalat result aata hai); force push kabhi nahi; fetch ke baghair "sync hai" mat kehna
-- Sabaq: file ka jo hissa dekha nahi us par edit na likhna, pehle read-only dump mangna. Edit scripts mein har anchor ka aik hi baar milna check karo, warna ABORT (kuch na likho). Pehle se hua ho to bhi ABORT
-- Checkpoint hamesha ready: Sarfraz ki limit kisi bhi waqt khatam ho sakti hai. Har step ke command mein HANDOVER.md update + commit + push shamil ho, aur 'Abhi chal raha kaam' line (neeche PENDING 9) hamesha current rakho
-- Time kam se kam: jo kuch parhna ho woh aik hi bare command mein mango (alag alag commands nahi); checkpoint/handover mein bhi yehi rule
-- Sabaq: apni ghalti turant maan lo (misal: maine ghalat kaha tha ke partitions.csv mein 2 OTA slots hain, asal mein sirf factory tha, ab theek kiya)
+# WIFI REPEATER HANDOVER v3 (FINAL) - ESP32 NAT Repeater (Sarfraz Qureshi / "IBN E ILYAS Technologies")
 
-## Project
-- Repo: https://github.com/Ibneilyas124/esp32-wifi-repeater (public); Termux folder: ~/esp32-wifi-repeater
-- ESP-IDF v5.2, ESP32 DevKit V1 4MB, NAT/NAPT repeater; firmware GitHub Actions (.github/workflows/build.yml) se build, har push par naya release build-N
-- Files: main/main.c, admin.html, login.html, tools.html, oui_table.h (generated), repeater_lwip_hooks.c/.h, CMakeLists.txt, partitions.csv, sdkconfig.defaults; docs: README.md, FEATURES.md, LEARN_TO_EDIT.md, HANDOVER.md, FLASH_AND_TEST.md; dev-tests/ui_test_admin.js, ui_test_tools.js
-- chat.html hat chuki (commit 49ccf40). Purani backups archive: ~/work-tmp/old_backups_20261109_1742.tar.gz
-- Guest mode jaisa hai waisa hi: sab connect + admin page tak pahunch, internet sirf whitelisted ko
-- FW_VERSION "2.1.0" (main.c line ~53); status API "fw" se admin top bar mein dikhta hai
+Tayyar: 2026-11-12 | FW_VERSION "2.1.0" | Online-update build number FW_BUILD (workflow "Stamp build number" se)
+Source: v2 handover + 2026-11-11/12 ka poora chat. Jis cheez ko Claude ne khud nahi dekha uske saamne "(Sarfraz ne confirm kiya)" ya "(unverified)" likha hai.
 
-## DONE (sab Actions builds GREEN)
-- Huawei HG8546M style redesign (SIRF design; Huawei logo nahi, apna naam "IBN E ILYAS Technologies"): login.html, admin.html (topology Home, System Info / Advanced Configuration menu, left icon nav), tools.html (neeli top bar, left nav buttons tb-an/de/sp/dg, safed cards, script jyun ka tyun, 36 ids). Teeno ka viewport width=1000 (Android aur desktop par aik jaisi shakal), body min-width 1000px
-- Connected Devices: DHCP option 12 hostname capture (main.c dhcp_sniff, sirf printable ASCII, 31 chars; el() textContent istemal karta hai, XSS ka khatra nahi); naam ki tarteeb: whitelist naam, phir DHCP hostname, phir MAC
-- Phone brand/model/OS (build GREEN, device par test baqi): main.c http_sniff (port 80 request ka User-Agent, MAC se), ua_capture (/, /admin, /tools, /api/status par UA, peer IP se), dhcp_sniff mein option 60 (android-dhcp-N = Android N, MSFT = Windows), ua_parse, model_table.h (Google supported_devices.csv se, sab mashhoor brands; tools/gen_model_table.py), brand_from_model; devinfo_get MAC wali entry ko tarjeeh deta hai, IP wali baad mein; clients JSON mein brand/model/os; admin.html Connected Devices mein extra line. Sirf RAM, 16 entries. Limits: naya Chrome UA mein model nahi deta (K ignore), iPhone ka model nahi milta, model tab dikhta hai jab phone ne aik HTTP request bheji ho
-- Vendor (OUI): main/oui_table.h (IEEE MA-L se, 8925 entries, 26 companies, ~44KB flash), main.c oui_vendor_lookup, clients JSON mein "vendor", admin.html MAC ke saath (company); locally-administered/random MAC par "Private MAC"
-- OTA part 1: partitions.csv = nvs 0x9000 (0x6000), phy_init 0xf000, otadata 0x10000 (0x2000), ota_0 0x20000 (0x1E0000), ota_1 0x200000 (0x1E0000); main/CMakeLists.txt mein app_update; workflow merge_bin ab app 0x20000 par
-- OTA part 2: CONFIG_APP_ROLLBACK_ENABLE=y (sdkconfig.defaults); main.c ota_post_handler (/api/ota, login zaroori, size 100000..slot, pehla byte 0xE9, esp_ota_end validate, set_boot_partition, restart); web server start ke baad esp_ota_mark_app_valid_cancel_rollback(); admin.html mein Advanced Configuration ke andar Firmware Update (d-ota, #otafile, #otaStatus, otaUpload, size check 1966080)
-- Firmware size (OTA se pehle, build-69): esp32-wifi-repeater.bin 947072 bytes (~925KB), slot 1966080 bytes mein aaram se fit
-- dev-tests: ui_test_admin.js naye layout + d-ota checks (3 naye); ui_test_tools.js naya (4 tabs, ids, 1000px overflow, screenshots /tmp/tools_<tab>.png; mock JSON shapes andaze se, sirf "no JS errors" fail ho to pehle mock check karna). Syntax check Termux par pass
-- Docs: README mein partition-table/full-flash settings warning, 3-file flash tareeqa, "Web update (OTA)" section; LEARN_TO_EDIT.md naye design ke mutabiq + section 7b Firmware Update; README Defaults sirf aik jagah (lines 13-14), duplicate nahi
+**HEAD commit:** yeh file likhte waqt Claude ko aakhri commit ka hash pata nahi (router panel commit, `4d741bb` ke baad). Naye chat mein `git log -3 --oneline` se dekho.
+**Sab se pehle yaad rakho:** Sarfraz ne aakhri build device par chala kar kaha "Repeater perfectly kaam kar raha hai". Is liye neeche ki sab cheezein device par chal rahi hain. Lekin **build-135 ke baad ke commits ka Actions green Claude ne API se nahi dekha** (device par chalna hi saboot hai). Naye chat mein pehle HEAD ka run API se check karo.
 
-## NAYE CHAT: TAZA HAAL (pehle yeh parho)
-- Nayi features SAB DONE, Actions GREEN: (1) Connected Devices mein first seen/connected since + New tag, (2) guest Request access (login.html form, /api/request bina login, admin Approve/Reject, MAC server peer IP se nikalta hai), (3) whitelist schedule (entry MAC|Name|limit|HHMM-HHMM, setting tz_offset default 5, SNTP sync se pehle lagu nahi), (5) Website Block List (ap_rx_filter mein UDP 53 query drop, NVS 'blocklist', max 20 domains, /api/blocklist, admin d-block). Feature (4) per-device download count NAHI banega (hook sirf upload dekhta hai)
-- Phone brand/model/OS: main/model_table.h (Google supported_devices.csv se, 7850 entries, tools/gen_model_table.py), HTTP User-Agent sniff + DHCP option 60. Firmware size ~1.18MB (slot 1.96MB mein 60%)
-- URI handlers ~32, max_uri_handlers 34: naya endpoint jodte waqt limit barhana
-- Config Export/Import mein blocklist ab shamil (JSON field "blocklist", comma separated, import par blocklist_parse se validate, buffer 4096; Actions GREEN); whitelist ka 4th field (schedule) whitelist string ke saath export hota hai
-- Sab features sirf compile hue hain; ESP32 abhi free nahi, device par KUCH test nahi hua
-- Naye chat ka pehla qadam: git fetch + status + log -5, phir poocho Sarfraz kya karna chahta hai. Ideas: koi pending nahi (Telegram alert aur Google Drive backup Sarfraz ne chhor diye, neeche sections). Failover, primary-return, blocklist export/import DONE
-- Rule yaad: jo parhna ho aik bare command mein mango; har step mein HANDOVER update+commit+push; edit script mein anchors aik hi baar milen warna ABORT; limit kabhi bhi khatam ho sakti hai
+---
 
-- ESP32 ke baghair jo ho sakta tha SAB ho chuka (features, docs, FLASH_AND_TEST.md). Ab sirf ESP32/laptop wale kaam baqi: FLASH_AND_TEST.md tartib se chalao, nateeje HANDOVER mein likho. Naya feature jodne se pehle device test behtar (6 bade features abhi sirf compile hue hain)
+## 0. NAYE CHAT MEIN PEHLE YEH KARO
 
-## PENDING (device/laptop mangte hain)
-1. Pehli flash (ESP32 free hone par, SIRF aik baar): full-flash image NVS (0x9000) mita deti hai (WiFi, whitelist, password). Settings bachani hon to pehle admin se Export Config karo, phir release se 3 alag files: bootloader.bin 0x1000, partition-table.bin 0x8000, esp32-wifi-repeater.bin 0x20000, aur pehle otadata erase: `esptool.py --chip esp32 --port <PORT> erase_region 0x10000 0x2000`, phir `write_flash -z --flash_mode dio --flash_freq 40m --flash_size 4MB 0x1000 bootloader.bin 0x8000 partition-table.bin 0x20000 esp32-wifi-repeater.bin`. full-flash-padded-0x0.bin naye table ke saath bhi chalti hai (fresh board ke liye) lekin settings mita deti hai
-2. Android se alag offsets par flash ka tareeqa abhi tay nahi hua (Android flasher full-flash ke liye tha, compression OFF zaroori); jab flash karna ho to dekhna
-3. OTA ka asal test: agla green build ki esp32-wifi-repeater.bin (full-flash NAHI) admin se Firmware Update se upload; ~30 sec mein reconnect; rollback bhi parakhna
-4. Laptop par ui_test_admin.js aur ui_test_tools.js: NODE_PATH=<global node_modules> node dev-tests/ui_test_admin.js (Playwright + Chromium chahiye), phir FAIL lines bhejna. Mumkin fail: admin "arrow icon" check (summary ::after), "no element overflows" (design 1000px ka, admin test 380px par chalta hai)
-5. /tools page phone par nazar-e-sani (chart, pill, tags rang naye halke background par); script ke andar ke inline dark rang CSS se override hain (#netBanner h2)
-6. One-Click Diagnosis menu item admin mein DONE (d-diag, build-115 GREEN a60d0b8; device par asli test baqi); FEATURES.md update DONE (vendor, hostname, OTA, design, flash note; OTA asal test baqi)
-7. Naye features ki soch: jo Sarfraz kahe (poochna)
-8. Phone model/OS ka asal device test: kaun se phones par brand/model/OS aaya; phir MODEL_MAP un brands (Xiaomi, Infinix, Tecno...) ke hisaab se bharna. Sarfraz ke phones ka brand/browser abhi nahi pata (poochna)
-9. Abhi chal raha kaam: ESP32 BUSY hai, isliye ONLINE UPDATE ka device test baad mein (ZAROOR karna hai: build green hone ke baad manual upload, phir Check for update, phir do builds ke darmiyan Update now, rollback bhi). Naya kaam: phone MODEL detection behtar karna (company aa jati hai, model nahi, misal Motorola moto one 5G). Purani line: online update (admin Firmware Update: Check for update / Update now, GitHub releases/latest se build-N, esp_https_ota, FW_BUILD build_num.h workflow se) push hua, Actions green ka intezar; device test baqi (pehli baar manual upload, phir do builds ke darmiyan Update now, rollback bhi). Pehle: Device par test DONE (2026-11-10): guest request Home par aati hai aur Approve par MAC whitelist mein jata hai; httpd lru_purge se admin page hang khatam. Guest ko ab saaf error dikhta hai, debug code (peer_mac) sirf serial log mein. build-118 (94106ff) tak sab GREEN. One-Click Diagnosis admin mein DONE (build-115 GREEN). Sab Actions GREEN (docs commit samet). DOCS DONE (doc-only, firmware par asar nahi): README v11 + layout, FEATURES blocklist line, LEARN_TO_EDIT section 9, nayi FLASH_AND_TEST.md (flash + har feature ka test checklist: ESP32 free hone par isi se chalo). flash.sh ka app offset 0x20000 kar diya (DONE). flash.sh ke echo login/WiFi details theek kiye (WiFi Sarfraz/Sarfraz1, login Sarfraz/admin, main.c se confirm) aur otadata comment dala (DONE). FAILOVER (backup upstream) aur PRIMARY-RETURN timer DONE, Actions GREEN. Details: main.c sta_apply_network/s_on_backup/STA_FAILOVER_FAILS=5, NVS sta_ssid2/sta_pass2, /api/wifi ssid2+password2 (password2 sirf bheja ho to likha jata hai), status on_backup+sta_ssid2, admin Backup SSID fields + stat 'Upstream network', export/import shamil. Primary wapsi: button_task har ~5 min (tick%3000) primary_return_task banata hai (stack 4096, scan ssid filter se, primary dikhe to switch back; s_pr_busy guard, s_scan_state share). Limits: hidden primary SSID scan mein nahi milta to wapsi nahi; primary dikhe par password ghalat ho to har 5 min ~10-20 sec ka outage; static IP setting dono networks par ek hi lagti hai; device par test baqi. Config export/import mein blocklist DONE, Actions GREEN. Features 1,2,3,5 DONE, Actions GREEN (build-96 tak). Feature 4 (per-device download count) NAHI banega. /tools#dg hash link DONE. Baqi sirf device/laptop wale kaam (PENDING 1-5, 8). Naye chat mein: git fetch + status + log -5, phir Sarfraz se poocho kya karna hai (ideas: koi pending nahi; Telegram alert aur Google Drive backup chhor diye).
-10. ESP32 free hone par FLASH_AND_TEST.md ke mutabiq: pehli flash, OTA, config export/import (blocklist), first seen, request access, schedule, block list, failover + primary-return, phone model/OS. flash.sh offset aur echo details DONE; pehle se pata ho to PENDING 2 se jodna
+1. Yeh poori file paste karo.
+2. Claude section 12 ka command chalwaye (fetch + status + log + Actions HEAD run + latest release). Fetch fail ho to "sync hai" / "green hai" mat kehna.
+3. Phir Sarfraz se poocho ke aaj kya karna hai. Section 9 mein baqi kaam ki list hai.
 
-## Huawei design (screenshots ka khulasa)
-- Upar halki neeli bar (~#5bb4ef): left model naam, right links; Left: patli icon column, active item neela + chhota teer; sub-menu grey column; Content: halka neela-safed background (#f5f8fc), bara title + patli line, orange description text, safed tables grey header, safed buttons border ke saath
-- Login: neela gradient, bara Welcome text, safed Log In button, neeche copyright patti
+---
 
-## admin.html dhancha (ids na toorna)
-- Menu: go(id) aik waqt mein aik section; SECS = home:[p-home], sys:[p-info,d-usage,d-speed,d-stab], adv:[d-wifi,d-wl,d-block,d-adv,d-backup,d-ota,d-danger] (admin.html line 301 se confirm); Home par topology click (toggleDevs) se d-clients
-- Sections: statGrid, d-clients (#clientCount, #clientsTbl), d-wl (#wlList, #newmac, #newname, #newlimit, addMac), d-wifi (#sta_ssid, #sta_pass, saveWifi), d-usage (#overallUsage, #usageBody), d-speed (#shChart), d-stab (#stabBody), d-adv (#advGroups, fillDefaults, saveSettings), d-backup (#importbox, exportCfg, importCfg), d-ota (otaUpload), d-danger (Reboot, Factory Reset); header #fwLine, Logout (doLogout)
-- API: /api/status /api/whitelist /api/settings /api/wifi /api/usage /api/speedhistory /api/kick /api/reboot /api/factory_reset /api/config/export /api/config/import /api/logout /api/me /api/ota /api/blocklist /api/request (bina login) /api/requests (admin); tools: /api/scan(/start) /api/deauth /api/ping /api/speed /api/upspeed /api/diag(/start); URI handlers ~32, max_uri_handlers 34 (naya endpoint jodte waqt limit barhao)
-- Naye ids/functions (features 1,2,3,5): New tag (first seen), #newsched (whitelist schedule), reqList/loadRequests (guest Request access, Approve/Reject), d-block (#blockText, loadBlock, saveBlock); login.html mein Request access form
-- main.c: require_session_api(req) har login-wala handler ki pehli line; send_result, restart_soon helpers
-- Firmware audit (jari): logout par login lazmi kiya; speedhistory public hi rahegi (tools.html istemal karta hai); OTA, auth, NVS, dns_blocked, dhcp_sniff, ua_parse bounds theek. Packet limiter ka bucket cap kam az kam 1600 kiya. BAQI: ap_rx_filter hot path mein whitelist/NVS/setting har packet par parhna (cache ka sawal), whitelist_contains mein malloc fail par fail-open, sta_rx_counter, scan/deauth/wifi_init parhna.
-- Audit: sta_rx_counter cap kam az kam 1600; whitelist_contains / whitelist_get_limit se strdup hata diya (stack list par strtok, malloc fail par fail-open khatam). BAQI: nvs_get_string mein RAM cache nahi (har packet par kai NVS reads): ESP32 par speed test ke baad hi cache banana (whitelist + overall_up/down + limit, badlav par refresh). Pehle device par naap lo.
-- Audit: config_import, sta_apply_network, primary_return_task parhe: theek. Import mein SSID <=32 / password <=64 ki hadd lagayi (pehle lamba SSID chupke se khali ban jata tha). Nukte (ESP32 par dekhna): primary_return_task ka clear_ap_list admin scan ke nateeje saaf kar sakta hai; sta_apply_network ke static buffers do task istemal karte hain. BAQI audit: wifi_post, scan, deauth, request_post, requests_post, kick, blocklist_post, validate_setting, wifi_init.
-- Audit: import mein upstream/backup password sirf khali ya 8-63 (pehle 1-7 aur 64 chale jate the, wifi_init ESP_ERROR_CHECK se boot loop ka khatra); wifi_init mein STA set_config ab abort nahi karta, sirf warning. BAQI audit: button_task ka baqi, status_get, config_export, settings_get/post, app_main. ESP32 par dekhna: WiFi task stack (ap_rx_filter mein 1KB whitelist buffer + NVS), NVS har packet par.
-- Audit 16b: speed_get, root/admin/tools/me handlers, repeater_lwip_hooks.c theek. Firmware audit (code parhna) lagbhag mukammal: 4 asli ghaltiyan theek ki (logout auth, rate limiter cap up/down, import SSID/password hadd, import ghalat password se boot loop). BAQI: (1) qos_manager.c/.h HATA DIYE (CMakeLists SRCS mein tha hi nahi, kahin call nahi; audit 16c DONE); (2) scan_start/diag_start mein xTaskCreate ka result check DONE (fail par scan state 2 = error, diag state 0 = idle); (3) ESP32 par naapna: WiFi task stack (ap_rx_filter mein 1KB buffer + NVS), button_task stack 3072, NVS har packet par (cache sirf naap ke baad); (4) [DEKHA audit 16c: handler mein sta_apply_network + 1s vTaskDelay default event task ko rokte hain, badla nahi, ESP32 par dekhna] event task mein DISCONNECTED par 1s delay; (5) FLASH_AND_TEST.md ke mutabiq asli test aur laptop par ui_test_admin.js / ui_test_tools.js.
+## 1. CLAUDE KE LIYE RULES (Sarfraz ki pasand)
 
-## Audit 16c (2026-11-10)
-- Sync check: fetch ke baad main == origin/main (de150af), latest green release build-113; purani line 'build-96 tak' purani hai
-- Dead code hata diya: main/qos_manager.c/.h (CMakeLists SRCS sirf main.c, kahin call nahi, sirf HANDOVER mein zikr tha)
-- scan_start/diag_start: xTaskCreate fail par scan state 2 (error, tools.html scan 'error' dikhata hai), diag state 0 (idle); tools.html diag polling dekha: idle par 25 sec baad 'Timed out.', atkna nahi
-- URI handlers verify: uris[] mein 32 entries (aik loop mein register), max_uri_handlers 34 = 2 spare; naya endpoint jode to limit barhao
-- WIFI_EVENT_STA_DISCONNECTED dekha: sta_apply_network + 1s vTaskDelay default event task mein; flapping par AP join events late ho sakte hain; badla nahi, ESP32 par dekhna (idea: esp_timer one-shot se reconnect)
-- BAQI audit: (3) ESP32 par naapna (WiFi task stack, button_task stack 3072, NVS har packet par); (5) FLASH_AND_TEST.md se asli test + laptop UI tests
+**Format**
+- Jawab Roman Urdu / Hinglish mein.
+- Termux command ek-ek block mein, code block with language tag. Explanation code block ke bahar.
+- Sarfraz ke paas LAPTOP NAHI, sirf Android phone (Termux). Browser mein admin `192.168.4.1/admin`.
+- Sarfraz ki Claude usage limit kam hoti hai: kam se kam messages, kam commands.
+- Screenshot bhejte waqt IMEI / private cheez crop kar de (aik baar IMEI nazar aa gaya tha).
 
-## One-Click Diagnosis in admin (2026-11-10)
-- Audit 16c Actions GREEN (build-114, 1f6c183). tools.html diag polling dekha: state idle par 25 sec baad 'Timed out.', permanent atkna nahi, tools.html badla nahi
-- admin.html: naya section d-diag (#dgAOut, #dgABtn, runDiagAdmin; SECS.sys mein jora), System Info subnav mein 'One-Click Diagnosis' link; left menu ka One-Click Diagnosis ab admin ke andar khulta hai aur diagnosis khud chalta hai (pehle /tools#dg, woh link tools.html mein ab bhi chalta hai)
-- runDiagAdmin wahi /api/diag/start + /api/diag istemal karta hai, idle par 'could not start' dikhata hai, sab text textContent/createTextNode se; main.c badla nahi
-- Housekeeping DONE (2026-11-10): ui_test_admin.js ki dono section lists mein d-diag aur d-block jore (sirf section-show checks); FEATURES.md Diagnose line, FLASH_AND_TEST.md (menu ab admin ke andar), LEARN_TO_EDIT.md section 8b; PENDING 6 DONE; build-115 (a60d0b8) GREEN, admin/tools/login ke inline scripts node --check OK
-- BAQI: laptop par ui_test_admin.js chalana (agar naye d-block/d-diag section checks par FAIL aaye to pehle mock check karna, mock ke endpoints maine dekhe nahi); device par One-Click Diagnosis aik baar chala kar natija dekhna
+**Commands**
+- Har command ka output auto-copy: `{ ... ; } 2>&1 | tee ~/work-tmp/last_out.txt`, phir `termux-clipboard-set < ~/work-tmp/last_out.txt && echo "COPIED OK" || echo "COPY FAILED"`.
+- Temporary files `~/work-tmp` mein, `/tmp` NAHI.
+- Checkpoint (`echo "CHECKPOINT: ..."`) usi block ke andar.
+- Jo parhna ho woh AIK bare read-only command mein mango.
+- Har step ke baad HANDOVER.md update + commit + push usi command ke andar.
 
-## Telegram alert: CHHOR DIYA (2026-11-10)
-- Sarfraz ne Telegram alert ka idea chhor diya (design par baat hui thi: HTTPS/TLS bundle, bot token NVS mein, heap ka sawal); jab tak woh khud na kahe dobara mat sujhao. Purani lines 'ideas: Telegram alert, ...' is note se override hain
-- ESP32 ke baghair ka kaam lagbhag khatam; baqi: ESP32 free hone par FLASH_AND_TEST.md, laptop par UI tests (ui_test_admin.js, ui_test_tools.js)
+**Git**
+- Push se pehle `git pull --rebase` (network fail ho to 3 baar retry; aik baar `HTTP2 framing layer` error aaya, sirf network ka masla tha). Force push KABHI nahi.
+- Remote ab `Ibneilyas124/ESP32_Wifi_Repeater` hai. Purana naam 301 redirect deta hai. API calls mein `curl -sL` (-L zaroor) aur naya repo naam.
+- GitHub Actions GREEN hone tak agla phase nahi. Script khud HEAD ka run dhoondti hai (`grep -A10 $HEAD_SHA`, `"conclusion": "success"`), warna ABORT/BUILD FAILED.
+- Sarfraz "Greened successfully" likhta hai aur output paste nahi karta. Jo output dekha nahi use "verified" mat kaho; Actions API se khud check karwao.
+- Har push naya build `build-N+1` banata hai (doc-only bhi).
 
-## Google Drive backup: CHHOR DIYA (2026-11-10)
-- Sarfraz ne Google Drive backup (OAuth wala bara kaam) bhi chhor diya; jab tak woh khud na kahe dobara mat sujhao. Purani lines 'Google Drive backup' / 'ideas: ...' is note se override hain. Backup ka tareeqa wahi rahega: admin se Export Config / Import Config
-- Ab koi naya feature pending nahi (PENDING 7: naye features ki soch, jo Sarfraz kahe wahi). Baqi sirf device/laptop kaam: FLASH_AND_TEST.md (ESP32 free hone par), laptop par ui_test_admin.js / ui_test_tools.js
-- Docs safai (2026-11-10): HANDOVER ki purani 'ideas' lines (NAYE CHAT section aur PENDING 9), README v7 aur FEATURES 'Known limitations' se Google Drive/Telegram ka zikr saaf; ab docs mein Drive backup 'not planned' likha hai (backup = Export Config / Import Config)
+**Edit scripts (jo pattern is chat mein chala)**
+- Jis hissay ka code dekha nahi us par edit na likho; pehle read-only dump mango.
+- `~/work-tmp/edit.js` (node) mein anchors ki list; har anchor ka count exactly 1, warna `ABORT`, kuch nahi likhna. Replace mein `() => y` istemal karo (taake `$` special na ho).
+- admin.html badalne par script blocks nikaal kar `node --check`: fail ho to `git checkout -- main/admin.html main/main.c` aur ABORT.
+- ESP-IDF build `-Werror=all`: `-Werror=format-truncation` bhi. snprintf destination worst-case se bara rakho. unused-function/variable sirf warning.
+- **Header ki ghalti jo hui:** `#include <poll.h>` fail hua; ESP-IDF mein `#include <sys/poll.h>` chahiye.
+- Naya HTTP endpoint jodte waqt `max_uri_handlers` (ab 36) check karo. Is chat mein naya endpoint nahi joda (labels `/api/whitelist` ki `action:"label"` se, password `/api/config/import` se).
+- Fix likhne se pehle wajah ko "andaza" kaho agar pakki nahi; jo dekha nahi usay "verified" mat likho.
 
-- 2026-11-10: guest access requests ab admin Home (p-home) par dikhti hain (reqList d-wl se nikal kar); approve error alert se. Device par test baqi.
+**Sachchai**
+- Apni ghalti turant maano (is chat ki: Android 10 ka source galat bataya tha, repo rename par `-L` bhoolna, poll.h).
+- Andaze ko andaza kaho (misal: heap hadd 60000/24000).
 
-- 2026-11-10: guest requests admin Home par (b655129). Admin page hang ka andaza: httpd sockets full (max_open_sockets 7, lru_purge off); fix lru_purge_enable=true, device par test baqi.
+---
 
-- 2026-11-10: httpd lru_purge fix device par kaam kiya (admin page hang khatam). Guest request: "could not identify your device" aaya; peer_mac mein IPv6-mapped handling + error mein code/family/stations; device test baqi.
+## 2. PROJECT
 
-- 2026-11-10: device test PASS: guest access request (Home par dikhti, approve se whitelist) aur admin hang fix. peer_mac IPv6-mapped handling rakhi; guest error message saaf, debug code ESP_LOGW mein. Agla: FLASH_AND_TEST.md ke baqi tests (OTA, schedule, blocklist, failover, config export/import).
+- Repo: https://github.com/Ibneilyas124/ESP32_Wifi_Repeater (public); Termux folder `~/esp32-wifi-repeater`
+- ESP-IDF v5.2, ESP32 DevKit V1 4MB, NAT/NAPT repeater. Firmware GitHub Actions se; har push par release `build-N`.
+- Files: `main/main.c`, `main/admin.html`, `main/login.html`, `main/tools.html`, `main/oui_table.h`, `main/model_table.h`, `main/repeater_lwip_hooks.c/.h` (sirf 7 lines, koi DNS filter nahi), `main/build_num.h` (workflow overwrite karta hai), `main/CMakeLists.txt`, `partitions.csv`, `sdkconfig.defaults`, `flash.sh`, docs, `dev-tests/`.
+- `main/CMakeLists.txt` REQUIRES: esp_wifi esp_netif esp_event nvs_flash esp_http_server json lwip esp_timer esp_hw_support driver app_update esp_http_client esp_https_ota esp-tls mbedtls heap.
+- `sdkconfig.defaults`: `CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y` + `..._DEFAULT_FULL=y`, `CONFIG_APP_ROLLBACK_ENABLE=y`.
+- Defaults: WiFi `Sarfraz` / `Sarfraz1`, admin login `Sarfraz` / `admin`. Repeater AP IP 192.168.4.1 (setting `ap_ip`). DNS jo clients ko milta hai: `dns1` (default 8.8.8.8). Repeater ka DHCP hostname setting `hostname`.
+- Release assets: `esp32-wifi-repeater.bin` (online/manual update ke liye), `full-flash-0x0.bin`, `full-flash-padded-0x0.bin`, `bootloader.bin`, `partition-table.bin`. **Update ke liye sirf `esp32-wifi-repeater.bin`**, full-flash wali nahi.
+- Admin menu SECS: home p-home; sys p-info,d-usage,d-speed,d-stab,d-diag; adv d-wifi,d-wl,d-block,d-adv,d-backup,d-ota,d-danger.
 
-- 2026-11-10: online update banaya: main.c upd_task/upd_check/upd_install, /api/update (GET) + /api/update/start (POST), max_uri_handlers 36, admin d-ota mein Check/Update now, FW_BUILD main/build_num.h (default 0, workflow run_number se overwrite), sdkconfig TLS bundle, CMake REQUIRES esp_http_client esp_https_ota esp-tls mbedtls heap. Heap hadd 60000/24000 andaza hai, device par tune. Sirf compile; device test baqi.
+---
 
-- 2026-11-10: online update par "clock not synced yet" aaya (SNTP boot par sirf aik baar start hota hai). Fix: upd_sync_clock() (SNTP restart, pool.ntp.org phir time.google.com, 12 sec har aik). Sirf compile; device test baqi.
+## 3. IS CHAT MEIN KYA BANA / FIX HUA (2026-11-11 se 11-12)
 
-- 2026-11-10: NTP (UDP) dono servers par fail hua (upstream par band). Fix: upd_http_time() HTTP Date header (connectivitycheck.gstatic.com, phir google.com) se settimeofday, NTP fallback. Error mein wajah (s_time_err). Sirf compile; device test baqi.
+Sab Sarfraz ne device par chala kar confirm kiya, jahan likha ho "Claude ne dekha" wahan screenshot Claude ne khud dekha.
 
-- 2026-11-10: build 2ca2e95 fail (format-truncation: clock error message 76-115 bytes, s_upd_msg[96]). Fix: s_upd_msg[160]. Sirf compile; device test baqi.
+### 3.1 Online update (PASS)
+- Admin > Advanced > Firmware Update: "Check for update" / "Update now". `upd_task` stack 10240; `upd_check` GET `releases/latest`, redirect ke `/tag/build-N` se N parhta hai, FW_BUILD se muqabla; `upd_install` `esp_https_ota` se.
+- Jo masle aaye aur fix hue:
+  1. "clock not synced": NTP (UDP 123) upstream par band. Fix: HTTP `Date` header se clock (`upd_http_time`, connectivitycheck.gstatic.com phir www.google.com).
+  2. `ESP_ERR_HTTP_CONNECT`: error ab `DNS fail (host N)` ya `DNS ok, connect: ...` alag batata hai (commit `03116e3`). Saath mein update task STA par fallback DNS 8.8.8.8 set karta hai. Natija: clock sync hui.
+  3. `HTTP 301`: `UPD_BASE_URL` purane repo naam par tha. Ab `https://github.com/Ibneilyas124/ESP32_Wifi_Repeater/releases/` (commit `3ced18e`). Repo dobara rename ho to yeh `#define` badalna zaroori hai.
+- Device par "Check" Claude ne screenshot mein dekha ("Up to date (build #131)"). "Update now" Sarfraz ne practically chala kar confirm kiya (screenshot Claude ne nahi dekha).
+- Heap (Claude ne dekha): normal ~126-141k; "Check" ke dauran minimum dekha 73392. **Install ke dauran ka heap napa nahi gaya.** Hadd free>=60000, largest block>=24000 andaza hai, tune nahi hui.
+- **Rollback test (kharab image) abhi nahi hua.**
 
-- 2026-11-10: Sarfraz ne kaha: ESP32 busy hai, online update (Check/Update now) ka test baad mein lekin zaroor. Naya kaam: Connected Devices mein company (OUI) sahi aa rahi hai lekin model nahi (Motorola); model detection par kaam karna hai. Sarfraz ko yeh pasand aaya ke branded routers sirf MAC dikhate hain jabke repeater company tak pahunchta hai.
+### 3.2 One-Click Diagnosis "Timed out" (FIXED)
+- Wajah (andaza): lwIP blocking `connect()` `SO_SNDTIMEO` nahi manta. Fix: `tcp_probe` ab non-blocking connect + `poll()` (`#include <fcntl.h>`, `<sys/poll.h>`, `<errno.h>`). Ab 15 sec ke andar nateeja aata hai. Speed-history sampling bhi isi `tcp_probe` ko istemal karti hai.
+- Diagnosis mein ESP32 khud `gethostbyname("google.com")` karta hai (STA ka DNS), fallback 8.8.8.8 wahan nahi lagta (neeche 4.1 dekho).
 
-- 2026-11-10: phone model detection: UA se model khali (Chrome "K") to DHCP hostname se model (host_model_guess: moto/galaxy/redmi/pixel/infinix/tecno... prefix, - ko space), clients JSON mein; brand_from_model mein moto->Motorola, Galaxy->Samsung. Sirf compile; device test baqi (ESP32 busy). Dekhna: Motorola phone ka hostname asal mein model hai ya android-xxxx.
+### 3.3 Phone model / OS detection
+- Claude ne dekha: Motorola one 5G (Android 11) par DHCP hostname (`name`) khali, UA se model khali (naya Chrome "K"), reconnect par **randomized MAC** (`vendor: "Private MAC"`), isliye brand bhi khali.
+- **Android version fix (device par dekha):** pehle `os` "Android 10" tha (Chrome ka frozen UA). `devinfo_get` mein ab DHCP option 60 (`android-dhcp-11`) UA se pehle chalta hai. Ab "Android 11" dikhta hai (commit `7a09e14`, build-135, Actions API se GREEN verified).
+- `host_model_guess()` hostname brand-prefix (moto, galaxy, redmi, ...) se model nikalta hai; is phone par hostname aata hi nahi, to khali.
+- Nateeja: kai phones ka model automatic nahi nikal sakta. Isliye **device label** feature banaya (3.4).
 
-## Update 2026-11-11
-- build-129 (0b1a9dd) Actions API se GREEN verified.
-- Online update: HTTP clock fail ESP_ERR_HTTP_CONNECT; error ab DNS/connect alag batata hai + STA fallback DNS 8.8.8.8. Device test baqi.
-- Online update: HTTP 301 (repo rename) fix: UPD_BASE_URL ab ESP32_Wifi_Repeater. Clock sync ab theek (TLS GitHub tak pahuncha). Diagnosis "Timed out" abhi open.
-- Online update CHECK device par PASS: "Up to date (build #131)". Update now + rollback test baqi. Diagnosis "Timed out" open (dump ke baad fix).
-- Diagnosis "Timed out": tcp_probe ab non-blocking connect + poll (asli timeout). Wajah andaza: lwIP connect SO_SNDTIMEO nahi manta. Device test baqi.
-- Build fail fix: poll.h -> sys/poll.h (ESP-IDF mein yehi path hai). Online update: Sarfraz ne device par practically confirm kiya (maine screenshot mein nahi dekha).
-- Model detection: Motorola phone (Android 11) par DHCP hostname (name) khali, reconnect par randomized MAC (Private MAC). Hostname se model mumkin nahi lagta. "Android 10" asal mein Chrome UA ka frozen value hai (andaza): ab Android ke liye DHCP option 60 UA se pehle. Device test baqi.
-- build-135 (7a09e14) Actions API se GREEN verified; device par os "Android 11" dikha (option 60 fix kaam kiya).
-- Device label: Home > Connected Devices mein "Name" button. NVS key "labels" (MAC=naam|), whitelist se alag, access par asar nahi. /api/whitelist POST action "label". Naam priority: whitelist naam, label, DHCP hostname. Config export/import mein labels shamil NAHI. Device test baqi.
-- Factory reset: esp_wifi_restore() jora (driver ki upstream WiFi copy, andaza). Backup: Export ab .txt download karta hai, Import file picker se. Device test baqi. Hardware button reset ka raasta check baqi.
-- Reset (esp_wifi_restore) aur backup file export/import: Sarfraz ne device par confirm kiya. Home "Network connection status": upstream offline ab red (#d32f2f).
-- Home: router ke neele jism par click se "Repeater Management" panel (Change Admin Password via /api/config/import {admin_pass}, Restart, Restore Defaults). Grey dot (left) par click = reboot confirm. Device test baqi.
+### 3.4 Device label (admin ka diya naam)
+- Home > Connected Devices mein har row par **Name** button. NVS key `labels`, format `MAC=naam|MAC=naam|`, max 1024 bytes, naam 31 char, `| = ,` space ban jate hain.
+- Whitelist se alag: access (Internet OK / Guest) par asar nahi.
+- API: maujooda `/api/whitelist` POST `{action:"label", mac, name}`; khali naam = label hata do.
+- Naam ki priority: whitelist naam, phir label, phir DHCP hostname.
+- **Limit:** label MAC se juda hai; phone WiFi "Forget" kare to randomized MAC badal sakta hai, naam dobara dena hoga. **Labels Config Export/Import mein shamil NAHI.** `label_get` har client ke liye NVS parhta hai (admin page ke liye theek, hot path nahi).
+
+### 3.5 Factory reset ab upstream bhi saaf karta hai
+- Wajah (andaza, ab confirm): WiFi driver apni NVS copy rakhta hai. `factory_reset_post_handler` mein `esp_wifi_restore()` jora. Reset ke baad upstream khali aur "upstream offline" dikhta hai (Claude ne screenshot dekha).
+- **Hardware button (BOOT ~8s) reset ka raasta check nahi hua.** `wipe_settings()` ke callers ka dump kabhi nahi dekha; ho sakta hai wahan `esp_wifi_restore()` na lagi ho. Test karo aur zaroorat ho to wahan bhi lagao.
+- Reset ke baad internet band; `192.168.4.1/admin` se upstream dobara dena hota hai.
+
+### 3.6 Backup ab file se
+- **Export Config** `repeater-backup-<tareekh>.txt` download karta hai (box mein text bhi). Import ke liye "Or import from a saved backup file" file picker, confirm ke baad `importCfg()`. Server ka JSON format wahi.
+- **Ehtiyaat:** backup mein upstream WiFi aur admin password plain text hota hai. File share na karo.
+
+### 3.7 Home ke UI badlaav
+- "Network connection status": "upstream offline" ab red (`#d32f2f`, inline style, `netStatus` line ~402). Sirf do halat hain (normal / upstream offline). Backup par chalna alag rang mein nahi.
+- **Router ke neele jism par kahin bhi click (RESET icon par bhi)** => neeche "Repeater Management" panel (`#rtPanel`): Change Admin Password (New/Confirm, Save/Cancel), Restart, Restore Defaults.
+  - Password `post('/api/config/import', {admin_pass: v})` se jata hai (4-32 char, wahi validation). Save ke baad reboot, naye password se login.
+  - Restart = `doReboot()`, Restore Defaults = `doFactoryReset()` (dono ke apne confirm).
+  - Panel sirf jism par dobara tap ya Cancel se band hota hai.
+- **Left ke grey dot** (SVG `circle cx=256 cy=284`, click area r=14) par click => "Reboot the repeater now?" confirm, phir reboot.
+- SVG: neela jism `rect x=190 y=250 w=400 h=62`; clickable groups `class="clk"` (`goTo('d-wifi')`, `toggleDevs()`, `toggleRtPanel()`, `doReboot()`).
+
+---
+
+## 4. ABHI KHULE MASLE / AGLE KAAM (priority se)
+
+### 4.1 Subnet overlap (asli bug, code mein fix NAHI hua)
+- Jab upstream router bhi 192.168.4.x par tha aur repeater ka AP bhi 192.168.4.1: diagnosis mein gateway "192.168.4.1, 0 ms" (apne hi AP se connect), DNS lookup fail. Upstream 192.168.100.x par aane se masla gayab (Claude ne screenshot dekha: gateway 192.168.100.1, 18 ms, DNS pass).
+- Wajah overlap thi, yeh mera andaza hai (~85% pakka); Sarfraz ne upstream badla tha, `ap_ip` nahi.
+- Fix ke options: (a) upstream ka subnet AP se milta ho to repeater khud AP IP badal le (`192.168.4.x` <-> `192.168.50.x`), ya (b) admin mein warning. `ap_ip` setting ka code dekha nahi (reboot/validation ka pata nahi).
+- Online update isliye chalta raha ke STA par fallback DNS 8.8.8.8 hai.
+
+### 4.2 Diagnosis DNS check fallback ke saath chalao (chhota kaam).
+
+### 4.3 Labels ko Config Export/Import mein shamil karna.
+
+### 4.4 Rollback test aur install ke dauran free_heap napna (Section 5, test 1).
+
+### 4.5 SNTP sirf aik baar boot par (`s_time_synced`). Upstream par UDP band ho to time kabhi sync nahi hoti; usage week/month counters aur whitelist schedule ko time chahiye. Idea: boot par bhi HTTP Date fallback (`upd_http_time` pehle se maujood).
+
+### 4.6 Model detection ke liye mumkin extra raaste: HTTPS par client hints (repeater HTTP par hai), Firefox / Samsung Internet UA mein asli model hota hai. Maine sirf aik phone dekha hai, dusre phones par natija mukhtalif ho sakta hai.
+
+---
+
+## 5. REMAINING TESTS (jo is chat mein nahi hue)
+
+1. Rollback: kharab image ka haal; install ke dauran `/api/status` `free_heap` (browser mein `192.168.4.1/api/status` reload; admin login zaroori).
+2. Hardware BOOT reset (8s) ke baad upstream khali hota hai ya nahi.
+3. FLASH_AND_TEST.md ke purane tests: config export/import (blocklist), first seen / "New" tag, whitelist schedule (time sync zaroori), Website Block List (DNS UDP 53 drop), failover + primary-return, One-Click Diagnosis, tools page (/tools) phone par.
+4. Audit baqi: Section 7.
+5. FEATURES.md / FLASH_AND_TEST.md / README mein naye features nahi likhe: online update, request-on-Home, device label, backup file, router panel, red status. Likhna baqi.
+
+---
+
+## 6. FEATURES (mukammal list)
+
+Huawei-style design (login, admin, tools), Connected Devices (DHCP hostname, UA brand/model/OS, OUI vendor, first seen, ab Android version DHCP option 60 se, device label), OTA manual upload (/api/ota, ota_0 0x20000 + ota_1 0x200000, rollback), **Online update (GitHub)**, guest "Request access" (Home par `#reqList`), Whitelist + schedule, Website Block List, Failover backup upstream + primary-return, One-Click Diagnosis, Config Export/Import (file se, blocklist shamil), Repeater Management panel (router click), factory reset (driver WiFi bhi saaf), upstream offline red status. Tafseel purani handover / FEATURES.md mein.
+
+---
+
+## 7. AUDIT (ESP32 par baqi dekhna)
+
+1. `nvs_get_string` mein RAM cache nahi: `ap_rx_filter` hot path mein har packet par NVS parhta hai. Pehle speed naapo, phir cache. (Naya `label_get` bhi har client par NVS parhta hai, par woh admin status ke liye hai.)
+2. WiFi task stack aur `button_task` stack 3072.
+3. `WIFI_EVENT_STA_DISCONNECTED` handler event task mein sleep karta hai; upstream flap par late ho sakta hai.
+4. `primary_return_task` ka `clear_ap_list` admin scan saaf kar sakta hai.
+5. SNTP sirf aik baar (4.5).
+6. `upd_task` heap/stack device par.
+
+---
+
+## 8. CHHOR DIYA / NAHI BANEGA (jab tak Sarfraz khud na kahe, dobara mat sujhao)
+
+Per-device download count; Telegram alert; Google Drive backup; AI chat page; Ethernet port.
+
+---
+
+## 9. WEB UI AUR API
+
+Admin APIs (login zaroori): /api/status /api/whitelist (add/remove/label) /api/settings /api/wifi /api/usage /api/speedhistory /api/kick /api/reboot /api/factory_reset /api/config/export /api/config/import /api/logout /api/me /api/ota /api/blocklist /api/requests /api/update /api/update/start. Bina login: /api/request, /api/speedhistory. Tools: /api/scan(+/start) /api/deauth /api/ping /api/speed /api/upspeed /api/diag(+/start). `require_session_api(req)` har login-wala handler ki pehli line; helpers `send_result`, `send_json`, `restart_soon`, `read_body`.
+`/api/status` mein ab: fw, sta_connected, sta_ip, uptime_s, free_heap, sta_ssid, on_backup, sta_ssid2, ap_ip, clients[{mac,ip,name,vendor,model,first_ago_s,conn_s,os,brand,rssi,authorized}], whitelist, session_uptime_s, discon_total, discon_log. (Build number `cur` sirf `/api/update` mein hai; `/api/status` mein nahi. Chahein to status mein jod sakte hain.)
+`/api/update` states: 0 idle, 1 checking, 2 available, 3 up to date, 4 installing, 5 done, 6 error.
+
+---
+
+## 10. LIMITS
+
+NAPT ESP-IDF mein (Arduino core mein disabled). MAC whitelist 100% security nahi. Vendor/model/OS/labels: vendor-model-OS sirf RAM (16 entries), labels NVS mein. Hidden primary SSID par primary-return nahi. Pending guest requests RAM mein, reboot par jate hain. Randomized MAC wale phones ka brand/OUI nahi aata.
+
+---
+
+## 11. FLASH KE BAAD CHECKLIST (agar dobara full flash ho)
+
+Export Config pehle (file Downloads mein) -> flash -> admin login (`Sarfraz`/`admin`) -> Import Config (file chun kar) -> WiFi/admin password badlo -> upstream WiFi (2.4 GHz) -> FW version dekho -> baqi tests. Labels import mein nahi aate, dobara dene honge.
+Normal update ke liye flash ki zaroorat nahi: admin > Firmware Update > Check for update > Update now.
+
+---
+
+## 12. PEHLA COMMAND NAYE CHAT KE LIYE (read-only, output auto-copy)
+
+```bash
+mkdir -p ~/work-tmp
+{
+cd ~/esp32-wifi-repeater || { echo "REPO FOLDER NAHI MILA"; exit 1; }
+git fetch origin --tags 2>&1; echo "fetch exit: $?"
+git status -sb
+git log -5 --oneline --decorate
+echo "=== AHEAD/BEHIND ==="; git rev-list --left-right --count HEAD...@{u} 2>&1
+echo "=== STASH ==="; git stash list
+HEAD_SHA=$(git rev-parse HEAD)
+echo "=== ACTIONS RUN FOR HEAD ==="
+curl -sL -m 20 "https://api.github.com/repos/Ibneilyas124/ESP32_Wifi_Repeater/actions/runs?per_page=5" | grep -A10 "$HEAD_SHA" | grep -E '"(display_title|status|conclusion)"' | head -4
+echo "=== LATEST RELEASE ==="
+curl -sL -m 20 https://api.github.com/repos/Ibneilyas124/ESP32_Wifi_Repeater/releases/latest | grep -E '"(tag_name|published_at)"'
+echo "CHECKPOINT: sync check (read-only) chala, kuch likha nahi"
+} 2>&1 | tee ~/work-tmp/last_out.txt
+termux-clipboard-set < ~/work-tmp/last_out.txt && echo "COPIED OK" || echo "COPY FAILED"
+```
+
+**Edit-script ka standard dhancha** (Claude har baar yahi use kare): `edit.js` (anchors count==1) -> admin.html ke `<script>` blocks `~/work-tmp/adm_N.js` mein nikaal kar `node --check` -> fail par `git checkout --` -> `git diff --stat` -> HANDOVER.md mein line -> `git add -A && git commit && git push` -> Actions wait loop (30 try x 20 sec, `BUILD GREEN (verified)` / `BUILD FAILED`) -> CHECKPOINT.
+
+**Update ka device par tareeqa:** Admin > Advanced > Firmware Update > "Check for update" > "Update now" (~30 sec, reconnect) > dobara Check: "Up to date (build #N)".
+
+**Aakhri CHECKPOINT:** "Router click panel + grey dot reboot push, device par perfect (Sarfraz). Online update, diagnosis fix, Android 11, device label, backup file, reset+esp_wifi_restore, red offline sab device par confirm. Khule: subnet overlap fix, hardware reset check, rollback test, docs update. Naye commits ka Actions green API se unverified."
