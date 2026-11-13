@@ -1,6 +1,6 @@
 # WIFI REPEATER HANDOVER v3 (FINAL) - ESP32 NAT Repeater (Sarfraz Qureshi / "IBN E ILYAS Technologies")
 
-Tayyar: 2026-11-12 | FW_VERSION "2.1.0" | Online-update build number FW_BUILD (workflow "Stamp build number" se)
+Tayyar: 2026-11-12 (update 2026-11-13: failed login log) | FW_VERSION "2.1.0" | Online-update build number FW_BUILD (workflow "Stamp build number" se)
 Source: v2 handover + 2026-11-11/12 ka poora chat. Jis cheez ko Claude ne khud nahi dekha uske saamne "(Sarfraz ne confirm kiya)" ya "(unverified)" likha hai.
 
 **HEAD commit:** yeh file likhte waqt Claude ko aakhri commit ka hash pata nahi (router panel commit, `4d741bb` ke baad). Naye chat mein `git log -3 --oneline` se dekho.
@@ -116,6 +116,19 @@ Sab Sarfraz ne device par chala kar confirm kiya, jahan likha ho "Claude ne dekh
 - **Left ke grey dot** (SVG `circle cx=256 cy=284`, click area r=14) par click => "Reboot the repeater now?" confirm, phir reboot.
 - SVG: neela jism `rect x=190 y=250 w=400 h=62`; clickable groups `class="clk"` (`goTo('d-wifi')`, `toggleDevs()`, `toggleRtPanel()`, `doReboot()`).
 
+### 3.8 Failed admin login log (2026-11-13, Sarfraz ne device par confirm kiya)
+- Maqsad: admin page par ghalat password dalne wale (whitelisted ya guest) ka record. Admin > System > **Failed Logins** (section `d-fail`, SECS sys mein `d-stab` ke baad). Columns: Time, Device (naam + neeche chhoti line model/brand/OS/vendor), MAC / IP, Password tried (plain text, sirf login ke baad dikhta hai).
+- Code (`main/main.c`, login handler se pehle): `fl_rec_t`, `FL_MAX` 20, `FL_KEEP_S` 86400, `FL_FLUSH_US` 30 sec, `fl_add()` (login_post_handler ke `if (!ok)` mein, 1 sec delay se pehle), `fl_json()` (/api/status mein `fail_log`), `fl_resolve()`, `fl_housekeeping()`, task `flog` (stack 4096, prio 3, `fl_init()` app_main mein button_task ke baad).
+- Storage: NVS key `flog` (blob, magic 0x464C4F01). Likhna kam az kam 30 sec ke gap par (flash bachane ke liye), is liye aakhri koshish 5-35 sec ke andar reboot ho to kho sakti hai.
+- Expiry: 24 ghante, real clock par. Clock sync na ho to ts=0 ("Time unknown (about X ago)"); sync hone par timestamp lag jata hai.
+- Wohi IP + wohi password lagataar => aik row, counter "(xN)". Max 20 records, sabse purana pehle nikalta hai.
+- Naam ki priority: whitelist naam, label, DHCP hostname. Model/OS/brand/vendor dikhate waqt nikalte hain (Connected Devices jaisa); device na mile to row mein save kiya hua naam. Model/OS RAM table se hai, reboot par khali.
+- MAC na mile (lease table mein match nahi) to admin par "MAC not found / IP".
+- **Sabaq (Claude ki ghalti):** pehle build mein IP 0.0.0.0 aaya kyunke `fl_add` ne sirf AF_INET parha. httpd socket AF_INET6 (v4-mapped `::ffff:a.b.c.d`) deta hai. `peer_mac()` jaisa v4 + v4-mapped dono parhna zaroori hai. Naye socket-IP code mein yahi karo.
+- Device par (Claude ne screenshot dekha): Faraz (original MAC) aur Faraz Moto (randomized MAC) dono ka MAC, IP, naam sahi. Live-info wale build mein Sarfraz ne kaha naam dikh gaya (screenshot nahi dekha). Actions green Sarfraz ne kaha; API se Claude ne verify nahi kiya.
+- Config Export/Import mein shamil NAHI. Factory reset par `flog` saaf hota hai ya nahi: `wipe_settings()` dekha nahi (unverified).
+- Commits: `58baf4c` (pehla), uske baad do (IPv6 IP fix, live naam/model). Hash `git log -5 --oneline` se dekho.
+
 ---
 
 ## 4. ABHI KHULE MASLE / AGLE KAAM (priority se)
@@ -144,13 +157,14 @@ Sab Sarfraz ne device par chala kar confirm kiya, jahan likha ho "Claude ne dekh
 2. Hardware BOOT reset (8s) ke baad upstream khali hota hai ya nahi.
 3. FLASH_AND_TEST.md ke purane tests: config export/import (blocklist), first seen / "New" tag, whitelist schedule (time sync zaroori), Website Block List (DNS UDP 53 drop), failover + primary-return, One-Click Diagnosis, tools page (/tools) phone par.
 4. Audit baqi: Section 7.
-5. FEATURES.md / FLASH_AND_TEST.md / README mein naye features nahi likhe: online update, request-on-Home, device label, backup file, router panel, red status. Likhna baqi.
+5. FEATURES.md / FLASH_AND_TEST.md / README mein naye features nahi likhe: online update, request-on-Home, device label, backup file, router panel, red status, failed login log. Likhna baqi.
+6. Failed login log ka 24 ghante auto-delete abhi test nahi hua: 2026-11-13 ke purane "0.0.0.0" wale rows (14:51 se 15:01) 2026-11-14 ko ghayab hone chahiye. Factory reset par `flog` ka haal bhi dekho.
 
 ---
 
 ## 6. FEATURES (mukammal list)
 
-Huawei-style design (login, admin, tools), Connected Devices (DHCP hostname, UA brand/model/OS, OUI vendor, first seen, ab Android version DHCP option 60 se, device label), OTA manual upload (/api/ota, ota_0 0x20000 + ota_1 0x200000, rollback), **Online update (GitHub)**, guest "Request access" (Home par `#reqList`), Whitelist + schedule, Website Block List, Failover backup upstream + primary-return, One-Click Diagnosis, Config Export/Import (file se, blocklist shamil), Repeater Management panel (router click), factory reset (driver WiFi bhi saaf), upstream offline red status. Tafseel purani handover / FEATURES.md mein.
+Huawei-style design (login, admin, tools), Connected Devices (DHCP hostname, UA brand/model/OS, OUI vendor, first seen, ab Android version DHCP option 60 se, device label), OTA manual upload (/api/ota, ota_0 0x20000 + ota_1 0x200000, rollback), **Online update (GitHub)**, guest "Request access" (Home par `#reqList`), Whitelist + schedule, Website Block List, Failover backup upstream + primary-return, One-Click Diagnosis, Config Export/Import (file se, blocklist shamil), Repeater Management panel (router click), factory reset (driver WiFi bhi saaf), upstream offline red status, Failed Login Attempts log. Tafseel purani handover / FEATURES.md mein.
 
 ---
 
@@ -174,14 +188,14 @@ Per-device download count; Telegram alert; Google Drive backup; AI chat page; Et
 ## 9. WEB UI AUR API
 
 Admin APIs (login zaroori): /api/status /api/whitelist (add/remove/label) /api/settings /api/wifi /api/usage /api/speedhistory /api/kick /api/reboot /api/factory_reset /api/config/export /api/config/import /api/logout /api/me /api/ota /api/blocklist /api/requests /api/update /api/update/start. Bina login: /api/request, /api/speedhistory. Tools: /api/scan(+/start) /api/deauth /api/ping /api/speed /api/upspeed /api/diag(+/start). `require_session_api(req)` har login-wala handler ki pehli line; helpers `send_result`, `send_json`, `restart_soon`, `read_body`.
-`/api/status` mein ab: fw, sta_connected, sta_ip, uptime_s, free_heap, sta_ssid, on_backup, sta_ssid2, ap_ip, clients[{mac,ip,name,vendor,model,first_ago_s,conn_s,os,brand,rssi,authorized}], whitelist, session_uptime_s, discon_total, discon_log. (Build number `cur` sirf `/api/update` mein hai; `/api/status` mein nahi. Chahein to status mein jod sakte hain.)
+`/api/status` mein ab: fw, sta_connected, sta_ip, uptime_s, free_heap, sta_ssid, on_backup, sta_ssid2, ap_ip, clients[{mac,ip,name,vendor,model,first_ago_s,conn_s,os,brand,rssi,authorized}], whitelist, session_uptime_s, discon_total, discon_log, fail_log[{ip,mac,dev,model,brand,os,vendor,pw,cnt,ts,ago_s}]. (Build number `cur` sirf `/api/update` mein hai; `/api/status` mein nahi. Chahein to status mein jod sakte hain.)
 `/api/update` states: 0 idle, 1 checking, 2 available, 3 up to date, 4 installing, 5 done, 6 error.
 
 ---
 
 ## 10. LIMITS
 
-NAPT ESP-IDF mein (Arduino core mein disabled). MAC whitelist 100% security nahi. Vendor/model/OS/labels: vendor-model-OS sirf RAM (16 entries), labels NVS mein. Hidden primary SSID par primary-return nahi. Pending guest requests RAM mein, reboot par jate hain. Randomized MAC wale phones ka brand/OUI nahi aata.
+NAPT ESP-IDF mein (Arduino core mein disabled). MAC whitelist 100% security nahi. Vendor/model/OS/labels: vendor-model-OS sirf RAM (16 entries), labels NVS mein. Hidden primary SSID par primary-return nahi. Pending guest requests RAM mein, reboot par jate hain. Randomized MAC wale phones ka brand/OUI nahi aata. Failed-login log: password plain text (sirf login ke baad), config export mein nahi, MAC na mile to sirf IP.
 
 ---
 
@@ -217,10 +231,4 @@ termux-clipboard-set < ~/work-tmp/last_out.txt && echo "COPIED OK" || echo "COPY
 
 **Update ka device par tareeqa:** Admin > Advanced > Firmware Update > "Check for update" > "Update now" (~30 sec, reconnect) > dobara Check: "Up to date (build #N)".
 
-**Aakhri CHECKPOINT:** "Router click panel + grey dot reboot push, device par perfect (Sarfraz). Online update, diagnosis fix, Android 11, device label, backup file, reset+esp_wifi_restore, red offline sab device par confirm. Khule: subnet overlap fix, hardware reset check, rollback test, docs update. Naye commits ka Actions green API se unverified."
-
-- 2026-11-13: Failed admin login log: ghalat password par IP/MAC/naam/password/waqt NVS key "flog" mein (max 20, 24h auto-expiry, flush >=30s gap), /api/status mein fail_log, admin > System > Failed Login Attempts. Config export mein shamil nahi. Device test baqi.
-
-- 2026-11-13: Failed-login log fix: fl_add ab IPv6-mapped (::ffff:a.b.c.d) peer IP bhi parhta hai (peer_mac jaisa); pehle IP 0.0.0.0 aata tha. MAC na mile to admin par "MAC not found". Device test baqi.
-
-- 2026-11-13: Failed-login list mein naam/model/brand/OS/vendor ab dikhate waqt live nikalte hain (fl_resolve, Connected Devices jaisa), device na mile to save kiya hua naam. Admin par naam ke neeche chhoti line. Device test baqi.
+**Aakhri CHECKPOINT (2026-11-13):** "Failed login log (waqt/naam/MAC/IP/password, NVS, 24h) device par confirm (Sarfraz); 24h auto-delete test baqi. Pichhla: Router click panel + grey dot reboot push, device par perfect (Sarfraz). Online update, diagnosis fix, Android 11, device label, backup file, reset+esp_wifi_restore, red offline sab device par confirm. Khule: subnet overlap fix, hardware reset check, rollback test, docs update. Naye commits ka Actions green API se unverified."
