@@ -469,7 +469,10 @@ function renderFail(j){
       else{ w='Time unknown'+(e.ago_s>=0?' (about '+fmtTime(e.ago_s)+' ago)':''); }
       if(e.cnt>1) w+=' (x'+e.cnt+')';
       tr.appendChild(el('td',null,w));
-      tr.appendChild(el('td',null,e.dev||'-'));
+      var dt=el('td'); dt.appendChild(document.createTextNode(e.dev||'-'));
+      var xs=[]; if(e.model) xs.push(e.model); else if(e.brand) xs.push(e.brand); if(e.os) xs.push(e.os); if(e.vendor) xs.push(e.vendor);
+      if(xs.length){ dt.appendChild(el('br')); dt.appendChild(el('small',{'class':'hint'},xs.join(' \u00b7 '))); }
+      tr.appendChild(dt);
       tr.appendChild(el('td',null,(e.mac||'MAC not found')+' / '+e.ip));
       tr.appendChild(el('td',null,e.pw===''?'(empty)':e.pw));
       t.appendChild(tr);

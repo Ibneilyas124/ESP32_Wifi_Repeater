@@ -2002,32 +2002,78 @@ static void fl_add(httpd_req_t *req, const char *pw) {
     xSemaphoreGive(s_fl_mx);
 }
 
+/* naam/model/brand/OS/vendor ab dikhate waqt nikalte hain (Connected Devices jaisa), taake baad mein mila hostname/UA bhi dikhe */
+typedef struct { char name[48]; char model[48]; char os[24]; char brand[16]; char vendor[32]; } fl_view_t;
+static fl_rec_t s_fl_snap[FL_MAX];   /* sirf httpd task (status handler) istemal karta hai */
+static fl_view_t s_fl_view;
+
+static void fl_resolve(const fl_rec_t *r, fl_view_t *v) {
+    memset(v, 0, sizeof(*v));
+    if (!r->has_mac) return;
+    uint8_t m6[6], ip4[4];
+    memcpy(m6, r->mac, 6);
+    memcpy(ip4, r->ip, 4);
+    char mac[18];
+    snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X", m6[0], m6[1], m6[2], m6[3], m6[4], m6[5]);
+    whitelist_get_name(mac, v->name, sizeof(v->name));
+    if (!v->name[0]) label_get(mac, v->name, sizeof(v->name));
+    if (!v->name[0]) dhcp_host_lookup(m6, v->name, sizeof(v->name));
+    char dm[80], dos[24], dbr[16];
+    devinfo_get(m6, ip4, dm, sizeof(dm), dos, sizeof(dos), dbr, sizeof(dbr));
+    if (!dm[0]) {
+        char hn[64] = "";
+        if (dhcp_host_lookup(m6, hn, sizeof(hn)) && host_model_guess(hn, dm, sizeof(dm))) {
+            if (!dbr[0]) snprintf(dbr, sizeof(dbr), "%s", brand_from_model(dm));
+        }
+    }
+    snprintf(v->model, sizeof(v->model), "%.47s", dm);
+    snprintf(v->os, sizeof(v->os), "%.23s", dos);
+    snprintf(v->brand, sizeof(v->brand), "%.15s", dbr);
+    const char *vn = oui_vendor_lookup(m6);
+    snprintf(v->vendor, sizeof(v->vendor), "%.31s", vn ? vn : "");
+    if (!v->name[0] && !v->model[0] && r->dev[0]) snprintf(v->name, sizeof(v->name), "%.47s", r->dev);
+}
+
 static void fl_json(cJSON *root) {
     cJSON *arr = cJSON_CreateArray();
+    int n = 0;
     if (s_fl_mx && xSemaphoreTake(s_fl_mx, pdMS_TO_TICKS(500)) == pdTRUE) {
         fl_housekeeping();
-        time_t now = time(NULL);
-        uint32_t up = (uint32_t)(esp_timer_get_time() / 1000000);
-        for (int i = s_fl_n - 1; i >= 0; i--) {   /* newest first */
-            const fl_rec_t *r = &s_fl[i];
-            cJSON *o = cJSON_CreateObject();
-            char ip[16];
-            snprintf(ip, sizeof(ip), "%d.%d.%d.%d", r->ip[0], r->ip[1], r->ip[2], r->ip[3]);
-            char mac[18] = "";
-            if (r->has_mac) snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X", r->mac[0], r->mac[1], r->mac[2], r->mac[3], r->mac[4], r->mac[5]);
-            double ago = -1;
-            if (r->ts != 0 && now >= 1700000000) ago = (double)((int64_t)now - (int64_t)r->ts);
-            else if (r->cur) ago = (double)(up >= r->up ? up - r->up : 0);
-            cJSON_AddStringToObject(o, "ip", ip);
-            cJSON_AddStringToObject(o, "mac", mac);
-            cJSON_AddStringToObject(o, "dev", r->dev);
-            cJSON_AddStringToObject(o, "pw", r->pw);
-            cJSON_AddNumberToObject(o, "cnt", r->cnt);
-            cJSON_AddNumberToObject(o, "ts", r->ts);
-            cJSON_AddNumberToObject(o, "ago_s", ago);
-            cJSON_AddItemToArray(arr, o);
-        }
+        n = s_fl_n;
+        memcpy(s_fl_snap, s_fl, (size_t)n * sizeof(fl_rec_t));
         xSemaphoreGive(s_fl_mx);
+    }
+    time_t now = time(NULL);
+    uint32_t up = (uint32_t)(esp_timer_get_time() / 1000000);
+    bool have_prev = false;
+    uint8_t pm[6] = {0};
+    for (int i = n - 1; i >= 0; i--) {   /* newest first */
+        const fl_rec_t *r = &s_fl_snap[i];
+        if (!(have_prev && r->has_mac && memcmp(pm, r->mac, 6) == 0)) {
+            fl_resolve(r, &s_fl_view);
+            have_prev = r->has_mac ? true : false;
+            if (r->has_mac) memcpy(pm, r->mac, 6);
+        }
+        cJSON *o = cJSON_CreateObject();
+        char ip[16];
+        snprintf(ip, sizeof(ip), "%d.%d.%d.%d", r->ip[0], r->ip[1], r->ip[2], r->ip[3]);
+        char mac[18] = "";
+        if (r->has_mac) snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X", r->mac[0], r->mac[1], r->mac[2], r->mac[3], r->mac[4], r->mac[5]);
+        double ago = -1;
+        if (r->ts != 0 && now >= 1700000000) ago = (double)((int64_t)now - (int64_t)r->ts);
+        else if (r->cur) ago = (double)(up >= r->up ? up - r->up : 0);
+        cJSON_AddStringToObject(o, "ip", ip);
+        cJSON_AddStringToObject(o, "mac", mac);
+        cJSON_AddStringToObject(o, "dev", s_fl_view.name);
+        cJSON_AddStringToObject(o, "model", s_fl_view.model);
+        cJSON_AddStringToObject(o, "brand", s_fl_view.brand);
+        cJSON_AddStringToObject(o, "os", s_fl_view.os);
+        cJSON_AddStringToObject(o, "vendor", s_fl_view.vendor);
+        cJSON_AddStringToObject(o, "pw", r->pw);
+        cJSON_AddNumberToObject(o, "cnt", r->cnt);
+        cJSON_AddNumberToObject(o, "ts", r->ts);
+        cJSON_AddNumberToObject(o, "ago_s", ago);
+        cJSON_AddItemToArray(arr, o);
     }
     cJSON_AddItemToObject(root, "fail_log", arr);
 }

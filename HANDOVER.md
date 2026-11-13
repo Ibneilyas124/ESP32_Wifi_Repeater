@@ -222,3 +222,5 @@ termux-clipboard-set < ~/work-tmp/last_out.txt && echo "COPIED OK" || echo "COPY
 - 2026-11-13: Failed admin login log: ghalat password par IP/MAC/naam/password/waqt NVS key "flog" mein (max 20, 24h auto-expiry, flush >=30s gap), /api/status mein fail_log, admin > System > Failed Login Attempts. Config export mein shamil nahi. Device test baqi.
 
 - 2026-11-13: Failed-login log fix: fl_add ab IPv6-mapped (::ffff:a.b.c.d) peer IP bhi parhta hai (peer_mac jaisa); pehle IP 0.0.0.0 aata tha. MAC na mile to admin par "MAC not found". Device test baqi.
+
+- 2026-11-13: Failed-login list mein naam/model/brand/OS/vendor ab dikhate waqt live nikalte hain (fl_resolve, Connected Devices jaisa), device na mile to save kiya hua naam. Admin par naam ke neeche chhoti line. Device test baqi.
