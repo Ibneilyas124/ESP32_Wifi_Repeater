@@ -93,7 +93,7 @@ th,td{border:1px solid var(--line);padding:7px 10px}
 .chart i{flex:1;display:block;min-width:3px}
 tr:hover td{background:#f1f7fd}
 th{white-space:nowrap}
-#usageBody,#stabBody{overflow-x:auto;margin-bottom:14px}
+#usageBody,#stabBody,#failBody{overflow-x:auto;margin-bottom:14px}
 .chart{border-bottom:2px solid #9aa5b1;background-image:repeating-linear-gradient(to top,transparent 0,transparent 16px,#eef2f6 16px,#eef2f6 17px)}
 details.subgroup{border:1px solid var(--line);background:#fff;margin-bottom:8px}
 details.subgroup>summary{cursor:pointer;padding:9px 12px;background:#eef2f6;font-weight:bold;list-style:none}
@@ -125,6 +125,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
     <a data-sec="d-usage" onclick="go('d-usage')">Data Usage</a>
     <a data-sec="d-speed" onclick="go('d-speed')">Speed History</a>
     <a data-sec="d-stab" onclick="go('d-stab')">Upstream Stability</a>
+    <a data-sec="d-fail" onclick="go('d-fail')">Failed Logins</a>
     <a data-sec="d-diag" onclick="go('d-diag');runDiagAdmin()">One-Click Diagnosis</a>
   </div>
   <div class="subnav" id="sub-adv">
@@ -270,6 +271,11 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
       <div id="stabBody"></div>
     </div></details>
 
+    <details class="sec" id="d-fail"><summary>Failed Login Attempts</summary><div class="body">
+      <p class="desc">Wrong-password attempts on this admin page, from any device. Entries are removed automatically after 24 hours and survive a reboot.</p>
+      <div id="failBody"></div>
+    </div></details>
+
     <style>
 #dgAOut .dgstep{padding:7px 0;border-bottom:1px solid #eef2f6;font-size:13px}
 #dgAOut .dgstep b{display:inline-block;width:22px}
@@ -385,7 +391,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
 
 <script>
 (function(){
-  var SECS={home:['p-home'],sys:['p-info','d-usage','d-speed','d-stab','d-diag'],adv:['d-wifi','d-wl','d-block','d-adv','d-backup','d-ota','d-danger']};
+  var SECS={home:['p-home'],sys:['p-info','d-usage','d-speed','d-stab','d-fail','d-diag'],adv:['d-wifi','d-wl','d-block','d-adv','d-backup','d-ota','d-danger']};
   var cur=null, last={home:'p-home',sys:'p-info',adv:'d-wifi'};
   function groupOf(id){ for(var g in SECS){ if(SECS[g].indexOf(id)>=0) return g; } return 'home'; }
   window.go=function(id){
@@ -448,6 +454,29 @@ var REASONS={1:'Unspecified',2:'Auth expired',3:'Router disconnected us',4:'Inac
 
 /* ---------------- STATUS (always visible) ---------------- */
 var loadedWifiField=false;
+function failFmtDT(ts){ var d=new Date(ts*1000); function p(n){ return (n<10?'0':'')+n; } return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()); }
+function renderFail(j){
+  try{
+    var b=$('failBody'); if(!b) return; b.innerHTML='';
+    var L=j.fail_log||[];
+    if(!L.length){ b.appendChild(el('small',{'class':'hint'},'No failed login attempts in the last 24 hours.')); return; }
+    var t=el('table'); var h=el('tr');
+    ['Time','Device','MAC / IP','Password tried'].forEach(function(x){ h.appendChild(el('th',null,x)); });
+    t.appendChild(h);
+    L.forEach(function(e){
+      var tr=el('tr'); var w;
+      if(e.ts){ w=failFmtDT(e.ts); }
+      else{ w='Time unknown'+(e.ago_s>=0?' (about '+fmtTime(e.ago_s)+' ago)':''); }
+      if(e.cnt>1) w+=' (x'+e.cnt+')';
+      tr.appendChild(el('td',null,w));
+      tr.appendChild(el('td',null,e.dev||'-'));
+      tr.appendChild(el('td',null,(e.mac||'via upstream')+' / '+e.ip));
+      tr.appendChild(el('td',null,e.pw===''?'(empty)':e.pw));
+      t.appendChild(tr);
+    });
+    b.appendChild(t);
+  }catch(x){}
+}
 async function refreshStatus(){
   try{
     var r=await fetch('/api/status',{cache:'no-store'}); if(authFail(r))return; var j=await r.json();
@@ -522,6 +551,7 @@ async function refreshStatus(){
       j.discon_log.forEach(function(e){ var tr=el('tr'); tr.appendChild(el('td',null,fmtTime(e.ago_s)+' ago')); tr.appendChild(el('td',null,REASONS[e.reason]||('code '+e.reason))); st.appendChild(tr); });
       $('stabBody').appendChild(st);
     }
+  renderFail(j);
   }catch(e){ /* one failed refresh shouldn't break the page - next tick retries */ }
 }
 

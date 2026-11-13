@@ -1775,16 +1775,270 @@ static esp_err_t admin_get_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+/* ================= Failed admin-login log (NVS, auto-delete after 24h) ================= */
+#include <stddef.h>
+#include "freertos/semphr.h"
+
+#define FL_MAX       20
+#define FL_KEEP_S    86400
+#define FL_MAGIC     0x464C4F01u
+#define FL_FLUSH_US  30000000LL
+
+typedef struct {
+    uint32_t ts;      /* epoch seconds of the last attempt, 0 = clock was not synced then */
+    uint32_t up;      /* uptime seconds of the last attempt (only meaningful while cur == 1) */
+    uint16_t cnt;     /* same IP + same password in a row */
+    uint8_t  ip[4];
+    uint8_t  mac[6];
+    uint8_t  has_mac;
+    uint8_t  cur;     /* 1 = recorded during this boot */
+    char     dev[48];
+    char     pw[33];
+} fl_rec_t;
+
+typedef struct { uint32_t magic; uint32_t n; fl_rec_t r[FL_MAX]; } fl_blob_t;
+
+static fl_rec_t s_fl[FL_MAX];
+static int s_fl_n = 0;
+static volatile bool s_fl_dirty = false;
+static bool s_fl_loaded = false;
+static SemaphoreHandle_t s_fl_mx = NULL;
+static fl_blob_t s_fl_blob;   /* only the flog task uses this */
+
+/* mutex must be held. Drops expired records and stamps records that were made before the clock was synced. */
+static void fl_housekeeping(void) {
+    time_t now = time(NULL);
+    bool ok = now >= 1700000000;
+    uint32_t up = (uint32_t)(esp_timer_get_time() / 1000000);
+    int w = 0;
+    for (int i = 0; i < s_fl_n; i++) {
+        fl_rec_t r = s_fl[i];
+        if (ok && r.ts == 0) {
+            uint32_t age = (r.cur && up >= r.up) ? (up - r.up) : 0;
+            r.ts = (uint32_t)now - age;
+            s_fl_dirty = true;
+        }
+        bool expired = false;
+        if (r.ts != 0 && ok) expired = ((int64_t)now - (int64_t)r.ts) > FL_KEEP_S;
+        else if (r.ts == 0 && r.cur) expired = (up >= r.up) && ((up - r.up) > (uint32_t)FL_KEEP_S);
+        if (expired) { s_fl_dirty = true; continue; }
+        s_fl[w++] = r;
+    }
+    s_fl_n = w;
+}
+
+static void fl_load(void) {
+    nvs_handle_t h;
+    esp_err_t e = ESP_ERR_NVS_NOT_INITIALIZED;
+    for (int t = 0; t < 50; t++) {   /* NVS app_main mein thori der baad ready ho sakta hai */
+        e = nvs_open(NVS_NS, NVS_READONLY, &h);
+        if (e != ESP_ERR_NVS_NOT_INITIALIZED) break;
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+    int ns = 0;
+    if (e == ESP_OK) {
+        size_t len = sizeof(s_fl_blob);
+        esp_err_t g = nvs_get_blob(h, "flog", &s_fl_blob, &len);
+        nvs_close(h);
+        if (g == ESP_OK && len >= offsetof(fl_blob_t, r) && s_fl_blob.magic == FL_MAGIC &&
+            s_fl_blob.n <= FL_MAX && len == offsetof(fl_blob_t, r) + (size_t)s_fl_blob.n * sizeof(fl_rec_t)) {
+            ns = (int)s_fl_blob.n;
+        }
+    }
+    xSemaphoreTake(s_fl_mx, portMAX_DELAY);
+    if (ns > 0) {
+        bool had_ram = s_fl_n > 0;
+        int room = FL_MAX - s_fl_n;
+        int take = ns < room ? ns : room;
+        int from = ns - take;
+        if (s_fl_n > 0 && take > 0) memmove(&s_fl[take], &s_fl[0], (size_t)s_fl_n * sizeof(fl_rec_t));
+        for (int i = 0; i < take; i++) {
+            s_fl[i] = s_fl_blob.r[from + i];
+            s_fl[i].cur = 0;
+            s_fl[i].dev[sizeof(s_fl[i].dev) - 1] = 0;
+            s_fl[i].pw[sizeof(s_fl[i].pw) - 1] = 0;
+        }
+        s_fl_n += take;
+        if (had_ram) s_fl_dirty = true;
+    }
+    s_fl_loaded = true;
+    xSemaphoreGive(s_fl_mx);
+}
+
+static void fl_task(void *arg) {
+    (void)arg;
+    fl_load();
+    int64_t last_flush = -FL_FLUSH_US;
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(5000));
+        bool do_write = false;
+        int n = 0;
+        xSemaphoreTake(s_fl_mx, portMAX_DELAY);
+        fl_housekeeping();
+        if (s_fl_dirty && s_fl_loaded && (esp_timer_get_time() - last_flush) >= FL_FLUSH_US) {
+            n = s_fl_n;
+            s_fl_blob.magic = FL_MAGIC;
+            s_fl_blob.n = (uint32_t)n;
+            memcpy(s_fl_blob.r, s_fl, (size_t)n * sizeof(fl_rec_t));
+            s_fl_dirty = false;
+            do_write = true;
+        }
+        xSemaphoreGive(s_fl_mx);
+        if (do_write) {
+            last_flush = esp_timer_get_time();
+            nvs_handle_t h;
+            if (nvs_open(NVS_NS, NVS_READWRITE, &h) == ESP_OK) {
+                esp_err_t e;
+                if (n == 0) {
+                    e = nvs_erase_key(h, "flog");
+                    if (e == ESP_ERR_NVS_NOT_FOUND) e = ESP_OK;
+                } else {
+                    e = nvs_set_blob(h, "flog", &s_fl_blob, offsetof(fl_blob_t, r) + (size_t)n * sizeof(fl_rec_t));
+                }
+                if (e == ESP_OK) e = nvs_commit(h);
+                nvs_close(h);
+                if (e != ESP_OK) s_fl_dirty = true;
+            } else {
+                s_fl_dirty = true;
+            }
+        }
+    }
+}
+
+static void fl_init(void) {
+    s_fl_mx = xSemaphoreCreateMutex();
+    if (!s_fl_mx) return;
+    if (xTaskCreate(fl_task, "flog", 4096, NULL, 3, NULL) != pdPASS) {
+        ESP_LOGW(TAG, "failed-login log task not started");
+    }
+}
+
+/* ghalat password ki koshish ka record: IP (socket se), MAC (AP ke clients se), naam, waqt */
+static void fl_add(httpd_req_t *req, const char *pw) {
+    if (!s_fl_mx) return;
+    ua_capture(req);
+    fl_rec_t r;
+    memset(&r, 0, sizeof(r));
+    snprintf(r.pw, sizeof(r.pw), "%.32s", pw);
+    time_t now = time(NULL);
+    r.up = (uint32_t)(esp_timer_get_time() / 1000000);
+    r.ts = (now >= 1700000000) ? (uint32_t)now : 0;
+    r.cur = 1;
+    r.cnt = 1;
+
+    uint32_t ipaddr = 0;
+    int fd = httpd_req_to_sockfd(req);
+    struct sockaddr_storage ss;
+    socklen_t sl = sizeof(ss);
+    if (fd >= 0 && getpeername(fd, (struct sockaddr *)&ss, &sl) == 0 && ss.ss_family == AF_INET) {
+        ipaddr = ((struct sockaddr_in *)&ss)->sin_addr.s_addr;
+    }
+    memcpy(r.ip, &ipaddr, 4);
+
+    if (ipaddr != 0) {
+        wifi_sta_list_t stl;
+        if (esp_wifi_ap_get_sta_list(&stl) == ESP_OK) {
+            esp_netif_pair_mac_ip_t pairs[10] = { 0 };
+            int count = stl.num > 10 ? 10 : stl.num;
+            for (int i = 0; i < count; i++) memcpy(pairs[i].mac, stl.sta[i].mac, 6);
+            esp_netif_dhcps_get_clients_by_mac(s_ap_netif, count, pairs);
+            for (int i = 0; i < count; i++) {
+                if (pairs[i].ip.addr == ipaddr) {
+                    memcpy(r.mac, stl.sta[i].mac, 6);
+                    r.has_mac = 1;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (r.has_mac) {
+        char mac[18];
+        snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X", r.mac[0], r.mac[1], r.mac[2], r.mac[3], r.mac[4], r.mac[5]);
+        char name[64] = "";
+        whitelist_get_name(mac, name, sizeof(name));
+        if (!name[0]) label_get(mac, name, sizeof(name));
+        bool admin_named = name[0] != 0;
+        if (!name[0]) dhcp_host_lookup(r.mac, name, sizeof(name));
+        char dm[80], dos[24], dbr[16];
+        devinfo_get(r.mac, r.ip, dm, sizeof(dm), dos, sizeof(dos), dbr, sizeof(dbr));
+        if (!dm[0]) {
+            char hn[64] = "";
+            if (dhcp_host_lookup(r.mac, hn, sizeof(hn))) host_model_guess(hn, dm, sizeof(dm));
+        }
+        if (admin_named && dm[0]) snprintf(r.dev, sizeof(r.dev), "%.20s (%.20s)", name, dm);
+        else snprintf(r.dev, sizeof(r.dev), "%.40s", name[0] ? name : dm);
+    }
+
+    xSemaphoreTake(s_fl_mx, portMAX_DELAY);
+    fl_housekeeping();
+    if (s_fl_n > 0) {
+        fl_rec_t *l = &s_fl[s_fl_n - 1];
+        if (memcmp(l->ip, r.ip, 4) == 0 && strcmp(l->pw, r.pw) == 0 && l->cnt < 65000) {
+            l->cnt++;
+            l->ts = r.ts;
+            l->up = r.up;
+            l->cur = 1;
+            s_fl_dirty = true;
+            xSemaphoreGive(s_fl_mx);
+            return;
+        }
+    }
+    if (s_fl_n >= FL_MAX) {
+        memmove(&s_fl[0], &s_fl[1], (FL_MAX - 1) * sizeof(fl_rec_t));
+        s_fl_n = FL_MAX - 1;
+    }
+    s_fl[s_fl_n++] = r;
+    s_fl_dirty = true;
+    xSemaphoreGive(s_fl_mx);
+}
+
+static void fl_json(cJSON *root) {
+    cJSON *arr = cJSON_CreateArray();
+    if (s_fl_mx && xSemaphoreTake(s_fl_mx, pdMS_TO_TICKS(500)) == pdTRUE) {
+        fl_housekeeping();
+        time_t now = time(NULL);
+        uint32_t up = (uint32_t)(esp_timer_get_time() / 1000000);
+        for (int i = s_fl_n - 1; i >= 0; i--) {   /* newest first */
+            const fl_rec_t *r = &s_fl[i];
+            cJSON *o = cJSON_CreateObject();
+            char ip[16];
+            snprintf(ip, sizeof(ip), "%d.%d.%d.%d", r->ip[0], r->ip[1], r->ip[2], r->ip[3]);
+            char mac[18] = "";
+            if (r->has_mac) snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X", r->mac[0], r->mac[1], r->mac[2], r->mac[3], r->mac[4], r->mac[5]);
+            double ago = -1;
+            if (r->ts != 0 && now >= 1700000000) ago = (double)((int64_t)now - (int64_t)r->ts);
+            else if (r->cur) ago = (double)(up >= r->up ? up - r->up : 0);
+            cJSON_AddStringToObject(o, "ip", ip);
+            cJSON_AddStringToObject(o, "mac", mac);
+            cJSON_AddStringToObject(o, "dev", r->dev);
+            cJSON_AddStringToObject(o, "pw", r->pw);
+            cJSON_AddNumberToObject(o, "cnt", r->cnt);
+            cJSON_AddNumberToObject(o, "ts", r->ts);
+            cJSON_AddNumberToObject(o, "ago_s", ago);
+            cJSON_AddItemToArray(arr, o);
+        }
+        xSemaphoreGive(s_fl_mx);
+    }
+    cJSON_AddItemToObject(root, "fail_log", arr);
+}
+
 static esp_err_t login_post_handler(httpd_req_t *req) {
     char buf[256];
     read_body(req, buf, sizeof(buf));
     cJSON *j = cJSON_Parse(buf);
     bool ok = false;
+    bool tried = false;
+    char tried_pw[40] = "";
     if (j) {
         cJSON *user = cJSON_GetObjectItem(j, "username");
         cJSON *pass = cJSON_GetObjectItem(j, "password");
         char admin_pass[40];
         get_setting("admin_pass", admin_pass, sizeof(admin_pass));
+        if (cJSON_IsString(pass)) {
+            tried = true;
+            snprintf(tried_pw, sizeof(tried_pw), "%.32s", pass->valuestring);
+        }
         if (cJSON_IsString(user) && cJSON_IsString(pass) &&
             secure_equal(user->valuestring, ADMIN_USER) &&
             secure_equal(pass->valuestring, admin_pass)) {
@@ -1793,6 +2047,7 @@ static esp_err_t login_post_handler(httpd_req_t *req) {
         cJSON_Delete(j);
     }
     if (!ok) {
+        if (tried) fl_add(req, tried_pw);
         vTaskDelay(pdMS_TO_TICKS(1000));   /* slows down password guessing */
         httpd_resp_set_status(req, "401 Unauthorized");
         return send_result(req, false, "wrong password");
@@ -1926,6 +2181,7 @@ static esp_err_t status_get_handler(httpd_req_t *req) {
         cJSON_AddItemToArray(dlog, o);
     }
     cJSON_AddItemToObject(root, "discon_log", dlog);
+    fl_json(root);
     return send_json(req, root);
 }
 
@@ -3101,4 +3357,5 @@ void app_main(void) {
     wifi_init();
     start_webserver();
     xTaskCreate(button_task, "reset_btn", 3072, NULL, 5, NULL);
+    fl_init();
 }

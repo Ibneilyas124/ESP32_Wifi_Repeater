@@ -218,3 +218,5 @@ termux-clipboard-set < ~/work-tmp/last_out.txt && echo "COPIED OK" || echo "COPY
 **Update ka device par tareeqa:** Admin > Advanced > Firmware Update > "Check for update" > "Update now" (~30 sec, reconnect) > dobara Check: "Up to date (build #N)".
 
 **Aakhri CHECKPOINT:** "Router click panel + grey dot reboot push, device par perfect (Sarfraz). Online update, diagnosis fix, Android 11, device label, backup file, reset+esp_wifi_restore, red offline sab device par confirm. Khule: subnet overlap fix, hardware reset check, rollback test, docs update. Naye commits ka Actions green API se unverified."
+
+- 2026-11-13: Failed admin login log: ghalat password par IP/MAC/naam/password/waqt NVS key "flog" mein (max 20, 24h auto-expiry, flush >=30s gap), /api/status mein fail_log, admin > System > Failed Login Attempts. Config export mein shamil nahi. Device test baqi.
