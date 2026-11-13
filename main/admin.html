@@ -470,7 +470,7 @@ function renderFail(j){
       if(e.cnt>1) w+=' (x'+e.cnt+')';
       tr.appendChild(el('td',null,w));
       tr.appendChild(el('td',null,e.dev||'-'));
-      tr.appendChild(el('td',null,(e.mac||'via upstream')+' / '+e.ip));
+      tr.appendChild(el('td',null,(e.mac||'MAC not found')+' / '+e.ip));
       tr.appendChild(el('td',null,e.pw===''?'(empty)':e.pw));
       t.appendChild(tr);
     });

@@ -1930,8 +1930,17 @@ static void fl_add(httpd_req_t *req, const char *pw) {
     int fd = httpd_req_to_sockfd(req);
     struct sockaddr_storage ss;
     socklen_t sl = sizeof(ss);
-    if (fd >= 0 && getpeername(fd, (struct sockaddr *)&ss, &sl) == 0 && ss.ss_family == AF_INET) {
-        ipaddr = ((struct sockaddr_in *)&ss)->sin_addr.s_addr;
+    if (fd >= 0 && getpeername(fd, (struct sockaddr *)&ss, &sl) == 0) {
+        if (ss.ss_family == AF_INET) {
+            ipaddr = ((struct sockaddr_in *)&ss)->sin_addr.s_addr;
+#if LWIP_IPV6
+        } else if (ss.ss_family == AF_INET6) {
+            const uint8_t *a6 = ((struct sockaddr_in6 *)&ss)->sin6_addr.s6_addr;
+            bool mapped = (a6[10] == 0xff && a6[11] == 0xff);
+            for (int q = 0; q < 10; q++) if (a6[q] != 0) mapped = false;
+            if (mapped) memcpy(&ipaddr, a6 + 12, 4);
+#endif
+        }
     }
     memcpy(r.ip, &ipaddr, 4);
 

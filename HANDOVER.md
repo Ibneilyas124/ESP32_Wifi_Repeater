@@ -220,3 +220,5 @@ termux-clipboard-set < ~/work-tmp/last_out.txt && echo "COPIED OK" || echo "COPY
 **Aakhri CHECKPOINT:** "Router click panel + grey dot reboot push, device par perfect (Sarfraz). Online update, diagnosis fix, Android 11, device label, backup file, reset+esp_wifi_restore, red offline sab device par confirm. Khule: subnet overlap fix, hardware reset check, rollback test, docs update. Naye commits ka Actions green API se unverified."
 
 - 2026-11-13: Failed admin login log: ghalat password par IP/MAC/naam/password/waqt NVS key "flog" mein (max 20, 24h auto-expiry, flush >=30s gap), /api/status mein fail_log, admin > System > Failed Login Attempts. Config export mein shamil nahi. Device test baqi.
+
+- 2026-11-13: Failed-login log fix: fl_add ab IPv6-mapped (::ffff:a.b.c.d) peer IP bhi parhta hai (peer_mac jaisa); pehle IP 0.0.0.0 aata tha. MAC na mile to admin par "MAC not found". Device test baqi.
