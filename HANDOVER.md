@@ -48,6 +48,12 @@ Source: v2 handover + 2026-11-11/12 ka poora chat. Jis cheez ko Claude ne khud n
 - Naya HTTP endpoint jodte waqt `max_uri_handlers` (ab 36) check karo. Is chat mein naya endpoint nahi joda (labels `/api/whitelist` ki `action:"label"` se, password `/api/config/import` se).
 - Fix likhne se pehle wajah ko "andaza" kaho agar pakki nahi; jo dekha nahi usay "verified" mat likho.
 
+**Handover file ka rule (Sarfraz ka hukm, 2026-11-13)**
+- Har kaam ke aakhir mein (naya build / feature mukammal hone par) Claude handover ki updated file banaye, naam mein build number ke saath: Wifi_Repeater_Build<N>_Handover.md, Termux se ~/storage/downloads/ mein copy.
+- N = us handover commit ka tag (git tag --points-at <SHA>), jo Actions green hone ke baad milta hai. Sab aik hi command mein: HANDOVER.md update, commit, push, Actions green, tag se N, phir cp HANDOVER.md ~/storage/downloads/Wifi_Repeater_Build<N>_Handover.md.
+- File ke andar build number likhne ke liye naya commit NAHI banana (har push naya build banata hai, silsila khatam nahi hota). Doc-only push ke baad firmware wahi rehta hai; aakhri firmware-code build git log -1 -- main/ se dekho.
+- Naye chat mein sab se bade build number wali file paste karo. Claude ki memory Sarfraz ke account mein band hai, is liye yeh rule yahan likha hai.
+
 **Sachchai**
 - Apni ghalti turant maano (is chat ki: Android 10 ka source galat bataya tha, repo rename par `-L` bhoolna, poll.h).
 - Andaze ko andaza kaho (misal: heap hadd 60000/24000).
