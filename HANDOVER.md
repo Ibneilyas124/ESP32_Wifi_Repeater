@@ -135,6 +135,12 @@ Sab Sarfraz ne device par chala kar confirm kiya, jahan likha ho "Claude ne dekh
 - Config Export/Import mein shamil NAHI. Factory reset par `flog` saaf hota hai ya nahi: `wipe_settings()` dekha nahi (unverified).
 - Commits: `58baf4c` (pehla), uske baad do (IPv6 IP fix, live naam/model). Hash `git log -5 --oneline` se dekho.
 
+### 3.9 Waqt ka format 12-ghante AM/PM (2026-11-14)
+- `admin.html` ka `failFmtDT(ts)` ab `YYYY-MM-DD h:MM:SS AM/PM` deta hai (pehle 24-ghante `HH:MM:SS`). Sirf dikhane ka tareeqa badla; `FL_KEEP_S` (24h auto-delete) aur `main.c` nahi chhua.
+- Poore repeater mein clock-waqt dikhane wali yehi aik jagah thi (grep: `getHours` sirf yahan, `main.c` mein `strftime` nahi). `fmtTime()` muddat hai (uptime / ago), clock nahi, isliye nahi badla.
+- **Chhoda hua:** whitelist schedule ka input abhi bhi 24-ghante `HHMM-HHMM` (misal `2000-2300`). AM/PM input ke liye `main.c` ka schedule parser badalna paray ga (`localtime_r` line ~717, code dekha nahi). Sarfraz kahe to alag step.
+- Device par test baqi: Failed Logins ke Time column mein waqt AM/PM mein dikhna chahiye.
+
 ---
 
 ## 4. ABHI KHULE MASLE / AGLE KAAM (priority se)

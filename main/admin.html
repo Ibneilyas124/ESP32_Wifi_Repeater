@@ -454,7 +454,7 @@ var REASONS={1:'Unspecified',2:'Auth expired',3:'Router disconnected us',4:'Inac
 
 /* ---------------- STATUS (always visible) ---------------- */
 var loadedWifiField=false;
-function failFmtDT(ts){ var d=new Date(ts*1000); function p(n){ return (n<10?'0':'')+n; } return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()); }
+function failFmtDT(ts){ var d=new Date(ts*1000); function p(n){ return (n<10?'0':'')+n; } var h=d.getHours(), ap=h>=12?'PM':'AM'; h=h%12; if(h===0) h=12; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+h+':'+p(d.getMinutes())+':'+p(d.getSeconds())+' '+ap; }
 function renderFail(j){
   try{
     var b=$('failBody'); if(!b) return; b.innerHTML='';
