@@ -126,6 +126,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
     <a data-sec="d-speed" onclick="go('d-speed')">Speed History</a>
     <a data-sec="d-stab" onclick="go('d-stab')">Upstream Stability</a>
     <a data-sec="d-fail" onclick="go('d-fail')">Failed Logins</a>
+    <a data-sec="d-hist" onclick="go('d-hist');setTimeout(function(){ if(window.refreshStatus) refreshStatus(); },80)">Connection History</a>
     <a data-sec="d-diag" onclick="go('d-diag');runDiagAdmin()">One-Click Diagnosis</a>
   </div>
   <div class="subnav" id="sub-adv">
@@ -276,6 +277,11 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
       <div id="failBody"></div>
     </div></details>
 
+    <details class="sec" id="d-hist"><summary>Connection History</summary><div class="body">
+      <p class="desc">Connect and disconnect times of every device that joined this repeater (name, model, MAC, IP). Entries are removed automatically after 24 hours and survive a reboot.</p>
+      <div id="histBody"></div>
+    </div></details>
+
     <style>
 #dgAOut .dgstep{padding:7px 0;border-bottom:1px solid #eef2f6;font-size:13px}
 #dgAOut .dgstep b{display:inline-block;width:22px}
@@ -391,7 +397,7 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
 
 <script>
 (function(){
-  var SECS={home:['p-home'],sys:['p-info','d-usage','d-speed','d-stab','d-fail','d-diag'],adv:['d-wifi','d-wl','d-block','d-adv','d-backup','d-ota','d-danger']};
+  var SECS={home:['p-home'],sys:['p-info','d-usage','d-speed','d-stab','d-fail','d-hist','d-diag'],adv:['d-wifi','d-wl','d-block','d-adv','d-backup','d-ota','d-danger']};
   var cur=null, last={home:'p-home',sys:'p-info',adv:'d-wifi'};
   function groupOf(id){ for(var g in SECS){ if(SECS[g].indexOf(id)>=0) return g; } return 'home'; }
   window.go=function(id){
@@ -480,9 +486,42 @@ function renderFail(j){
     b.appendChild(t);
   }catch(x){}
 }
+function histWanted(){ var s=document.getElementById('d-hist'); return !!(s && s.offsetParent!==null); }
+function histAt(ago){ return failFmtDT(Math.floor(Date.now()/1000)-ago); }
+function renderHist(j){
+  try{
+    if(!j || !j.hist) return;
+    var b=$('histBody'); if(!b) return; b.innerHTML='';
+    var L=j.hist;
+    if(!L.length){ b.appendChild(el('small',{'class':'hint'},'No device connected or disconnected in the last 24 hours.')); return; }
+    var t=el('table'); var h=el('tr');
+    ['Device','MAC / IP','Connected','Disconnected','Duration'].forEach(function(x){ h.appendChild(el('th',null,x)); });
+    t.appendChild(h);
+    L.forEach(function(e){
+      var tr=el('tr');
+      var dt=el('td'); dt.appendChild(document.createTextNode(e.dev||'-'));
+      if(e.info){ dt.appendChild(el('br')); dt.appendChild(el('small',{'class':'hint'},e.info.split('|').join(' \u00b7 '))); }
+      tr.appendChild(dt);
+      tr.appendChild(el('td',null,e.mac+(e.ip?' / '+e.ip:'')));
+      tr.appendChild(el('td',null,e.ca>=0?histAt(e.ca):'Not recorded'));
+      var d;
+      if(e.st===1) d='Still connected';
+      else if(e.st===2) d='Repeater restarted';
+      else if(e.st===3) d='Not recorded';
+      else d=(e.da>=0)?histAt(e.da):'Time unknown';
+      tr.appendChild(el('td',null,d));
+      var du='-';
+      if(e.ca>=0 && e.da>=0 && e.ca>=e.da) du=fmtTime(e.ca-e.da);
+      else if(e.st===1 && e.ca>=0) du=fmtTime(e.ca)+' so far';
+      tr.appendChild(el('td',null,du));
+      t.appendChild(tr);
+    });
+    b.appendChild(t);
+  }catch(x){}
+}
 async function refreshStatus(){
   try{
-    var r=await fetch('/api/status',{cache:'no-store'}); if(authFail(r))return; var j=await r.json();
+    var hq=histWanted()?'?hist=1':''; var r=await fetch('/api/status'+hq,{cache:'no-store'}); if(authFail(r))return; var j=await r.json(); renderHist(j);
     $('fwLine').textContent='v'+j.fw+' \u00b7 WiFi Repeater Admin';
 
     var g=$('statGrid'); g.innerHTML='';

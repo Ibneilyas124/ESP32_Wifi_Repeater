@@ -141,6 +141,16 @@ Sab Sarfraz ne device par chala kar confirm kiya, jahan likha ho "Claude ne dekh
 - **Chhoda hua:** whitelist schedule ka input abhi bhi 24-ghante `HHMM-HHMM` (misal `2000-2300`). AM/PM input ke liye `main.c` ka schedule parser badalna paray ga (`localtime_r` line ~717, code dekha nahi). Sarfraz kahe to alag step.
 - Device par test baqi: Failed Logins ke Time column mein waqt AM/PM mein dikhna chahiye.
 
+### 3.10 Connection History (2026-11-15)
+- Maqsad: har phone ka connect/disconnect (session) record, 24 ghante baad auto-delete. Admin > System > **Connection History** (`d-hist`, SECS sys mein `d-fail` ke baad, menu link bhi). Har row: Device (naam + model/OS/vendor, Failed Logins jaisa `fl_resolve`), MAC / IP, Connected, Disconnected, Duration. Waqt 12-ghante AM/PM (`failFmtDT`).
+- Code (`main/main.c`, `fl_json` se pehle): `hs_rec_t` (session record: cts/dts epoch, cup/dup uptime, ip, mac, flags, id, dev[40]), `HS_MAX` 40, `HS_KEEP_S` 86400, `HS_FLUSH_US` 30 sec, NVS key `hlog` (blob, magic 0x48534C01). `hist_on_connect()` / `hist_on_disconnect()` `wifi_event_handler` se chalte hain (naya `WIFI_EVENT_AP_STADISCONNECTED` case; `AP_STACONNECTED` mein `seen_touch` ke baad call); yeh sirf MAC + waqt likhte hain. Task `hlog` (stack 6144, prio 3, `hist_init()` app_main mein `fl_init()` ke baad) har 5 sec mein abhi-connected / abhi-disconnect hue records ka naam+IP bharta hai (`hs_resolve_dev`) aur 30 sec ke gap par NVS mein likhta hai.
+- API: `/api/status?hist=1` par `hist` array (newest pehle): mac, ip, dev, info (`model|os|vendor`), ca/da (connect/disconnect kitne sec pehle, -1 = maloom nahi), st (0 band, 1 abhi connected, 2 repeater restart hua, 3 record nahi). Bina `?hist=1` ke status halka rehta hai; admin.html sirf tab `?hist=1` mangta hai jab section nazar aa raha ho (`histWanted()`). Naya URI handler nahi joda (`max_uri_handlers` 36 wahi).
+- Waqt browser ke clock se (abhi - ago) dikhta hai. Restart par khule sessions "Repeater restarted" ban jate hain. Disconnect ka reason code nahi liya (IDF struct mein `reason` field ka pata nahi, compile risk).
+- Factory reset: `s_hs_wiped` flag set hota hai taake `hlog` task reset ke baad flash mein dobara na likhe; `nvs_erase_all` `hlog` ko bhi hata deta hai (same namespace `repeater`; `flog` bhi isi namespace mein hai, code se reset par saaf hona chahiye, device par test baqi).
+- Limits: max 40 sessions (zyada hon to purane pehle nikalte hain); Config Export mein shamil nahi; NVS partition sirf 24 KB (`partitions.csv`) isliye blob ~2.9 KB; clock sync na ho to ago record ke uptime se banta hai (sirf is boot ke records), pichhle boot ke bina-waqt wale records hata diye jate hain.
+- **Unverified:** compile aur device test abhi nahi hua. Heap par asar (static ~3 KB + task stack 6 KB) napa nahi gaya; `/api/status?hist=1` ka response size / `send_json` ka buffer dekha nahi.
+
+
 ---
 
 ## 4. ABHI KHULE MASLE / AGLE KAAM (priority se)
@@ -171,6 +181,8 @@ Sab Sarfraz ne device par chala kar confirm kiya, jahan likha ho "Claude ne dekh
 4. Audit baqi: Section 7.
 5. FEATURES.md / FLASH_AND_TEST.md / README mein naye features nahi likhe: online update, request-on-Home, device label, backup file, router panel, red status, failed login log. Likhna baqi.
 6. Failed login log ka 24 ghante auto-delete abhi test nahi hua: 2026-11-13 ke purane "0.0.0.0" wale rows (14:51 se 15:01) 2026-11-14 ko ghayab hone chahiye. Factory reset par `flog` ka haal bhi dekho.
+7. Connection History (3.10): do phones connect/disconnect karo, section mein rows (naam, model, MAC/IP, Connected/Disconnected/Duration, AM/PM), "Still connected" wali row, repeater reboot ke baad "Repeater restarted", 24 ghante auto-delete, factory reset par saaf, install ke baad `free_heap` (`192.168.4.1/api/status`) pehle se kitna kam hua.
+
 
 ---
 

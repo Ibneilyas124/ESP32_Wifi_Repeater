@@ -202,7 +202,10 @@ static int get_reset_counter(void) {
     return count;
 }
 
+static volatile bool s_hs_wiped = false;   /* factory reset ke baad history task flash mein na likhe */
+
 static void wipe_settings(void) {
+    s_hs_wiped = true;
     nvs_handle_t h;
     if (nvs_open(NVS_NS, NVS_READWRITE, &h) == ESP_OK) {
         nvs_erase_all(h);
@@ -1418,6 +1421,9 @@ static bool sta_apply_network(bool backup) {
     return esp_wifi_set_config(WIFI_IF_STA, &c) == ESP_OK;
 }
 
+static void hist_on_connect(const uint8_t mac[6]);
+static void hist_on_disconnect(const uint8_t mac[6]);
+
 static void wifi_event_handler(void *arg, esp_event_base_t base, int32_t id, void *data) {
     if (base == WIFI_EVENT) {
         switch (id) {
@@ -1454,9 +1460,15 @@ static void wifi_event_handler(void *arg, esp_event_base_t base, int32_t id, voi
             esp_wifi_connect();
             break;
         }
+        case WIFI_EVENT_AP_STADISCONNECTED: {
+            wifi_event_ap_stadisconnected_t *hdc = (wifi_event_ap_stadisconnected_t *)data;
+            hist_on_disconnect(hdc->mac);
+            break;
+        }
         case WIFI_EVENT_AP_STACONNECTED: {
             wifi_event_ap_staconnected_t *ev = (wifi_event_ap_staconnected_t *)data;
             seen_touch(ev->mac);
+            hist_on_connect(ev->mac);
             char mac[18];
             snprintf(mac, sizeof(mac), "%02X:%02X:%02X:%02X:%02X:%02X",
                      ev->mac[0], ev->mac[1], ev->mac[2], ev->mac[3], ev->mac[4], ev->mac[5]);
@@ -2034,6 +2046,376 @@ static void fl_resolve(const fl_rec_t *r, fl_view_t *v) {
     if (!v->name[0] && !v->model[0] && r->dev[0]) snprintf(v->name, sizeof(v->name), "%.47s", r->dev);
 }
 
+/* ================= Connection History (hlog) =================
+ * Har device ka connect/disconnect (session) record, 24 ghante baad auto-delete, NVS key "hlog".
+ * Event handler sirf MAC + waqt likhta hai; naam/IP/model baad mein hlog task (DHCP ke baad) bharta hai. */
+#define HS_MAX       40
+#define HS_KEEP_S    86400
+#define HS_MAGIC     0x48534C01u
+#define HS_FLUSH_US  30000000LL
+#define HS_RES_MAX   12
+#define HSF_OPEN     0x01   /* abhi connected */
+#define HSF_CUR      0x02   /* is boot mein bana: uptime fields sahi hain */
+#define HSF_HASC     0x04   /* connect ka waqt maloom */
+#define HSF_HASD     0x08   /* disconnect ka waqt maloom */
+#define HSF_RST      0x10   /* repeater restart hua, disconnect ka waqt nahi */
+#define HSF_FIN      0x20   /* disconnect ke baad aakhri naam/IP resolve baqi */
+
+typedef struct {
+    uint32_t cts, dts;   /* epoch seconds (connect / disconnect), 0 = maloom nahi */
+    uint32_t cup, dup;   /* uptime seconds (sirf HSF_CUR ke saath sahi) */
+    uint8_t  ip[4];
+    uint8_t  mac[6];
+    uint8_t  flags;
+    uint8_t  pad;
+    uint16_t id;         /* sirf is boot mein: resolve ka record dhoondne ke liye */
+    char     dev[40];
+} hs_rec_t;
+
+typedef struct { uint32_t magic; uint32_t n; hs_rec_t r[HS_MAX]; } hs_blob_t;
+
+static hs_blob_t s_hs;                 /* mutex ke andar hi chhoona */
+static volatile bool s_hs_dirty = false;
+static SemaphoreHandle_t s_hs_mx = NULL;
+static uint16_t s_hs_id = 0;
+
+static void hs_load(void) {
+    nvs_handle_t h;
+    memset(&s_hs, 0, sizeof(s_hs));
+    if (nvs_open(NVS_NS, NVS_READONLY, &h) != ESP_OK) return;
+    size_t len = sizeof(s_hs);
+    esp_err_t g = nvs_get_blob(h, "hlog", &s_hs, &len);
+    nvs_close(h);
+    if (g != ESP_OK || len < offsetof(hs_blob_t, r) || s_hs.magic != HS_MAGIC || s_hs.n > HS_MAX ||
+        len != offsetof(hs_blob_t, r) + (size_t)s_hs.n * sizeof(hs_rec_t)) {
+        memset(&s_hs, 0, sizeof(s_hs));
+        return;
+    }
+    for (uint32_t i = 0; i < s_hs.n; i++) {
+        hs_rec_t *r = &s_hs.r[i];
+        r->dev[sizeof(r->dev) - 1] = 0;
+        if (r->flags & HSF_OPEN) { r->flags = (uint8_t)((r->flags & ~HSF_OPEN) | HSF_RST); s_hs_dirty = true; }
+        r->flags = (uint8_t)(r->flags & ~(HSF_CUR | HSF_FIN));
+        r->id = 0;
+    }
+}
+
+/* mutex held. Purane records hataata hai aur clock sync hone se pehle ke records par waqt lagata hai. */
+static void hs_housekeeping(void) {
+    time_t now = time(NULL);
+    bool ok = now >= 1700000000;
+    uint32_t up = (uint32_t)(esp_timer_get_time() / 1000000);
+    uint32_t w = 0;
+    for (uint32_t i = 0; i < s_hs.n; i++) {
+        hs_rec_t r = s_hs.r[i];
+        bool cur = (r.flags & HSF_CUR) != 0;
+        if (ok && (r.flags & HSF_HASC) && r.cts == 0) {
+            uint32_t age = (cur && up >= r.cup) ? (up - r.cup) : 0;
+            r.cts = (uint32_t)now - age;
+            s_hs_dirty = true;
+        }
+        if (ok && (r.flags & HSF_HASD) && r.dts == 0) {
+            uint32_t age = (cur && up >= r.dup) ? (up - r.dup) : 0;
+            r.dts = (uint32_t)now - age;
+            s_hs_dirty = true;
+        }
+        bool expired = false;
+        if (!(r.flags & HSF_OPEN)) {
+            bool has_ts = (r.dts != 0 || r.cts != 0);
+            if (has_ts) {
+                if (ok) {
+                    uint32_t ref = r.dts ? r.dts : r.cts;
+                    expired = ((int64_t)now - (int64_t)ref) > HS_KEEP_S;
+                }
+            } else if (cur) {
+                uint32_t refup = (r.flags & HSF_HASD) ? r.dup : r.cup;
+                expired = (up >= refup) && ((up - refup) > (uint32_t)HS_KEEP_S);
+            } else {
+                expired = true;   /* na waqt, na is boot ka: umr maloom nahi */
+            }
+        }
+        if (expired) { s_hs_dirty = true; continue; }
+        s_hs.r[w++] = r;
+    }
+    s_hs.n = w;
+}
+
+/* mutex held */
+static hs_rec_t *hs_append(const hs_rec_t *r) {
+    if (s_hs.n >= HS_MAX) {
+        memmove(&s_hs.r[0], &s_hs.r[1], (HS_MAX - 1) * sizeof(hs_rec_t));
+        s_hs.n = HS_MAX - 1;
+    }
+    s_hs.r[s_hs.n] = *r;
+    return &s_hs.r[s_hs.n++];
+}
+
+static void hist_on_connect(const uint8_t mac[6]) {
+    if (!s_hs_mx) return;
+    if (xSemaphoreTake(s_hs_mx, pdMS_TO_TICKS(200)) != pdTRUE) return;
+    time_t now = time(NULL);
+    hs_rec_t r;
+    memset(&r, 0, sizeof(r));
+    memcpy(r.mac, mac, 6);
+    r.flags = HSF_OPEN | HSF_CUR | HSF_HASC;
+    r.cup = (uint32_t)(esp_timer_get_time() / 1000000);
+    r.cts = (now >= 1700000000) ? (uint32_t)now : 0;
+    if (++s_hs_id == 0) s_hs_id = 1;
+    r.id = s_hs_id;
+    /* isi MAC ka pichhla session khula reh gaya (event miss / re-associate): band karo, waqt maloom nahi */
+    for (uint32_t i = 0; i < s_hs.n; i++) {
+        if ((s_hs.r[i].flags & HSF_OPEN) && memcmp(s_hs.r[i].mac, mac, 6) == 0) {
+            s_hs.r[i].flags = (uint8_t)((s_hs.r[i].flags & ~HSF_OPEN) | HSF_FIN);
+        }
+    }
+    hs_append(&r);
+    s_hs_dirty = true;
+    xSemaphoreGive(s_hs_mx);
+}
+
+static void hist_on_disconnect(const uint8_t mac[6]) {
+    if (!s_hs_mx) return;
+    if (xSemaphoreTake(s_hs_mx, pdMS_TO_TICKS(200)) != pdTRUE) return;
+    time_t now = time(NULL);
+    uint32_t up = (uint32_t)(esp_timer_get_time() / 1000000);
+    hs_rec_t *t = NULL;
+    for (int i = (int)s_hs.n - 1; i >= 0; i--) {
+        if ((s_hs.r[i].flags & HSF_OPEN) && memcmp(s_hs.r[i].mac, mac, 6) == 0) { t = &s_hs.r[i]; break; }
+    }
+    if (!t) {
+        /* connect ka record nahi (boot se pehle ka connect): sirf disconnect likho */
+        hs_rec_t r;
+        memset(&r, 0, sizeof(r));
+        memcpy(r.mac, mac, 6);
+        r.flags = HSF_CUR;
+        if (++s_hs_id == 0) s_hs_id = 1;
+        r.id = s_hs_id;
+        t = hs_append(&r);
+    }
+    t->flags = (uint8_t)((t->flags & ~HSF_OPEN) | HSF_HASD | HSF_FIN);
+    t->dup = up;
+    t->dts = (now >= 1700000000) ? (uint32_t)now : 0;
+    s_hs_dirty = true;
+    xSemaphoreGive(s_hs_mx);
+}
+
+/* ek device ka IP aur naam (Failed Logins jaisa). dev ka size 40 hona chahiye. */
+static void hs_resolve_dev(const uint8_t mac[6], uint8_t ip_out[4], char *dev) {
+    char macs[18];
+    snprintf(macs, sizeof(macs), "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    esp_netif_pair_mac_ip_t pr;
+    memset(&pr, 0, sizeof(pr));
+    memcpy(pr.mac, mac, 6);
+    esp_netif_dhcps_get_clients_by_mac(s_ap_netif, 1, &pr);
+    memcpy(ip_out, &pr.ip.addr, 4);
+    char name[64] = "";
+    whitelist_get_name(macs, name, sizeof(name));
+    if (!name[0]) label_get(macs, name, sizeof(name));
+    bool admin_named = name[0] != 0;
+    if (!name[0]) dhcp_host_lookup(mac, name, sizeof(name));
+    char dm[80], dos[24], dbr[16];
+    devinfo_get(mac, ip_out, dm, sizeof(dm), dos, sizeof(dos), dbr, sizeof(dbr));
+    if (!dm[0]) {
+        char hn[64] = "";
+        if (dhcp_host_lookup(mac, hn, sizeof(hn))) host_model_guess(hn, dm, sizeof(dm));
+    }
+    if (admin_named && dm[0]) snprintf(dev, 40, "%.16s (%.18s)", name, dm);
+    else snprintf(dev, 40, "%.39s", name[0] ? name : dm);
+}
+
+static void hist_task(void *arg) {
+    (void)arg;
+    int64_t last_flush = -HS_FLUSH_US;
+    uint32_t tick = 0;
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(5000));
+        tick++;
+        uint16_t ids[HS_RES_MAX];
+        uint8_t macs[HS_RES_MAX][6];
+        int nc = 0;
+        xSemaphoreTake(s_hs_mx, portMAX_DELAY);
+        hs_housekeeping();
+        for (int pass = 0; pass < 2; pass++) {   /* pehle disconnect ke baad wale, phir abhi connected */
+            for (uint32_t i = 0; i < s_hs.n && nc < HS_RES_MAX; i++) {
+                const hs_rec_t *r = &s_hs.r[i];
+                if (!(r->flags & HSF_CUR) || r->id == 0) continue;
+                bool fin = (r->flags & HSF_FIN) != 0;
+                bool open = (r->flags & HSF_OPEN) != 0;
+                if (pass == 0 && !fin) continue;
+                if (pass == 1) {
+                    if (fin || !open) continue;
+                    bool ipz = (r->ip[0] | r->ip[1] | r->ip[2] | r->ip[3]) == 0;
+                    if (r->dev[0] && !ipz && (tick % 6) != 0) continue;   /* maloom ho chuka to 30 sec mein ek baar */
+                }
+                ids[nc] = r->id;
+                memcpy(macs[nc], r->mac, 6);
+                nc++;
+            }
+        }
+        xSemaphoreGive(s_hs_mx);
+
+        uint8_t ips[HS_RES_MAX][4];
+        char devs[HS_RES_MAX][40];
+        for (int k = 0; k < nc; k++) hs_resolve_dev(macs[k], ips[k], devs[k]);
+
+        hs_blob_t *cp = NULL;
+        size_t wlen = 0;
+        xSemaphoreTake(s_hs_mx, portMAX_DELAY);
+        for (int k = 0; k < nc; k++) {
+            for (uint32_t i = 0; i < s_hs.n; i++) {
+                hs_rec_t *r = &s_hs.r[i];
+                if (r->id != ids[k] || !(r->flags & HSF_CUR)) continue;
+                bool ipnz = (ips[k][0] | ips[k][1] | ips[k][2] | ips[k][3]) != 0;
+                if (ipnz && memcmp(r->ip, ips[k], 4) != 0) { memcpy(r->ip, ips[k], 4); s_hs_dirty = true; }
+                if (devs[k][0] && strcmp(r->dev, devs[k]) != 0) { memcpy(r->dev, devs[k], sizeof(r->dev)); s_hs_dirty = true; }
+                if (r->flags & HSF_FIN) { r->flags = (uint8_t)(r->flags & ~HSF_FIN); s_hs_dirty = true; }
+                break;
+            }
+        }
+        if (s_hs_dirty && !s_hs_wiped && (esp_timer_get_time() - last_flush) >= HS_FLUSH_US) {
+            cp = (hs_blob_t *)malloc(sizeof(hs_blob_t));
+            if (cp) {
+                s_hs.magic = HS_MAGIC;
+                wlen = offsetof(hs_blob_t, r) + (size_t)s_hs.n * sizeof(hs_rec_t);
+                memcpy(cp, &s_hs, wlen);
+                s_hs_dirty = false;
+                last_flush = esp_timer_get_time();
+            }
+        }
+        xSemaphoreGive(s_hs_mx);
+
+        if (cp) {
+            nvs_handle_t h;
+            esp_err_t e = nvs_open(NVS_NS, NVS_READWRITE, &h);
+            if (e == ESP_OK) {
+                if (cp->n == 0) {
+                    e = nvs_erase_key(h, "hlog");
+                    if (e == ESP_ERR_NVS_NOT_FOUND) e = ESP_OK;
+                } else {
+                    e = nvs_set_blob(h, "hlog", cp, wlen);
+                }
+                if (e == ESP_OK) e = nvs_commit(h);
+                nvs_close(h);
+            }
+            if (e != ESP_OK) {
+                ESP_LOGW(TAG, "connection history save failed: %s", esp_err_to_name(e));
+                s_hs_dirty = true;
+            }
+            free(cp);
+        }
+    }
+}
+
+static void hist_init(void) {
+    hs_load();
+    s_hs_mx = xSemaphoreCreateMutex();
+    if (!s_hs_mx) return;
+    if (xTaskCreate(hist_task, "hlog", 6144, NULL, 3, NULL) != pdPASS) {
+        ESP_LOGW(TAG, "connection history task not started");
+    }
+}
+
+/* kitne second pehle hua; -1 = maloom nahi */
+static int hs_ago(uint32_t ts, uint32_t upv, bool cur, bool known, time_t now, uint32_t up) {
+    if (!known) return -1;
+    if (ts != 0 && now >= 1700000000) {
+        int64_t d = (int64_t)now - (int64_t)ts;
+        return d < 0 ? 0 : (int)d;
+    }
+    if (cur && up >= upv) return (int)(up - upv);
+    return -1;
+}
+
+static void hs_join(char *out, size_t on, const char *a, const char *b, const char *c) {
+    const char *p[3] = { a, b, c };
+    size_t o = 0;
+    out[0] = 0;
+    for (int i = 0; i < 3; i++) {
+        size_t l = strlen(p[i]);
+        if (l == 0) continue;
+        if (o + (o ? 1 : 0) + l + 1 > on) break;
+        if (o) out[o++] = '|';
+        memcpy(out + o, p[i], l);
+        o += l;
+        out[o] = 0;
+    }
+}
+
+typedef struct { uint8_t mac[6]; bool used; fl_view_t v; } hs_vc_t;
+#define HS_VC_MAX 12
+
+/* /api/status?hist=1 par hi "hist" array jodta hai (warna status halka rehta hai) */
+static void hist_json(httpd_req_t *req, cJSON *root) {
+    char q[24];
+    size_t ql = httpd_req_get_url_query_len(req);
+    if (ql == 0 || ql >= sizeof(q)) return;
+    if (httpd_req_get_url_query_str(req, q, sizeof(q)) != ESP_OK) return;
+    if (!strstr(q, "hist=1")) return;
+    cJSON *arr = cJSON_CreateArray();
+    if (!arr) return;
+    hs_rec_t *snap = (hs_rec_t *)malloc(HS_MAX * sizeof(hs_rec_t));
+    hs_vc_t *vc = (hs_vc_t *)calloc(HS_VC_MAX, sizeof(hs_vc_t));
+    int n = 0;
+    if (snap && s_hs_mx && xSemaphoreTake(s_hs_mx, pdMS_TO_TICKS(500)) == pdTRUE) {
+        hs_housekeeping();
+        n = (int)s_hs.n;
+        memcpy(snap, s_hs.r, (size_t)n * sizeof(hs_rec_t));
+        xSemaphoreGive(s_hs_mx);
+    }
+    time_t now = time(NULL);
+    uint32_t up = (uint32_t)(esp_timer_get_time() / 1000000);
+    for (int i = n - 1; vc && i >= 0; i--) {   /* newest pehle */
+        const hs_rec_t *r = &snap[i];
+        hs_vc_t *c = NULL;
+        for (int k = 0; k < HS_VC_MAX; k++) {
+            if (vc[k].used && memcmp(vc[k].mac, r->mac, 6) == 0) { c = &vc[k]; break; }
+        }
+        if (!c) {
+            for (int k = 0; k < HS_VC_MAX; k++) {
+                if (!vc[k].used) { c = &vc[k]; break; }
+            }
+            if (!c) c = &vc[HS_VC_MAX - 1];   /* cache bhar gaya: aakhri slot dobara istemal */
+            fl_rec_t fr;
+            memset(&fr, 0, sizeof(fr));
+            memcpy(fr.mac, r->mac, 6);
+            memcpy(fr.ip, r->ip, 4);
+            fr.has_mac = 1;
+            snprintf(fr.dev, sizeof(fr.dev), "%.39s", r->dev);
+            fl_resolve(&fr, &c->v);
+            memcpy(c->mac, r->mac, 6);
+            c->used = true;
+        }
+        const fl_view_t *v = &c->v;
+        char info[140];
+        hs_join(info, sizeof(info), v->model[0] ? v->model : v->brand, v->os, v->vendor);
+        char macs[18];
+        snprintf(macs, sizeof(macs), "%02X:%02X:%02X:%02X:%02X:%02X", r->mac[0], r->mac[1], r->mac[2], r->mac[3], r->mac[4], r->mac[5]);
+        char ipstr[20] = "";
+        if (r->ip[0] | r->ip[1] | r->ip[2] | r->ip[3]) {
+            snprintf(ipstr, sizeof(ipstr), "%u.%u.%u.%u", r->ip[0], r->ip[1], r->ip[2], r->ip[3]);
+        }
+        bool cur = (r->flags & HSF_CUR) != 0;
+        int st = 3;
+        if (r->flags & HSF_OPEN) st = 1;
+        else if (r->flags & HSF_HASD) st = 0;
+        else if (r->flags & HSF_RST) st = 2;
+        cJSON *o = cJSON_CreateObject();
+        if (!o) break;
+        cJSON_AddStringToObject(o, "mac", macs);
+        cJSON_AddStringToObject(o, "ip", ipstr);
+        cJSON_AddStringToObject(o, "dev", v->name);
+        cJSON_AddStringToObject(o, "info", info);
+        cJSON_AddNumberToObject(o, "ca", hs_ago(r->cts, r->cup, cur, (r->flags & HSF_HASC) != 0, now, up));
+        cJSON_AddNumberToObject(o, "da", hs_ago(r->dts, r->dup, cur, (r->flags & HSF_HASD) != 0, now, up));
+        cJSON_AddNumberToObject(o, "st", st);
+        cJSON_AddItemToArray(arr, o);
+    }
+    free(snap);
+    free(vc);
+    cJSON_AddItemToObject(root, "hist", arr);
+}
+
+
 static void fl_json(cJSON *root) {
     cJSON *arr = cJSON_CreateArray();
     int n = 0;
@@ -2237,6 +2619,7 @@ static esp_err_t status_get_handler(httpd_req_t *req) {
     }
     cJSON_AddItemToObject(root, "discon_log", dlog);
     fl_json(root);
+    hist_json(req, root);
     return send_json(req, root);
 }
 
@@ -3413,4 +3796,5 @@ void app_main(void) {
     start_webserver();
     xTaskCreate(button_task, "reset_btn", 3072, NULL, 5, NULL);
     fl_init();
+    hist_init();
 }
