@@ -1403,22 +1403,112 @@ static void deauth_monitor_apply(bool on) {
 }
 
 
-/* ---- upstream failover: primary (sta_ssid/sta_pass) <-> backup (sta_ssid2/sta_pass2) ---- */
+/* ---- upstream failover: 5 saved networks (slot 0 = sab se upar). NVS keys: sta_ssid/sta_pass, sta_ssid2/sta_pass2, sta_ssid3..5 ---- */
 #define STA_FAILOVER_FAILS 5
+#define STA_SLOTS 5
+#define UP_SCAN_MAX 24
 static int s_sta_fail = 0;
-static bool s_on_backup = false;
+static int s_cur_slot = 0;
+static volatile bool s_up_scan_busy = false;
 
-/* Sirf event task se chalta hai, is liye static buffers (event task ka stack chhota hai). */
-static bool sta_apply_network(bool backup) {
-    static char ssid[33], pass[65];
-    static wifi_config_t c;
-    nvs_get_string(backup ? "sta_ssid2" : "sta_ssid", ssid, sizeof(ssid), "");
-    nvs_get_string(backup ? "sta_pass2" : "sta_pass", pass, sizeof(pass), "");
-    if (ssid[0] == 0) return false;
-    memset(&c, 0, sizeof(c));
-    strncpy((char *)c.sta.ssid, ssid, sizeof(c.sta.ssid));
-    strncpy((char *)c.sta.password, pass, sizeof(c.sta.password));
-    return esp_wifi_set_config(WIFI_IF_STA, &c) == ESP_OK;
+/* out kam az kam 24 bytes ka ho */
+static void sta_slot_key(char *out, int slot, bool pass) {
+    const char *base = pass ? "sta_pass" : "sta_ssid";
+    if (slot <= 0) snprintf(out, 24, "%s", base);
+    else snprintf(out, 24, "%s%d", base, slot + 1);
+}
+
+/* Heap buffers (static nahi): event task aur doosre tasks dono se bila-khatra chalta hai. */
+static bool sta_apply_network(int slot) {
+    if (slot < 0 || slot >= STA_SLOTS) return false;
+    char *ssid = malloc(33);
+    char *pass = malloc(65);
+    wifi_config_t *c = calloc(1, sizeof(wifi_config_t));
+    bool ok = false;
+    if (ssid && pass && c) {
+        char k[24];
+        sta_slot_key(k, slot, false); nvs_get_string(k, ssid, 33, "");
+        sta_slot_key(k, slot, true);  nvs_get_string(k, pass, 65, "");
+        if (ssid[0] != 0) {
+            strncpy((char *)c->sta.ssid, ssid, sizeof(c->sta.ssid));
+            strncpy((char *)c->sta.password, pass, sizeof(c->sta.password));
+            ok = esp_wifi_set_config(WIFI_IF_STA, c) == ESP_OK;
+        }
+    }
+    free(ssid); free(pass); free(c);
+    return ok;
+}
+
+/* cfg[i] = slot i ka SSID khali nahi. do_scan ho to vis[i] = slot i ka SSID scan mein dikha. Return true sirf jab scan kamyab. */
+static bool up_scan_slots(bool vis[STA_SLOTS], bool cfg[STA_SLOTS], bool do_scan) {
+    char (*ss)[33] = malloc(STA_SLOTS * 33);
+    wifi_ap_record_t *recs = do_scan ? malloc(sizeof(wifi_ap_record_t) * UP_SCAN_MAX) : NULL;
+    bool ok = false;
+    uint16_t n = UP_SCAN_MAX;
+    wifi_scan_config_t sc = { 0 };
+    for (int i = 0; i < STA_SLOTS; i++) { vis[i] = false; cfg[i] = false; }
+    if (!ss) { free(recs); return false; }
+    for (int i = 0; i < STA_SLOTS; i++) {
+        char k[24];
+        sta_slot_key(k, i, false);
+        nvs_get_string(k, ss[i], 33, "");
+        cfg[i] = ss[i][0] != 0;
+    }
+    if (do_scan && recs) {
+        if (esp_wifi_scan_start(&sc, true) == ESP_OK) {
+            if (esp_wifi_scan_get_ap_records(&n, recs) == ESP_OK) {
+                for (int r = 0; r < n; r++)
+                    for (int i = 0; i < STA_SLOTS; i++)
+                        if (cfg[i] && strcmp((char *)recs[r].ssid, ss[i]) == 0) vis[i] = true;
+                ok = true;
+            } else {
+                esp_wifi_clear_ap_list();
+            }
+        }
+    }
+    free(ss); free(recs);
+    return ok;
+}
+
+/* Disconnect par STA_FAILOVER_FAILS baar fail hone ke baad chalta hai: scan karke sab se upar wala nazar aane wala saved network chunta hai.
+ * Scan na ho sake (ya hidden SSID) to agla bhara hua slot (rotation) - purane failover jaisa. Task khud reconnect karta hai. */
+static void upstream_pick_task(void *arg) {
+    bool vis[STA_SLOTS], cfg[STA_SLOTS];
+    int ncfg = 0, pick = -1;
+    bool scanned = false;
+    memset(vis, 0, sizeof(vis));
+    memset(cfg, 0, sizeof(cfg));
+    up_scan_slots(vis, cfg, false);
+    for (int i = 0; i < STA_SLOTS; i++) if (cfg[i]) ncfg++;
+    if (ncfg > 1) {
+        esp_wifi_disconnect();                      /* connect-try rokte hain, warna scan reject ho sakta hai */
+        vTaskDelay(pdMS_TO_TICKS(300));
+        if (s_scan_state != 1) {
+            s_scan_state = 1;
+            scanned = up_scan_slots(vis, cfg, true);
+            s_scan_state = 0;
+        }
+        if (scanned) {
+            for (int i = 0; i < STA_SLOTS; i++) if (vis[i] && i != s_cur_slot) { pick = i; break; }
+            if (pick < 0 && vis[s_cur_slot]) pick = s_cur_slot;
+        }
+    } else {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+    if (pick < 0 && ncfg >= 1) {
+        for (int k = 1; k <= STA_SLOTS; k++) {
+            int i = (s_cur_slot + k) % STA_SLOTS;
+            if (cfg[i]) { pick = i; break; }
+        }
+    }
+    if (pick >= 0 && pick != s_cur_slot && sta_apply_network(pick)) {
+        s_cur_slot = pick;
+        ESP_LOGW(TAG, "Upstream: switching to saved network %d", pick + 1);
+    }
+    s_sta_fail = 0;
+    s_up_scan_busy = false;
+    esp_wifi_connect();
+    vTaskDelete(NULL);
 }
 
 static void hist_on_connect(const uint8_t mac[6]);
@@ -1449,13 +1539,12 @@ static void wifi_event_handler(void *arg, esp_event_base_t base, int32_t id, voi
             if (s_discon_count < DISCON_RING) s_discon_count++;
             s_discon_total++;
             ESP_LOGW(TAG, "Upstream WiFi disconnected (reason %d), retrying...", dc ? dc->reason : 0);
-            if (++s_sta_fail >= STA_FAILOVER_FAILS) {
+            if (++s_sta_fail >= STA_FAILOVER_FAILS && !s_up_scan_busy) {
                 s_sta_fail = 0;
-                if (sta_apply_network(!s_on_backup)) {
-                    s_on_backup = !s_on_backup;
-                    ESP_LOGW(TAG, "Upstream failover: switching to %s network", s_on_backup ? "BACKUP" : "PRIMARY");
-                }
+                s_up_scan_busy = true;
+                if (xTaskCreate(upstream_pick_task, "uppick", 4096, NULL, 4, NULL) != pdPASS) s_up_scan_busy = false;
             }
+            if (s_up_scan_busy) break;          /* uppick task khud reconnect karta hai */
             vTaskDelay(pdMS_TO_TICKS(1000));
             esp_wifi_connect();
             break;
@@ -1605,6 +1694,10 @@ static void wifi_init(void) {
     }
     if (strlen(sta_ssid) > 0) {
         if (esp_wifi_set_config(WIFI_IF_STA, &sta_config) != ESP_OK) ESP_LOGW(TAG, "Upstream WiFi config rejected - fix it in Upstream WiFi");
+    } else {
+        for (int si = 1; si < STA_SLOTS; si++) {   /* slot 1 khali: pehla bhara hua slot lo */
+            if (sta_apply_network(si)) { s_cur_slot = si; break; }
+        }
     }
     ESP_ERROR_CHECK(esp_wifi_start());
 
@@ -1632,22 +1725,22 @@ static int tcp_probe(const char *ip, int port, int timeout_ms); /* defined later
 /* ---- backup par chalte hue har ~5 min baad primary wapas try, sirf agar primary scan mein dikhe ---- */
 static volatile bool s_pr_busy = false;
 static void primary_return_task(void *arg) {
-    static char ssid[33];
-    nvs_get_string("sta_ssid", ssid, sizeof(ssid), "");
-    if (ssid[0] && s_on_backup && s_sta_connected && s_scan_state != 1) {
+    bool vis[STA_SLOTS], cfg[STA_SLOTS];
+    memset(vis, 0, sizeof(vis));
+    memset(cfg, 0, sizeof(cfg));
+    if (s_cur_slot > 0 && s_sta_connected && s_scan_state != 1) {
         s_scan_state = 1;                       /* admin ke scan se takrao se bachao */
-        wifi_scan_config_t sc = { 0 };
-        sc.ssid = (uint8_t *)ssid;
-        esp_err_t e = esp_wifi_scan_start(&sc, true);
-        uint16_t num = 0;
-        if (e == ESP_OK) esp_wifi_scan_get_ap_num(&num);
-        esp_wifi_clear_ap_list();
+        bool ok = up_scan_slots(vis, cfg, true);
         s_scan_state = 0;
-        if (e == ESP_OK && num > 0 && s_on_backup && s_sta_connected && sta_apply_network(false)) {
-            s_on_backup = false;
-            s_sta_fail = 0;
-            ESP_LOGW(TAG, "Primary upstream visible again - switching back from BACKUP");
-            esp_wifi_disconnect();              /* DISCONNECTED handler dobara connect karta hai */
+        if (ok) {
+            int better = -1;
+            for (int i = 0; i < s_cur_slot; i++) if (vis[i]) { better = i; break; }
+            if (better >= 0 && s_cur_slot > 0 && s_sta_connected && sta_apply_network(better)) {
+                s_cur_slot = better;
+                s_sta_fail = 0;
+                ESP_LOGW(TAG, "Higher-priority upstream %d visible again - switching back", better + 1);
+                esp_wifi_disconnect();          /* DISCONNECTED handler dobara connect karta hai */
+            }
         }
     }
     s_pr_busy = false;
@@ -1688,7 +1781,7 @@ static void button_task(void *arg) {
         if (tick % 3000 == 0) {         /* every ~5 min */
             usage_persist_all();
         }
-        if (tick % 3000 == 0 && s_on_backup && s_sta_connected && !s_pr_busy) {   /* every ~5 min, only while on backup */
+        if (tick % 3000 == 0 && s_cur_slot > 0 && s_sta_connected && !s_pr_busy) {   /* every ~5 min, only while on backup */
             s_pr_busy = true;
             if (xTaskCreate(primary_return_task, "primret", 4096, NULL, 4, NULL) != pdPASS) s_pr_busy = false;
         }
@@ -2517,7 +2610,9 @@ static esp_err_t status_get_handler(httpd_req_t *req) {
     char v[40];
     nvs_get_string("sta_ssid", v, sizeof(v), "");
     cJSON_AddStringToObject(root, "sta_ssid", v);
-    cJSON_AddBoolToObject(root, "on_backup", s_on_backup);
+    cJSON_AddBoolToObject(root, "on_backup", s_cur_slot != 0);
+    cJSON_AddNumberToObject(root, "slot", s_cur_slot + 1);
+    for (int si = 2; si < STA_SLOTS; si++) { char sk[24]; sta_slot_key(sk, si, false); nvs_get_string(sk, v, sizeof(v), ""); cJSON_AddStringToObject(root, sk, v); }
     nvs_get_string("sta_ssid2", v, sizeof(v), "");
     cJSON_AddStringToObject(root, "sta_ssid2", v);
     get_setting("ap_ip", v, sizeof(v));
@@ -2680,7 +2775,7 @@ static esp_err_t whitelist_post_handler(httpd_req_t *req) {
 
 static esp_err_t wifi_post_handler(httpd_req_t *req) {
     if (require_session_api(req) != ESP_OK) return ESP_OK;
-    static char buf[600];
+    static char buf[1100];
     read_body(req, buf, sizeof(buf));
     cJSON *j = cJSON_Parse(buf);
     if (!j) return send_result(req, false, "invalid data");
@@ -2701,7 +2796,28 @@ static esp_err_t wifi_post_handler(httpd_req_t *req) {
         size_t pl2 = strlen(pass2->valuestring);
         if (pl2 != 0 && (pl2 < 8 || pl2 > 63)) { ok = false; err = "backup password must be 8-63 characters (blank = open network)"; }
     }
+    for (int si = 2; ok && si < STA_SLOTS; si++) {
+        char kj[24];
+        snprintf(kj, sizeof(kj), "ssid%d", si + 1);
+        cJSON *xs = cJSON_GetObjectItem(j, kj);
+        snprintf(kj, sizeof(kj), "password%d", si + 1);
+        cJSON *xp = cJSON_GetObjectItem(j, kj);
+        if (cJSON_IsString(xs) && strlen(xs->valuestring) > 32) { ok = false; err = "WiFi name is too long (max 32)"; }
+        if (ok && cJSON_IsString(xp)) {
+            size_t xl = strlen(xp->valuestring);
+            if (xl != 0 && (xl < 8 || xl > 63)) { ok = false; err = "password must be 8-63 characters (blank = open network)"; }
+        }
+    }
     if (ok) {
+        for (int si = 2; si < STA_SLOTS; si++) {
+            char kj[24], kn[24];
+            snprintf(kj, sizeof(kj), "ssid%d", si + 1);
+            cJSON *xs = cJSON_GetObjectItem(j, kj);
+            snprintf(kj, sizeof(kj), "password%d", si + 1);
+            cJSON *xp = cJSON_GetObjectItem(j, kj);
+            if (cJSON_IsString(xs)) { sta_slot_key(kn, si, false); nvs_set_string(kn, xs->valuestring); }
+            if (cJSON_IsString(xp)) { sta_slot_key(kn, si, true); nvs_set_string(kn, xp->valuestring); }
+        }
         if (cJSON_IsString(ssid2)) nvs_set_string("sta_ssid2", ssid2->valuestring);
         if (cJSON_IsString(pass2)) nvs_set_string("sta_pass2", pass2->valuestring);
         if (cJSON_IsString(ssid)) nvs_set_string("sta_ssid", ssid->valuestring);
@@ -2786,6 +2902,11 @@ static esp_err_t config_export_get_handler(httpd_req_t *req) {
     cJSON_AddStringToObject(root, "sta_ssid2", v);
     nvs_get_string("sta_pass2", v, sizeof(v), "");
     cJSON_AddStringToObject(root, "sta_pass2", v);
+    for (int si = 2; si < STA_SLOTS; si++) {
+        char sk[24];
+        sta_slot_key(sk, si, false); nvs_get_string(sk, v, sizeof(v), ""); cJSON_AddStringToObject(root, sk, v);
+        sta_slot_key(sk, si, true);  nvs_get_string(sk, v, sizeof(v), ""); cJSON_AddStringToObject(root, sk, v);
+    }
     whitelist_get(v, sizeof(v));
     cJSON_AddStringToObject(root, "whitelist", v);
     static char bl_exp[BL_MAX * (BL_LEN + 1) + 2];
@@ -2844,6 +2965,15 @@ static esp_err_t config_import_post_handler(httpd_req_t *req) {
         for (int i = 0; i < 2; i++) {
             cJSON *it = cJSON_GetObjectItem(j, extra2[i]);
             if (cJSON_IsString(it) && strlen(it->valuestring) < (size_t)(i == 0 ? 33 : 64) && !(i == 1 && it->valuestring[0] && strlen(it->valuestring) < 8)) nvs_set_string(extra2[i], it->valuestring);
+        }
+        for (int si = 2; si < STA_SLOTS; si++) {
+            char ks[24], kp[24];
+            sta_slot_key(ks, si, false);
+            sta_slot_key(kp, si, true);
+            cJSON *cs = cJSON_GetObjectItem(j, ks);
+            cJSON *cp = cJSON_GetObjectItem(j, kp);
+            if (cJSON_IsString(cs) && strlen(cs->valuestring) < 33) nvs_set_string(ks, cs->valuestring);
+            if (cJSON_IsString(cp) && strlen(cp->valuestring) < 64 && !(cp->valuestring[0] && strlen(cp->valuestring) < 8)) nvs_set_string(kp, cp->valuestring);
         }
         if (bl_n >= 0) {
             static char bl_csv[BL_MAX * (BL_LEN + 1) + 2];

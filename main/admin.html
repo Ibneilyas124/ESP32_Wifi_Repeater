@@ -340,12 +340,17 @@ footer{height:38px;line-height:38px;text-align:center;background:#e9eef4;border-
 </script>
 
     <details class="sec" id="d-wifi"><summary>Upstream WiFi</summary><div class="body">
-      <p class="desc">The router this repeater connects to. The repeater reboots after saving.</p>
-      <div class="frow"><label>SSID</label><input id="sta_ssid" type="text" autocomplete="off"></div>
-      <div class="frow"><label>Password</label><input id="sta_pass" type="password" autocomplete="off"><button type="button" class="small" onclick="pwToggle('sta_pass',this)">SHOW</button></div>
-      <p class="desc">Backup network (optional). If the main upstream fails 5 times in a row, the repeater switches to this one automatically. Leave SSID blank for none. Password blank = keep the saved one.</p>
-      <div class="frow"><label>Backup SSID</label><input id="sta_ssid2" type="text" autocomplete="off"></div>
-      <div class="frow"><label>Backup password</label><input id="sta_pass2" type="password" autocomplete="off"><button type="button" class="small" onclick="pwToggle('sta_pass2',this)">SHOW</button></div>
+      <p class="desc">Up to 5 upstream networks in priority order (1 = most preferred). The repeater connects to any saved network it can see and switches automatically when it loses one. Leave an SSID blank to skip a slot. Password blank = keep the saved one. The repeater reboots after saving.</p>
+      <div class="frow"><label>Network 1 SSID</label><input id="sta_ssid" type="text" autocomplete="off"></div>
+      <div class="frow"><label>Network 1 password</label><input id="sta_pass" type="password" autocomplete="off"><button type="button" class="small" onclick="pwToggle('sta_pass',this)">SHOW</button></div>
+      <div class="frow"><label>Network 2 SSID</label><input id="sta_ssid2" type="text" autocomplete="off"></div>
+      <div class="frow"><label>Network 2 password</label><input id="sta_pass2" type="password" autocomplete="off"><button type="button" class="small" onclick="pwToggle('sta_pass2',this)">SHOW</button></div>
+      <div class="frow"><label>Network 3 SSID</label><input id="sta_ssid3" type="text" autocomplete="off"></div>
+      <div class="frow"><label>Network 3 password</label><input id="sta_pass3" type="password" autocomplete="off"><button type="button" class="small" onclick="pwToggle('sta_pass3',this)">SHOW</button></div>
+      <div class="frow"><label>Network 4 SSID</label><input id="sta_ssid4" type="text" autocomplete="off"></div>
+      <div class="frow"><label>Network 4 password</label><input id="sta_pass4" type="password" autocomplete="off"><button type="button" class="small" onclick="pwToggle('sta_pass4',this)">SHOW</button></div>
+      <div class="frow"><label>Network 5 SSID</label><input id="sta_ssid5" type="text" autocomplete="off"></div>
+      <div class="frow"><label>Network 5 password</label><input id="sta_pass5" type="password" autocomplete="off"><button type="button" class="small" onclick="pwToggle('sta_pass5',this)">SHOW</button></div>
       <div class="btnrow"><button onclick="saveWifi()">Save</button><span class="msg" id="wifiMsg"></span></div>
     </div></details>
 
@@ -459,7 +464,7 @@ var REASONS={1:'Unspecified',2:'Auth expired',3:'Router disconnected us',4:'Inac
   201:'Router not found / off',202:'Wrong WiFi password',203:'Association rejected',204:'Handshake timeout'};
 
 /* ---------------- STATUS (always visible) ---------------- */
-var loadedWifiField=false;
+var loadedWifiField=false; var loadedSsids=[]; var WIFI_IDS=[['sta_ssid','sta_pass','ssid','password'],['sta_ssid2','sta_pass2','ssid2','password2'],['sta_ssid3','sta_pass3','ssid3','password3'],['sta_ssid4','sta_pass4','ssid4','password4'],['sta_ssid5','sta_pass5','ssid5','password5']];
 function failFmtDT(ts){ var d=new Date(ts*1000); function p(n){ return (n<10?'0':'')+n; } var h=d.getHours(), ap=h>=12?'PM':'AM'; h=h%12; if(h===0) h=12; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+h+':'+p(d.getMinutes())+':'+p(d.getSeconds())+' '+ap; }
 function renderFail(j){
   try{
@@ -528,13 +533,13 @@ async function refreshStatus(){
     function stat(k,v,cls){ var d=el('div',{'class':'stat'}); d.appendChild(el('div',{'class':'k'},k)); d.appendChild(el('div',{'class':'v '+(cls||'')},v)); g.appendChild(d); }
     stat('Upstream', (j.sta_connected?'Connected':'Offline'), j.sta_connected?'ok':'bad');
     stat('Upstream IP', j.sta_connected?j.sta_ip:'-');
-    if(j.sta_ssid2) stat('Upstream network', j.on_backup?'Backup':'Primary');
+    if(j.sta_ssid2||j.sta_ssid3||j.sta_ssid4||j.sta_ssid5) stat('Upstream network', 'Network '+(j.slot||1));
     stat('Session uptime', j.sta_connected?fmtTime(j.session_uptime_s):'-');
     stat('Repeater IP', j.ap_ip);
     stat('Total uptime', fmtTime(j.uptime_s));
     stat('Free memory', Math.round(j.free_heap/1024)+' KB');
 
-    if(!loadedWifiField){ $('sta_ssid').value=j.sta_ssid||''; loadedSsid2=j.sta_ssid2||''; $('sta_ssid2').value=loadedSsid2; loadedWifiField=true; }
+    if(!loadedWifiField){ loadedSsids=[j.sta_ssid||'',j.sta_ssid2||'',j.sta_ssid3||'',j.sta_ssid4||'',j.sta_ssid5||'']; WIFI_IDS.forEach(function(p,i){ $(p[0]).value=loadedSsids[i]; }); loadedWifiField=true; }
 
     $('clientCount').textContent=j.clients.length;
     var ct=$('clientsTbl'); ct.innerHTML='';
@@ -651,10 +656,13 @@ async function kickDevice(m){
 }
 
 /* ---------------- UPSTREAM WIFI ---------------- */
-var loadedSsid2='';
 async function saveWifi(){
-  var o={ssid:$('sta_ssid').value, password:$('sta_pass').value, ssid2:$('sta_ssid2').value};
-  if($('sta_pass2').value || $('sta_ssid2').value!==loadedSsid2) o.password2=$('sta_pass2').value;
+  var o={};
+  WIFI_IDS.forEach(function(p,i){
+    var s=$(p[0]).value, pw=$(p[1]).value;
+    o[p[2]]=s;
+    if(pw || s!==loadedSsids[i]) o[p[3]]=pw;
+  });
   var j=await post('/api/wifi',o);
   if(!j) return;
   $('wifiMsg').textContent = j.ok===false ? ('Error: '+j.error) : 'Saved - rebooting...';

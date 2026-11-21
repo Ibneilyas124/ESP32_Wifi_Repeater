@@ -266,3 +266,15 @@ termux-clipboard-set < ~/work-tmp/last_out.txt && echo "COPIED OK" || echo "COPY
 - Software plan (andaza): ADC oneshot/averaging, /api/me ya naye bina-login endpoint mein `batt_mv`/`batt_pct`, login.html par dikhana. ADC ghalti ~+-5-10% (andaza). Naya endpoint jode to max_uri_handlers (36) check karo.
 - Sawal jo Sarfraz se poochna baqi: battery kis tareeqe se juri hai (TP4056 + boost?), resistors lagane ko tayyar hain ya nahi.
 - Phase 1 (pehle): 5 upstream networks (priority list, auto-connect).
+
+---
+
+## 14. 5 UPSTREAM NETWORKS (2026-11-15) - bana, device test BAQI
+- NVS keys: slot1 `sta_ssid/sta_pass`, slot2 `sta_ssid2/sta_pass2` (purane, upgrade par wahi), slot3-5 `sta_ssid3..5/sta_pass3..5`. Priority 1 (sab se upar) se 5.
+- `main.c`: `STA_SLOTS` 5, `s_cur_slot` (s_on_backup hata diya), `sta_slot_key()`, `sta_apply_network(int slot)` (heap buffers), `up_scan_slots()`, task `uppick` (`upstream_pick_task`).
+- Flow: disconnect par 5 baar fail (`STA_FAILOVER_FAILS`) -> task `uppick`: agar 2+ slots bhare hon to `esp_wifi_disconnect()`, scan, sab se upar nazar aane wala slot (jo abhi wala nahi) chunta hai; scan fail / koi nazar na aaye (hidden SSID) to agla bhara hua slot (rotation). Sirf 1 slot bhara ho to purani tarah wahi retry. `s_up_scan_busy` flag ke dauran DISCONNECTED handler khud reconnect nahi karta.
+- `primary_return_task` ab har ~5 min (jab slot 1 nahi) upar wale slots scan karta hai, upar wala dikhe to wapas jata hai.
+- Boot par slot 1 khali ho to pehla bhara hua slot lagta hai.
+- `/api/wifi` mein `ssid3..5`, `password3..5` (password sirf tab bheja jata hai jab badla ho; buffer 1100). Slot 1 ka password bhi ab "khali = purana rahe" (pehle har save par dobara dena parta tha). `/api/status` mein `slot` (1-5), `sta_ssid3..5`. Config Export/Import mein sta_ssid3..5/sta_pass3..5 shamil. Naya URI handler nahi.
+- **Unverified (andaze):** `esp_wifi_scan_start` `esp_wifi_disconnect()` ke baad chalta hai; 5 fails ke baad switch mein ~30 sec lag sakte hain; do networks dono dikhein aur upar wala connect na ho paye to har ~5 min ping-pong (pehle jaisa masla); scan sirf 24 sab se taqatwar APs mein dhoondta hai.
+- Tests: 5 SSID save + reboot; active router band karke auto switch; boot par slot 1 ghayab; upar wala wapas aaye to ~5 min mein return; export/import; factory reset par slots saaf.
