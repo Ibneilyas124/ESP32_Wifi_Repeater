@@ -256,3 +256,13 @@ termux-clipboard-set < ~/work-tmp/last_out.txt && echo "COPIED OK" || echo "COPY
 **Update ka device par tareeqa:** Admin > Advanced > Firmware Update > "Check for update" > "Update now" (~30 sec, reconnect) > dobara Check: "Up to date (build #N)".
 
 **Aakhri CHECKPOINT (2026-11-13):** "Failed login log (waqt/naam/MAC/IP/password, NVS, 24h) device par confirm (Sarfraz); 24h auto-delete test baqi. Pichhla: Router click panel + grey dot reboot push, device par perfect (Sarfraz). Online update, diagnosis fix, Android 11, device label, backup file, reset+esp_wifi_restore, red offline sab device par confirm. Khule: subnet overlap fix, hardware reset check, rollback test, docs update. Naye commits ka Actions green API se unverified."
+
+---
+
+## 13. PENDING FEATURE (2026-11-15): Battery level indicator (abhi NAHI bana)
+- Masla: 18650 battery kam hone par WiFi TX ke jhatkon se brownout hota hai, SSID gayab ho jati hai, DevKit ki red power LED jalti rehti hai (software se control nahi). Koi warning nahi milti.
+- Maqsad: login page par (bina login) battery % / voltage aur low warning (~3.5V se neeche).
+- Zaroorat HARDWARE: battery (+) se 100k+100k divider, beech ka point GPIO34 (ADC1, input-only). Divider ke bina software se napna mumkin nahi (DevKit apni battery nahi napta).
+- Software plan (andaza): ADC oneshot/averaging, /api/me ya naye bina-login endpoint mein `batt_mv`/`batt_pct`, login.html par dikhana. ADC ghalti ~+-5-10% (andaza). Naya endpoint jode to max_uri_handlers (36) check karo.
+- Sawal jo Sarfraz se poochna baqi: battery kis tareeqe se juri hai (TP4056 + boost?), resistors lagane ko tayyar hain ya nahi.
+- Phase 1 (pehle): 5 upstream networks (priority list, auto-connect).
