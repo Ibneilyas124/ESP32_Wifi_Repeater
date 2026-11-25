@@ -278,3 +278,14 @@ termux-clipboard-set < ~/work-tmp/last_out.txt && echo "COPIED OK" || echo "COPY
 - `/api/wifi` mein `ssid3..5`, `password3..5` (password sirf tab bheja jata hai jab badla ho; buffer 1100). Slot 1 ka password bhi ab "khali = purana rahe" (pehle har save par dobara dena parta tha). `/api/status` mein `slot` (1-5), `sta_ssid3..5`. Config Export/Import mein sta_ssid3..5/sta_pass3..5 shamil. Naya URI handler nahi.
 - **Unverified (andaze):** `esp_wifi_scan_start` `esp_wifi_disconnect()` ke baad chalta hai; 5 fails ke baad switch mein ~30 sec lag sakte hain; do networks dono dikhein aur upar wala connect na ho paye to har ~5 min ping-pong (pehle jaisa masla); scan sirf 24 sab se taqatwar APs mein dhoondta hai.
 - Tests: 5 SSID save + reboot; active router band karke auto switch; boot par slot 1 ghayab; upar wala wapas aaye to ~5 min mein return; export/import; factory reset par slots saaf.
+
+---
+
+## 15. REMOTE ADMIN ON/OFF SWITCH (2026-11-15) - bana, device test BAQI
+- Maqsad: upstream (main router ke network) se repeater ki upstream IP (`sta_ip`, ya `sta_static_ip` "Remote-management IP") par admin page khulna on/off. Default ON.
+- Setting: `SETTINGS` mein `remote_admin` (bool, group security, default "1"). Admin > Advanced > Settings mein dikhti hai, Config Export/Import khud shamil, save par reboot.
+- Code (`main/main.c`): `s_remote_admin_on` (volatile bool, `start_webserver()` boot par NVS se parhta hai), `remote_gate_open()` httpd `config.open_fn` hook. OFF ho to jis connection ka local address (`getsockname`, AF_INET ya v4-mapped AF_INET6) == `s_sta_ip` ho woh foran band. Repeater ke apne AP IP (192.168.4.1) par asar nahi. Naya URI handler nahi.
+- OFF par band: admin page, /tools, guest "Request access" jab upstream IP se aaye. Update (GitHub) outbound hai, rukta nahi.
+- **Dobara ON sirf repeater ke apne WiFi (192.168.4.1/admin) se.** Remote se nahi ho sakta.
+- **Unverified (andaze):** `validate_setting` mein `remote_admin` guest_filter wali bool branch se validate hota hai (branch ka poora code dekha nahi); IPv6 non-mapped address par gate allow karta hai; agar `s_sta_ip` badle to naya IP check hota hai (DHCP badalne par bhi theek).
+- Tests: Settings mein remote_admin 0, Save -> reboot -> upstream IP se admin band, 192.168.4.1/admin khulta hai; 1 karke upstream IP se dobara khulta hai; export file mein `remote_admin`; factory reset par default ON.

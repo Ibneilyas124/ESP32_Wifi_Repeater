@@ -61,6 +61,7 @@ static int64_t s_boot_time_us = 0;
 static char s_session_token[40] = "";
 static uint32_t s_subnet_base = 0, s_subnet_mask = 0;
 static volatile bool s_guest_filter_on = true;
+static volatile bool s_remote_admin_on = true;   /* setting "remote_admin": admin page upstream IP se khule ya nahi */
 
 /* ---- deauth monitor ring buffer ---- */
 #define DEAUTH_RING 24
@@ -145,6 +146,7 @@ static const setting_t SETTINGS[] = {
     {"overall_up_kbps",  "Overall upload cap (all devices)", "0",                    "number",        "0 = unlimited. Total upload speed shared by every connected device combined, in Kbps", "bandwidth"},
     {"overall_down_kbps","Overall download cap (all devices)","0",                   "number",        "0 = unlimited. Total download/streaming speed shared by every connected device combined, in Kbps", "bandwidth"},
     {"tz_offset",  "Time zone offset (hours from UTC)", "5",                      "number",        "Used for whitelist time windows. Pakistan = 5. Range -12 to 14", "network"},
+    {"remote_admin","Admin access from main router (remote)","1",                 "bool",          "1 = admin page also opens from the main router's network using the upstream IP. 0 = only through this repeater's own WiFi (192.168.4.1). Turn it back on only from the repeater's own WiFi", "security"},
 };
 #define N_SETTINGS (sizeof(SETTINGS) / sizeof(SETTINGS[0]))
 
@@ -305,7 +307,7 @@ static bool validate_setting(const char *key, const char *v, char *err, size_t n
         if (!int_in_range(v, 0, 168)) { snprintf(err, n, "must be 0-168"); return false; }
     } else if (strcmp(key, "overall_up_kbps") == 0 || strcmp(key, "overall_down_kbps") == 0) {
         if (!int_in_range(v, 0, 9999)) { snprintf(err, n, "must be 0-9999 Kbps (0 = unlimited)"); return false; }
-    } else if (strcmp(key, "guest_filter") == 0 || strcmp(key, "deauth_monitor") == 0) {
+    } else if (strcmp(key, "guest_filter") == 0 || strcmp(key, "deauth_monitor") == 0 || strcmp(key, "remote_admin") == 0) {
         if (strcmp(v, "0") != 0 && strcmp(v, "1") != 0) { snprintf(err, n, "must be 0 or 1"); return false; }
     } else if (strcmp(key, "deauth_alert") == 0) {
         if (!int_in_range(v, 1, 50)) { snprintf(err, n, "must be 1-50"); return false; }
@@ -3855,11 +3857,35 @@ static esp_err_t update_start_post_handler(httpd_req_t *req) {
     return send_result(req, true, NULL);
 }
 
+/* Remote admin switch: OFF ho to main router ke raste (repeater ki upstream IP par) aane wale naye connections foran band.
+ * Repeater ke apne WiFi (AP IP) par asar nahi. httpd socket AF_INET6 (v4-mapped) bhi deta hai, is liye dono families parhte hain. */
+static esp_err_t remote_gate_open(httpd_handle_t hd, int sockfd) {
+    (void)hd;
+    if (s_remote_admin_on) return ESP_OK;
+    if (strcmp(s_sta_ip, "0.0.0.0") == 0) return ESP_OK;
+    struct sockaddr_storage ss;
+    socklen_t sln = sizeof(ss);
+    if (getsockname(sockfd, (struct sockaddr *)&ss, &sln) != 0) return ESP_OK;
+    uint32_t lip = 0;
+    if (ss.ss_family == AF_INET) {
+        lip = ((struct sockaddr_in *)&ss)->sin_addr.s_addr;
+    } else if (ss.ss_family == AF_INET6) {
+        const uint8_t *b = ((struct sockaddr_in6 *)&ss)->sin6_addr.s6_addr;
+        bool mapped = (b[10] == 0xff && b[11] == 0xff);
+        for (int i = 0; i < 10; i++) if (b[i]) mapped = false;
+        if (mapped) memcpy(&lip, b + 12, 4);
+    }
+    if (lip != 0 && lip == esp_ip4addr_aton(s_sta_ip)) return ESP_FAIL;
+    return ESP_OK;
+}
+
 static void start_webserver(void) {
     blocklist_load();
+    { char ra[4]; get_setting("remote_admin", ra, sizeof(ra)); s_remote_admin_on = (ra[0] != '0'); }
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 36;
     config.stack_size = 8192;
+    config.open_fn = remote_gate_open;   /* remote_admin OFF: upstream IP wale connections yahin band */
     config.lru_purge_enable = true;   /* sockets bhar jayen to sab se purana idle socket band: admin page hang fix */
     httpd_handle_t server = NULL;
     if (httpd_start(&server, &config) != ESP_OK) {
